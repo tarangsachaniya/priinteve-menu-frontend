@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="priinteve-logo-grad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366F1" />
+      <stop offset="1" stop-color="#8B5CF6" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#priinteve-logo-grad)" />
+  <path
+    d="M20 46V18h11.5c3.2 0 5.8.85 7.7 2.55 1.92 1.7 2.88 4 2.88 6.9 0 2.9-.96 5.2-2.88 6.9-1.9 1.68-4.5 2.53-7.7 2.53H25.5V46H20Zm5.5-13.7h5.6c1.72 0 3.06-.42 4-1.26.96-.86 1.44-2.02 1.44-3.5 0-1.48-.48-2.63-1.44-3.47-.94-.86-2.28-1.29-4-1.29h-5.6v9.52Z"
+    fill="white"
+  />
+  <circle cx="45.5" cy="20.5" r="3.5" fill="white" fill-opacity="0.85" />
+</svg>

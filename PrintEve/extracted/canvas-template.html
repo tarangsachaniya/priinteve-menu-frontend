@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="80512e7b-f2a2-42aa-a6c6-46acc202aa8e"></script>
+</head>
+<body>
+
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  .canvas{background:#ffffff;font-family:"Inter",system-ui,-apple-system,sans-serif;padding:56px 48px 80px}
+  .opt{margin-bottom:72px}
+  .opt-head{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+  .badge{font-size:13px;font-weight:800;letter-spacing:.02em;color:#fff;background:#16A34A;padding:5px 12px;border-radius:8px}
+  .opt-title{font-size:26px;font-weight:800;letter-spacing:-.02em;color:#0F172A}
+  .opt-sub{font-size:14px;color:#64748B;max-width:640px;line-height:1.5;margin-bottom:28px}
+  .pair{display:flex;gap:44px;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px}
+  .tlab{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#94A3B8;display:flex;align-items:center;gap:8px}
+  .tlab .dot{width:9px;height:9px;border-radius:999px}
+  .device-screen .bn,.device-screen .ed,.device-screen .wrap{min-height:100%}
+
+  .force-light-og,.force-light-bn,.force-light-ed{
+    --green:#16A34A;--green-hover:#15803D;--green-2:#22C55E;--soft:#DCFCE7;--deep:#14532D;
+    --text:#0F172A;--muted:#64748B;--border:#E2E8F0;--chip:#F1F5F9;--card:#FFFFFF;
+    --cta-shadow:0 2px 0 #15803D;
+    --ph-a:#E2E8F0;--ph-b:#CBD5E1;--ph-ic:#94A3B8;
+    color:var(--text);
+  }
+  .force-light-og{--canvas:#F8FAFC;--row-shadow:0 0 20px rgba(110,135,171,.15)}
+  .force-light-bn{--canvas:#F1F5F9;--tile-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px rgba(110,135,171,.14);--hair:#EEF2F6}
+  .force-light-ed{--canvas:#FBFCFD;--row-shadow:0 0 22px rgba(110,135,171,.14);--hair:#E8EDF2;--glow:rgba(34,197,94,.22)}
+
+  .force-dark-og,.force-dark-bn,.force-dark-ed{
+    --green:#22C55E;--green-hover:#16A34A;--green-2:#4ADE80;--soft:#0F291B;--deep:#4ADE80;
+    --text:#E8F0EB;--muted:#8EA79B;--border:#22302A;--chip:#1B241F;
+    --cta-shadow:0 0 26px rgba(34,197,94,.5);
+    --ph-a:#1B241F;--ph-b:#243029;--ph-ic:#3C4E45;
+    color:var(--text);
+  }
+  .force-dark-og{--canvas:#0C1510;--card:#131C17;--row-shadow:0 0 20px rgba(0,0,0,.45)}
+  .force-dark-bn{--canvas:#0A120D;--card:#131C17;--tile-shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);--hair:#1B241F}
+  .force-dark-ed{--canvas:#0B120E;--card:#121A15;--row-shadow:0 0 22px rgba(0,0,0,.4);--hair:#1A231E;--glow:rgba(34,197,94,.28)}
+</style>
+</helmet>
+<div class="canvas">
+
+  <!-- OPTION 1a — ORIGINAL -->
+  <div class="opt" id="1a">
+    <div class="opt-head"><span class="badge">1a</span><span class="opt-title">Original — photo-first list</span></div>
+    <div class="opt-sub">The first design. A full-bleed portrait hero with the name overlaid on a scrim, a tactile hard-shadow primary CTA, borderless contact rows on wide ambient shadow, and a strict four-step type scale.</div>
+    <div class="pair">
+      <div class="col">
+        <div class="tlab"><span class="dot" style="background:#16A34A"></span>Light</div>
+        <x-import component-from-global-scope="IOSDevice" from="f32984ae-c1c1-42a1-8c13-f282b2950af3#/ios-frame.jsx" dark="{{ false }}" hint-size="402px,874px">
+          <div class="device-screen force-light-og" style="min-height:100%;background:var(--canvas);padding-top:50px"><dc-import name="PrintEve Card" hint-size="402px,100%"></dc-import></div>
+        </x-import>
+      </div>
+      <div class="col">
+        <div class="tlab"><span class="dot" style="background:#22C55E"></span>Dark</div>
+        <x-import component-from-global-scope="IOSDevice" from="f32984ae-c1c1-42a1-8c13-f282b2950af3#/ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+          <div class="device-screen force-dark-og" style="min-height:100%;background:var(--canvas);padding-top:50px"><dc-import name="PrintEve Card" hint-size="402px,100%"></dc-import></div>
+        </x-import>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION 1b — BENTO -->
+  <div class="opt" id="1b">
+    <div class="opt-head"><span class="badge">1b</span><span class="opt-title">Bento — modular tile grid</span></div>
+    <div class="opt-sub">A modern dashboard-style grid. Contact actions become tappable tiles, monospace numerics anchor the stats and IDs, and every block sits on a soft floating card. Trending Linear / Vercel restraint.</div>
+    <div class="pair">
+      <div class="col">
+        <div class="tlab"><span class="dot" style="background:#16A34A"></span>Light</div>
+        <x-import component-from-global-scope="IOSDevice" from="f32984ae-c1c1-42a1-8c13-f282b2950af3#/ios-frame.jsx" dark="{{ false }}" hint-size="402px,874px">
+          <div class="device-screen force-light-bn" style="min-height:100%;background:var(--canvas);padding-top:50px"><dc-import name="PrintEve Card Bento" hint-size="402px,100%"></dc-import></div>
+
+        </x-import>
+      </div>
+      <div class="col">
+        <div class="tlab"><span class="dot" style="background:#22C55E"></span>Dark</div>
+        <x-import component-from-global-scope="IOSDevice" from="f32984ae-c1c1-42a1-8c13-f282b2950af3#/ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+          <div class="device-screen force-dark-bn" style="min-height:100%;background:var(--canvas);padding-top:50px"><dc-import name="PrintEve Card Bento" hint-size="402px,100%"></dc-import></div>
+        </x-import>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION 1c — EDITORIAL -->
+  <div class="opt" id="1c">
+    <div class="opt-head"><span class="badge">1c</span><span class="opt-title">Editorial — magazine spotlight</span></div>
+    <div class="opt-sub">A premium, boutique feel. A circular spotlight portrait with a soft green glow, a large display-serif name, numbered section markers and a floating action dock. Warm, generous whitespace.</div>
+    <div class="pair">
+      <div class="col">
+        <div class="tlab"><span class="dot" style="background:#16A34A"></span>Light</div>
+        <x-import component-from-global-scope="IOSDevice" from="f32984ae-c1c1-42a1-8c13-f282b2950af3#/ios-frame.jsx" dark="{{ false }}" hint-size="402px,874px">
+          <div class="device-screen force-light-ed" style="min-height:100%;background:var(--canvas);padding-top:50px"><dc-import name="PrintEve Card Editorial" hint-size="402px,100%"></dc-import></div>
+        </x-import>
+      </div>
+      <div class="col">
+        <div class="tlab"><span class="dot" style="background:#22C55E"></span>Dark</div>
+        <x-import component-from-global-scope="IOSDevice" from="f32984ae-c1c1-42a1-8c13-f282b2950af3#/ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+          <div class="device-screen force-dark-ed" style="min-height:100%;background:var(--canvas);padding-top:50px"><dc-import name="PrintEve Card Editorial" hint-size="402px,100%"></dc-import></div>
+        </x-import>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+
+</body></html>

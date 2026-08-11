@@ -1,0 +1,475 @@
+/* ============================================================================
+   RESTAURANT TEMPLATE THEME SYSTEM
+   ----------------------------------------------------------------------------
+   One platform, many restaurants. Layout, typography, spacing and components
+   are identical for every tenant. The ONLY visual input a restaurant gives is
+   a single brand seed colour; everything below is either derived from that
+   seed or locked for all tenants.
+
+   The governing rule: if a token can differ per restaurant it must be
+   derivable from the seed alone. Anything that cannot be derived is locked.
+   That is what keeps 200 restaurants from becoming 200 designs.
+
+   Applied by <RestoThemeScope> as [data-resto-theme] + [data-resto-mode],
+   modelled on the card product's app/card-theme.css — read that file first if
+   this one is unfamiliar, the two solve the same problem the same way.
+
+   WHAT ARRIVES FROM JS (inline, set by RestoThemeScope):
+     --resto-brand              normalised seed hex
+     --on-brand                 #FFF / #111 / #000, chosen by luminance
+     --resto-brand-text-light   contrast-fitted brand text for light mode
+     --resto-brand-text-dark    contrast-fitted brand text for dark mode
+   Everything else is computed here. See lib/restaurant/brand.ts for why those
+   four cannot be: CSS can derive a ramp, but it cannot measure contrast.
+
+   ADDING A TENANT: nothing in this file changes. That is the whole point.
+   ========================================================================== */
+
+/* ============================================================================
+   1. LOCKED NON-COLOUR TOKENS   (identical for every restaurant)
+   ========================================================================== */
+[data-resto-theme] {
+  /* Outfit for display, DM Sans for body — loaded by app/order/layout.tsx,
+     which publishes --font-outfit / --font-dm-sans on :root. The fallbacks
+     matter: a guest on mobile data after a QR scan sees system type first and
+     the webfont swaps in, rather than staring at invisible text.
+
+     DM Sans is the body face specifically because it ships real tabular
+     figures, which is what keeps a column of dish prices aligned. */
+  --resto-font-display: var(--font-outfit), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --resto-font-body: var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Display / body / utility. Dish names and prices are the most-scanned
+     elements on the page, so they get the tightest discipline. */
+  --resto-display-lg: 1.875rem; /* 30 */
+  --resto-display-md: 1.5rem;   /* 24 */
+  --resto-display-sm: 1.25rem;  /* 20 */
+  --resto-body-lg: 1rem;        /* 16 */
+  --resto-body-md: 0.875rem;    /* 14 */
+  --resto-body-sm: 0.8125rem;   /* 13 */
+  --resto-utility-md: 0.75rem;  /* 12 */
+  --resto-utility-sm: 0.6875rem;/* 11 */
+
+  /* Display type is set tight; body is not. */
+  --resto-tracking-tight: -0.025em;
+  --resto-tracking-wide: 0.025em;
+
+  --resto-space-1: 0.25rem;  /*  4 */
+  --resto-space-2: 0.5rem;   /*  8 */
+  --resto-space-3: 0.75rem;  /* 12 */
+  --resto-space-4: 1rem;     /* 16 */
+  --resto-space-5: 1.5rem;   /* 24 */
+  --resto-space-6: 2rem;     /* 32 */
+  --resto-space-7: 3rem;     /* 48 */
+  --resto-space-8: 4rem;     /* 64 */
+
+  /* One base, everything else derived from it. Notably rounder than a stock
+     admin UI — the softness is most of what makes the menu read as hospitality
+     rather than as a form. */
+  --resto-radius: 1rem;
+  --resto-radius-sm: calc(var(--resto-radius) - 4px);  /* 12 */
+  --resto-radius-md: calc(var(--resto-radius) - 2px);  /* 14 */
+  --resto-radius-lg: var(--resto-radius);              /* 16 */
+  --resto-radius-xl: calc(var(--resto-radius) + 4px);  /* 20 */
+  --resto-radius-full: 999px;
+
+  --resto-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --resto-motion-micro: 150ms;
+  --resto-motion-overlay: 240ms;
+
+  /* Menu photography varies wildly in quality between tenants and is the
+     fastest way for the platform to look cheap. Every dish image is locked to
+     this ratio and centre-cropped. */
+  --resto-dish-ratio: 1 / 1;
+  --resto-cover-ratio: 16 / 9;
+
+  /* Shared page measure. The menu grid, the sticky toolbar and the hero
+     identity block all align to this or they visibly step. */
+  --resto-measure: 64rem; /* 1024 */
+
+  font-family: var(--resto-font-body);
+}
+
+/* ============================================================================
+   2. LOCKED PALETTE   (identical for every restaurant, both modes)
+   ----------------------------------------------------------------------------
+   Warm neutrals, not grey ones. Every surface carries a little chroma on a
+   warm hue (55–85°), which is what stops food photography from looking like
+   it has been dropped onto an admin panel. The two modes are siblings: the
+   same warmth, inverted — not a warm dark mode next to a clinical light one.
+
+   Three surface levels, and they are not interchangeable:
+     --resto-bg           the page
+     --resto-surface      banded sections (checkout groups, sheet bodies)
+     --resto-card         raised things (dish cards, logo tile, search field,
+                          grouped sections inside a sheet)
+
+   A sheet body is --resto-surface and never --resto-bg. Painting a panel the
+   colour of the page it sits on makes it read as a continuation of the menu
+   rather than as a layer above it, and the fix is not a darker scrim: the
+   scrim dims the page, not the panel. The step is small in light mode — about
+   a percent of lightness — so every overlay pairs it with a 1px
+   --resto-border edge, which is what actually makes the boundary findable.
+
+   Four decimal places nowhere: these are authored values, not conversions.
+   ========================================================================== */
+
+/* ── Light (also the no-script fallback) ─────────────────────────────────────
+   The `:root` half of this selector is load-bearing, not tidiness.
+
+   [data-resto-mode] reaches <html> from one place only: the try/catch'd inline
+   script in <RestoModeScript>. If that script never runs — strict CSP, an
+   ad-blocker, a QR-scan in-app browser, a route that forgets <RestoPage> — a
+   palette keyed solely on the compound selector resolves to *nothing*.
+   `background-color: var(--resto-bg)` is then invalid at computed-value time
+   and falls back to `transparent`: the page went white, every dish card and
+   modal panel went see-through, and the veg mark lost its green, while radii,
+   shadows and the brand fill (which need no mode) kept rendering — which is
+   what made it read as a design bug rather than as a missing attribute.
+
+   Anchoring the light values to `:root` means a missing attribute degrades to
+   a complete, readable light page instead of to nothing.
+
+   It has to be `:root` and NOT a bare [data-resto-theme]: the scope <div>
+   carries [data-resto-theme] with no mode of its own (see <RestoThemeScope>),
+   and any rule that matches that div *sets* the token there, which beats the
+   dark value inherited from <html> and would silently strand the whole menu in
+   light mode. `:root` only ever matches <html>, so the div keeps inheriting.
+   The dark block below is more specific than `:root`, so it still wins on
+   <html>, and an explicitly-moded preview div still resolves on its own.
+   ────────────────────────────────────────────────────────────────────────── */
+:root,
+[data-resto-theme][data-resto-mode="light"] {
+  --resto-bg: oklch(98.5% 0.008 80);
+  --resto-surface: oklch(97.5% 0.012 78);
+  --resto-card: oklch(100% 0.004 85);
+  --resto-surface-alt: oklch(95.5% 0.014 75);
+  --resto-border: oklch(90% 0.014 75);
+  --resto-divider: oklch(93% 0.012 75);
+  --resto-text: oklch(19% 0.02 45);
+  --resto-text-muted: oklch(52% 0.02 55);
+  --resto-text-subtle: oklch(64% 0.018 60);
+
+  --resto-shadow-card: 0 1px 2px oklch(20% 0.03 45 / 0.06), 0 12px 28px -18px oklch(20% 0.03 45 / 0.22);
+  --resto-shadow-overlay: 0 -8px 40px oklch(20% 0.03 45 / 0.18);
+
+  --resto-placeholder: linear-gradient(135deg, oklch(95.5% 0.014 75), oklch(90% 0.014 75));
+}
+
+/* ── Dark ────────────────────────────────────────────────────────────────── */
+[data-resto-theme][data-resto-mode="dark"] {
+  --resto-bg: oklch(16% 0.012 55);
+  --resto-surface: oklch(19% 0.014 55);
+  --resto-card: oklch(21.5% 0.015 55);
+  --resto-surface-alt: oklch(26% 0.016 55);
+  --resto-border: oklch(100% 0 0 / 0.1);
+  --resto-divider: oklch(100% 0 0 / 0.06);
+  --resto-text: oklch(96% 0.008 80);
+  --resto-text-muted: oklch(71% 0.015 70);
+  --resto-text-subtle: oklch(58% 0.014 70);
+
+  --resto-shadow-card: 0 1px 2px oklch(0% 0 0 / 0.4), 0 16px 32px -20px oklch(0% 0 0 / 0.6);
+  --resto-shadow-overlay: 0 -8px 40px oklch(0% 0 0 / 0.55);
+
+  --resto-placeholder: linear-gradient(135deg, oklch(24% 0.016 55), oklch(18% 0.012 55));
+}
+
+/* ============================================================================
+   3. LOCKED ACCENT + IMAGE TREATMENT
+   ----------------------------------------------------------------------------
+   Gold is a system accent no tenant controls. It marks ratings only. Making
+   it tenant-settable would be a second seed to validate, and letting the brand
+   colour do the job would mean a restaurant's stars change meaning with its
+   logo.
+   ========================================================================== */
+:root,
+[data-resto-theme][data-resto-mode="light"] {
+  --resto-gold: oklch(78% 0.13 85);
+}
+[data-resto-theme][data-resto-mode="dark"] {
+  --resto-gold: oklch(84% 0.12 88);
+}
+
+[data-resto-theme] {
+  /* The cover fades into the page rather than sitting behind a black scrim.
+     The old scrim existed to protect white text laid over the photo; the hero
+     no longer does that — identity sits on the page below the image — so the
+     gradient only has to make the seam disappear, and it works in both modes
+     because it fades to --resto-bg rather than to black. */
+  --resto-gradient-fade: linear-gradient(
+    to top,
+    var(--resto-bg) 0%,
+    color-mix(in oklab, var(--resto-bg) 60%, transparent) 55%,
+    color-mix(in oklab, var(--resto-bg) 10%, transparent) 100%
+  );
+}
+
+/* ============================================================================
+   4. BRAND RAMP   (the only per-tenant colour in the system)
+   ----------------------------------------------------------------------------
+   Derived by shifting lightness in OKLCH, which preserves the seed's chroma
+   and hue. Mixing toward white/black in sRGB instead would desaturate and
+   muddy the mid-tones, and a restaurant whose seed is a deep red would get a
+   pink-grey hover state.
+
+   Relative colour syntax has been Baseline since 2024; §4b covers anything
+   older with the color-mix technique app/card-theme.css already ships.
+   ========================================================================== */
+[data-resto-theme] {
+  --resto-brand: #16a34a; /* overridden inline per restaurant */
+
+  --resto-brand-50: oklch(from var(--resto-brand) 0.97 c h);
+  --resto-brand-100: oklch(from var(--resto-brand) 0.92 c h);
+  --resto-brand-200: oklch(from var(--resto-brand) 0.85 c h);
+  --resto-brand-400: oklch(from var(--resto-brand) 0.68 c h);
+  --resto-brand-500: var(--resto-brand);
+  --resto-brand-600: oklch(from var(--resto-brand) calc(l - 0.08) c h);
+  --resto-brand-700: oklch(from var(--resto-brand) calc(l - 0.16) c h);
+  --resto-brand-800: oklch(from var(--resto-brand) 0.35 c h);
+  --resto-brand-900: oklch(from var(--resto-brand) 0.22 c h);
+
+  --resto-brand-ring: color-mix(in oklab, var(--resto-brand-500) 45%, transparent);
+
+  /* The lifted companion to the seed, used for the gradient and the float
+     shadow. Lightness only — the reference design also rotates hue ~22° toward
+     gold, which is right for its ember orange and wrong for everyone else: a
+     navy-branded restaurant would glow green. Giving up the warm-up is the
+     price of the derivation holding for all 200 tenants. */
+  --resto-brand-glow: oklch(from var(--resto-brand) calc(l + 0.135) c h);
+  --resto-gradient-brand: linear-gradient(135deg, var(--resto-brand-500), var(--resto-brand-glow));
+
+  /* Foreground on the brand fill. Inline value wins; the fallback only ever
+     applies in a preview that forgot to pass one. */
+  --on-brand: #ffffff;
+}
+
+@supports not (color: oklch(from #000 l c h)) {
+  [data-resto-theme] {
+    --resto-brand-50: color-mix(in oklab, var(--resto-brand) 8%, #fff);
+    --resto-brand-100: color-mix(in oklab, var(--resto-brand) 20%, #fff);
+    --resto-brand-200: color-mix(in oklab, var(--resto-brand) 38%, #fff);
+    --resto-brand-400: color-mix(in oklab, var(--resto-brand) 74%, #fff);
+    --resto-brand-600: color-mix(in oklab, var(--resto-brand) 88%, #000);
+    --resto-brand-700: color-mix(in oklab, var(--resto-brand) 76%, #000);
+    --resto-brand-800: color-mix(in oklab, var(--resto-brand) 55%, #000);
+    --resto-brand-900: color-mix(in oklab, var(--resto-brand) 36%, #000);
+    --resto-brand-glow: color-mix(in oklab, var(--resto-brand) 78%, #fff);
+  }
+}
+
+/* Brand-as-text. The step differs by mode — brand-800 is legible on white and
+   invisible on near-black — and both are contrast-fitted in JS, because a
+   fixed lightness cannot guarantee 4.5:1 across every hue. */
+[data-resto-theme][data-resto-mode="light"] {
+  --resto-brand-text: var(--resto-brand-text-light, var(--resto-brand-800));
+  --resto-brand-tint: var(--resto-brand-50);
+  --resto-brand-tint-border: var(--resto-brand-200);
+}
+
+[data-resto-theme][data-resto-mode="dark"] {
+  --resto-brand-text: var(--resto-brand-text-dark, var(--resto-brand-400));
+  --resto-brand-tint: color-mix(in oklab, var(--resto-brand-500) 16%, var(--resto-bg));
+  --resto-brand-tint-border: color-mix(in oklab, var(--resto-brand-500) 32%, var(--resto-bg));
+}
+
+/* ============================================================================
+   5. SEMANTIC COLOURS   (never brand-tinted, in any mode)
+   ----------------------------------------------------------------------------
+   Availability must read identically at every restaurant. A guest who learns
+   that green means open at one place must not have to relearn it at the next,
+   so nothing here derives from --resto-brand. A red-branded restaurant is
+   exactly why: its error states are distinguished by icon and wording too,
+   never by colour alone.
+
+   The two modes carry different values only so each clears contrast on its own
+   background — the meaning is identical.
+   ========================================================================== */
+:root,
+[data-resto-theme][data-resto-mode="light"] {
+  --resto-success: oklch(58% 0.16 145);
+  --resto-warn: oklch(70% 0.16 70);
+  --resto-error: oklch(57.7% 0.245 27.325);
+  --resto-veg: oklch(58% 0.16 145);
+  --resto-nonveg: oklch(55% 0.2 28);
+}
+
+[data-resto-theme][data-resto-mode="dark"] {
+  --resto-success: oklch(72% 0.16 145);
+  --resto-warn: oklch(80% 0.15 75);
+  --resto-error: oklch(65% 0.2 25);
+  --resto-veg: oklch(72% 0.16 145);
+  --resto-nonveg: oklch(68% 0.19 28);
+}
+
+[data-resto-theme] {
+  --resto-success-soft: color-mix(in oklab, var(--resto-success) 14%, var(--resto-bg));
+  --resto-warn-soft: color-mix(in oklab, var(--resto-warn) 14%, var(--resto-bg));
+  --resto-error-soft: color-mix(in oklab, var(--resto-error) 14%, var(--resto-bg));
+  --resto-veg-soft: color-mix(in oklab, var(--resto-veg) 12%, var(--resto-bg));
+  --resto-nonveg-soft: color-mix(in oklab, var(--resto-nonveg) 12%, var(--resto-bg));
+
+  /* The one shadow that carries brand. Reserved for the floating cart bar:
+     it hovers over the menu with nothing behind it to ground it, and a neutral
+     drop shadow leaves it looking pasted on. */
+  --resto-shadow-float: 0 12px 40px -12px color-mix(in oklab, var(--resto-brand-500) 45%, transparent);
+}
+
+/* ============================================================================
+   6. ACCENT EMPHASIS
+   ----------------------------------------------------------------------------
+   Brand appears as a fill: filled active category chip, filled Add on every
+   dish card. Spec §6 argued for a restrained treatment instead — brand
+   underline on a neutral chip, one primary action per view — and both were
+   built and compared. Fill won: on a menu the Add button *is* the primary
+   action of its card, and the restrained version left the page reading as
+   unbranded on exactly the surface a tenant most wants to own.
+
+   Kept as named tokens rather than inlined so the decision stays reversible
+   in one place.
+   ========================================================================== */
+[data-resto-theme] {
+  --resto-chip-bg: var(--resto-surface-alt);
+  --resto-chip-text: var(--resto-text-muted);
+  --resto-chip-border: transparent;
+  --resto-chip-active-bg: var(--resto-brand-500);
+  --resto-chip-active-text: var(--on-brand);
+  --resto-chip-active-border: transparent;
+
+  --resto-add-bg: var(--resto-brand-500);
+  --resto-add-text: var(--on-brand);
+  --resto-add-border: transparent;
+  --resto-add-hover-bg: var(--resto-brand-600);
+}
+
+/* ============================================================================
+   7. SHADCN TOKEN REMAP
+   ----------------------------------------------------------------------------
+   The customer surfaces reuse the app's Button, Input, Label and Textarea.
+   Remapping the app's tokens inside this scope makes those components adopt
+   the restaurant palette with no edits and no per-tenant variants.
+
+   Bare OKLCH component triplets ("L C H", no wrapper) because
+   tailwind.config.ts wraps them as `oklch(var(--card) / <alpha-value>)`.
+   These are the same colours as §2 above, expressed the other way — keep both
+   halves in sync when a palette value changes, or the reused <Button> and
+   <Input> quietly drift away from the surfaces around them.
+
+   One value cannot round-trip: dark --resto-border is translucent white
+   (oklch(100% 0 0 / .1)), and a triplet slot has nowhere to put the alpha.
+   The triplet below is what that white composites to over --resto-bg, so the
+   two agree visually even though they are written differently.
+   ========================================================================== */
+[data-resto-theme][data-resto-mode="dark"] {
+  --background: 0.16 0.012 55;
+  --foreground: 0.96 0.008 80;
+  --card: 0.215 0.015 55;
+  --card-foreground: 0.96 0.008 80;
+  --popover: 0.215 0.015 55;
+  --popover-foreground: 0.96 0.008 80;
+  --secondary: 0.26 0.016 55;
+  --secondary-foreground: 0.96 0.008 80;
+  --muted: 0.26 0.016 55;
+  --muted-foreground: 0.71 0.015 70;
+  --accent: 0.30 0.025 55;
+  --accent-foreground: 0.96 0.008 80;
+  --destructive: 0.65 0.2 25;
+  --destructive-foreground: 0.98 0.005 80;
+  --border: 0.2732 0.014 67.18;
+  --input: 0.2732 0.014 67.18;
+}
+
+/* Deliberately NOT anchored to :root like §2 — these names are the card
+   product's too, and globals.css owns them there. Hoisting the restaurant
+   values onto :root would repaint every dashboard and card page warm. The
+   no-script case needs no fallback here anyway: globals.css already gives all
+   of these opaque values, so a reused <Button> or <Dialog> stays solid. */
+[data-resto-theme][data-resto-mode="light"] {
+  --background: 0.985 0.008 80;
+  --foreground: 0.19 0.02 45;
+  --card: 1 0.004 85;
+  --card-foreground: 0.19 0.02 45;
+  --popover: 1 0.004 85;
+  --popover-foreground: 0.19 0.02 45;
+  --secondary: 0.955 0.014 75;
+  --secondary-foreground: 0.28 0.03 45;
+  --muted: 0.955 0.014 75;
+  --muted-foreground: 0.52 0.02 55;
+  --accent: 0.93 0.03 75;
+  --accent-foreground: 0.25 0.03 45;
+  --destructive: 0.577 0.245 27.325;
+  --destructive-foreground: 0.98 0.005 80;
+  --border: 0.90 0.014 75;
+  --input: 0.90 0.014 75;
+}
+
+/* Tailwind's `primary` maps to the brand seed, so <Button> is brand-filled and
+   legible without a single per-tenant class. It is declared as a raw colour
+   rather than a triplet, which costs the `/<alpha-value>` syntax on primary
+   only — nothing in the template uses a translucent primary. */
+[data-resto-theme] .bg-primary {
+  background-color: var(--resto-brand-500);
+}
+[data-resto-theme] .text-primary-foreground {
+  color: var(--on-brand);
+}
+[data-resto-theme] .text-primary {
+  color: var(--resto-brand-text);
+}
+[data-resto-theme] *:focus-visible {
+  outline: 2px solid var(--resto-brand-500);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   8. BASE
+   ========================================================================== */
+[data-resto-theme] {
+  background-color: var(--resto-bg);
+  color: var(--resto-text);
+}
+
+/* Scoped to the element that actually carries the mode, which is <html>.
+   Declaring color-scheme on [data-resto-theme] also hit the inner scope <div>,
+   and that div deliberately has no [data-resto-mode] (see <RestoThemeScope>) —
+   so the dark override could never match it, and `color-scheme: light` was
+   pinned on the whole menu subtree, leaving light scrollbars and light native
+   form controls on an otherwise dark page. */
+html[data-resto-mode="light"] {
+  color-scheme: light;
+}
+html[data-resto-mode="dark"] {
+  color-scheme: dark;
+}
+
+/* Display face. Applied by class rather than by element so a dish name in an
+   <h3> and a total in a <span> get the same treatment — what earns the display
+   face is being a name, a number or a title, not the tag it happens to use. */
+[data-resto-theme] .resto-display {
+  font-family: var(--resto-font-display);
+  letter-spacing: var(--resto-tracking-tight);
+}
+
+/* Prices and quantities must line up down a column of dish cards. */
+[data-resto-theme] .resto-numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The category strip scrolls horizontally on every phone; a visible scrollbar
+   under it reads as a rendering bug rather than as an affordance. */
+[data-resto-theme] .resto-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+[data-resto-theme] .resto-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-resto-theme],
+  [data-resto-theme] * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

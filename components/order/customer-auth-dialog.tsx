@@ -5,6 +5,7 @@ import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { extractNationalDigits, formatMobile, INDIAN_MOBILE_REGEX } from "@/lib/restaurant/mobile";
+import { OverlayShell } from "@/components/order/overlay-shell";
 import type { PublicRestaurant } from "@/components/order/types";
 
 type SignedInCustomer = { name: string; mobile: string };
@@ -103,29 +104,12 @@ export function CustomerAuthDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center">
-      {dismissible ? (
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-        />
-      ) : (
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
-      )}
-
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Sign in"
-        className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-[var(--resto-radius-xl)] sm:max-w-sm sm:rounded-[var(--resto-radius-xl)]"
-        style={{
-          backgroundColor: "var(--resto-surface)",
-          border: "1px solid var(--resto-border)",
-          boxShadow: "var(--resto-shadow-overlay)",
-        }}
-      >
+    <OverlayShell
+      tone="identity"
+      label="Sign in"
+      onClose={onClose}
+      dismissible={dismissible}
+    >
         <header
           className="flex items-center justify-between border-b px-5 py-4"
           style={{ borderColor: "var(--resto-border)" }}
@@ -272,7 +256,6 @@ export function CustomerAuthDialog({
             </form>
           )}
         </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 }

@@ -151,7 +151,26 @@
   --resto-text-subtle: oklch(64% 0.018 60);
 
   --resto-shadow-card: 0 1px 2px oklch(20% 0.03 45 / 0.06), 0 12px 28px -18px oklch(20% 0.03 45 / 0.22);
-  --resto-shadow-overlay: 0 -8px 40px oklch(20% 0.03 45 / 0.18);
+
+  /* A fourth surface level, above the three above: what a drawer or a modal is
+     painted. It is deliberately not --resto-surface. A banded section sits IN
+     the page and a step of one percent is enough to band it; an overlay sits
+     OVER the page with a scrim between, and has to read as a different plane
+     from two feet away. Light mode can lean on the shadow for that, so the
+     panel goes to the card white and the edge firms up a little. */
+  --resto-overlay: oklch(100% 0.004 85);
+  /* Banded sections *inside* an overlay — a cart footer, a required-options
+     group. --resto-card cannot do this job any more: it is defined as a step
+     above --resto-surface, and an overlay is no longer painted --resto-surface,
+     so a card-coloured band inside one now reads a step DOWN instead of up.
+     Light mode bands darker than its white panel; dark mode bands lighter. */
+  --resto-overlay-alt: oklch(97% 0.012 78);
+  --resto-overlay-border: oklch(87% 0.016 75);
+  --resto-scrim: oklch(22% 0.03 45 / 0.5);
+  --resto-shadow-overlay:
+    0 32px 64px -16px oklch(20% 0.03 45 / 0.3),
+    0 0 0 1px oklch(20% 0.03 45 / 0.04),
+    inset 0 1px 0 oklch(100% 0 0 / 0.9);
 
   --resto-placeholder: linear-gradient(135deg, oklch(95.5% 0.014 75), oklch(90% 0.014 75));
 }
@@ -169,7 +188,23 @@
   --resto-text-subtle: oklch(58% 0.014 70);
 
   --resto-shadow-card: 0 1px 2px oklch(0% 0 0 / 0.4), 0 16px 32px -20px oklch(0% 0 0 / 0.6);
-  --resto-shadow-overlay: 0 -8px 40px oklch(0% 0 0 / 0.55);
+
+  /* Elevation in a dark UI is light, not shadow.
+     The cart used to be --resto-surface (19%) over a --resto-bg page (16%) —
+     three points of lightness — and leaned on a black drop shadow to separate
+     the two. A black shadow on a near-black page separates nothing, so the
+     panel read as a continuation of the menu behind it however deep the scrim
+     went. The fix is to raise the panel itself: 25% is nine points clear of the
+     page, the edge doubles to 18% white so the boundary survives the scrim, and
+     an inset top highlight catches the upper corner the way a lifted surface
+     catches room light. The drop shadow stays, but as depth cue, not separator. */
+  --resto-overlay: oklch(25% 0.016 55);
+  --resto-overlay-alt: oklch(29% 0.017 55);
+  --resto-overlay-border: oklch(100% 0 0 / 0.18);
+  --resto-scrim: oklch(0% 0 0 / 0.7);
+  --resto-shadow-overlay:
+    0 32px 64px -16px oklch(0% 0 0 / 0.75),
+    inset 0 1px 0 oklch(100% 0 0 / 0.1);
 
   --resto-placeholder: linear-gradient(135deg, oklch(24% 0.016 55), oklch(18% 0.012 55));
 }

@@ -307,6 +307,11 @@ export function SettingsForm({
 
     const parsed = restaurantSettingsSchema.safeParse({
       ...form,
+      // Matches what the switch above renders. Sending the row's stale `true`
+      // from a deployment with no keys is what the API used to reject outright,
+      // and it is how a restaurant ends up flagged for a payment method the
+      // guest is never offered.
+      onlinePaymentEnabled: form.onlinePaymentEnabled && razorpayConfigured,
       // The only field edited as a string but sent as an array — split here
       // rather than keeping cuisineTags itself an array in form state, which
       // would fight the text input over every keystroke and comma typed.
@@ -631,7 +636,13 @@ export function SettingsForm({
             id="online-payment"
             title="Pay Online (Razorpay)"
             description="Cards, UPI, netbanking and wallets."
-            checked={form.onlinePaymentEnabled}
+            /* Shown off, not merely frozen. `disabled` blocks both directions,
+               so a row carrying the schema default (true) used to render this
+               switch on and immovable — the owner could see that online payment
+               was enabled, could not turn it off, and the banner above claimed
+               it wasn't available. Off-and-disabled tells the truth: this
+               deployment has no keys, so nothing online is happening. */
+            checked={form.onlinePaymentEnabled && razorpayConfigured}
             disabled={!razorpayConfigured}
             onChange={(checked) => update("onlinePaymentEnabled", checked)}
           />

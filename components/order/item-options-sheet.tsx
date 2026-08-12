@@ -6,6 +6,7 @@ import { Minus, Plus, X } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { resolveUnitPrice } from "@/lib/restaurant/pricing";
 import { defaultVariant } from "@/components/order/use-cart";
+import { OverlayShell } from "@/components/order/overlay-shell";
 import type { PublicMenuItem, PublicVariant } from "@/components/order/types";
 
 /**
@@ -53,25 +54,7 @@ export function ItemOptionsSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-      />
-
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={item.name}
-        className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-[var(--resto-radius-xl)] sm:max-w-lg sm:rounded-[var(--resto-radius-xl)]"
-        style={{
-          backgroundColor: "var(--resto-surface)",
-          border: "1px solid var(--resto-border)",
-          boxShadow: "var(--resto-shadow-overlay)",
-        }}
-      >
+    <OverlayShell tone="dish" label={item.name} onClose={onClose}>
         <header
           className="flex items-start gap-3 border-b px-5 py-4"
           style={{ borderColor: "var(--resto-border)" }}
@@ -100,12 +83,12 @@ export function ItemOptionsSheet({
         <div className="flex-1 overflow-y-auto">
           {item.variants.length > 0 && (
             <section
-              /* Raised off the sheet body, which is itself --resto-surface
-                 now. Banding the required group is the whole point of this
-                 block, so it has to sit a level above the panel — painting it
-                 the panel's own colour would delete it. */
+              /* Banded off the sheet body, which is --resto-overlay. Marking
+                 the required group is the whole point of this block, so it has
+                 to sit a level off the panel — painting it the panel's own
+                 colour would delete it. */
               className="space-y-3 px-5 py-4"
-              style={{ backgroundColor: "var(--resto-card)" }}
+              style={{ backgroundColor: "var(--resto-overlay-alt)" }}
             >
               <GroupHeading title="Choose size" requirement="Required" />
               <div className="space-y-2">
@@ -144,7 +127,10 @@ export function ItemOptionsSheet({
 
         <footer
           className="flex items-center gap-3 border-t px-5 py-4"
-          style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface)" }}
+          style={{
+            borderColor: "var(--resto-border)",
+            backgroundColor: "var(--resto-overlay-alt)",
+          }}
         >
           <div
             className="flex items-center gap-1 border"
@@ -195,8 +181,7 @@ export function ItemOptionsSheet({
             Add item · {formatCurrency(unitPrice * quantity)}
           </button>
         </footer>
-      </div>
-    </div>
+    </OverlayShell>
   );
 }
 

@@ -15,6 +15,7 @@ import { extractNationalDigits, formatMobile } from "@/lib/restaurant/mobile";
 import { computeOrderTotals } from "@/lib/restaurant/pricing";
 import { ORDER_TYPE_LABEL } from "@/lib/restaurant/order-status";
 import { writeResumeOrder } from "@/lib/restaurant/order-recovery";
+import { OverlayShell } from "@/components/order/overlay-shell";
 import type { CartLine, PublicRestaurant, PublicTable } from "@/components/order/types";
 
 const ORDER_TYPE_ICON: Record<RestoOrderType, typeof Store> = {
@@ -143,25 +144,7 @@ export function CheckoutSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-      />
-
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Checkout"
-        className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-[var(--resto-radius-xl)] sm:max-w-lg sm:rounded-[var(--resto-radius-xl)]"
-        style={{
-          backgroundColor: "var(--resto-surface)",
-          border: "1px solid var(--resto-border)",
-          boxShadow: "var(--resto-shadow-overlay)",
-        }}
-      >
+    <OverlayShell tone="checkout" label="Checkout" onClose={onClose}>
         <header
           className="flex items-center justify-between border-b px-5 py-4"
           style={{ borderColor: "var(--resto-border)" }}
@@ -369,7 +352,6 @@ export function CheckoutSheet({
           </Button>
         </div>
         </form>
-      </div>
-    </div>
+    </OverlayShell>
   );
 }

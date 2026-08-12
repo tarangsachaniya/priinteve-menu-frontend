@@ -8,6 +8,7 @@ import {
   CustomerOrderList,
   type CustomerOrder,
 } from "@/components/order/customer-order-list";
+import { OverlayShell } from "@/components/order/overlay-shell";
 import type { PublicRestaurant } from "@/components/order/types";
 
 /**
@@ -59,25 +60,7 @@ export function TrackOrderDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-      />
-
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Track my order"
-        className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-[var(--resto-radius-xl)] sm:max-w-sm sm:rounded-[var(--resto-radius-xl)]"
-        style={{
-          backgroundColor: "var(--resto-surface)",
-          border: "1px solid var(--resto-border)",
-          boxShadow: "var(--resto-shadow-overlay)",
-        }}
-      >
+    <OverlayShell tone="lookup" label="Track my order" onClose={onClose}>
         <header
           className="flex items-center justify-between border-b px-5 py-4"
           style={{ borderColor: "var(--resto-border)" }}
@@ -187,7 +170,6 @@ export function TrackOrderDialog({
             />
           )}
         </div>
-      </div>
-    </div>
+    </OverlayShell>
   );
 }

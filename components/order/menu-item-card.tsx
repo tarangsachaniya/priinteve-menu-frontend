@@ -1,10 +1,10 @@
 "use client";
 
-import { Clock, ImageOff, Minus, Plus, Star } from "lucide-react";
+import { Clock, Minus, Plus, Star } from "lucide-react";
 
 import { formatCurrency } from "@/lib/format";
-import { sizedImageUrl } from "@/lib/restaurant/image";
 import { ITEM_BADGE_LABEL, formatRating, formatServeTime } from "@/lib/restaurant/menu-display";
+import { DishImage } from "@/components/order/dish-image";
 import { isCustomisable } from "@/components/order/use-cart";
 import type { PublicMenuItem } from "@/components/order/types";
 
@@ -22,6 +22,7 @@ import type { PublicMenuItem } from "@/components/order/types";
 export function MenuItemCard({
   item,
   quantity,
+  restaurantLogoUrl,
   orderingDisabled = false,
   onAdd,
   onIncrement,
@@ -29,6 +30,8 @@ export function MenuItemCard({
 }: {
   item: PublicMenuItem;
   quantity: number;
+  /** Stands in for a dish the owner never photographed — see DishImage. */
+  restaurantLogoUrl: string | null;
   /** Set while the restaurant is closed — the dish is fine, the kitchen isn't. */
   orderingDisabled?: boolean;
   onAdd: () => void;
@@ -145,7 +148,13 @@ export function MenuItemCard({
       </div>
 
       <div className="relative shrink-0">
-        <DishImage url={item.imageUrl} alt={item.name} />
+        <DishImage
+          url={item.imageUrl}
+          alt={item.name}
+          logoUrl={restaurantLogoUrl}
+          width={224}
+          className="w-[92px] sm:w-28"
+        />
 
         {/* While the restaurant is closed there is no control at all, rather
             than a disabled one: a greyed-out Add invites tapping, and the
@@ -211,45 +220,6 @@ export function MenuItemCard({
         </div>
       </div>
     </li>
-  );
-}
-
-/**
- * Fixed ratio and centre-crop, always. Dish photography varies wildly between
- * tenants and an un-cropped upload is the fastest way for the platform to look
- * cheap — so a missing image gets a branded placeholder, never a broken frame.
- */
-function DishImage({ url, alt }: { url: string | null; alt: string }) {
-  const style = {
-    aspectRatio: "var(--resto-dish-ratio)",
-    borderRadius: "var(--resto-radius-md)",
-  } as React.CSSProperties;
-
-  if (!url) {
-    return (
-      <div
-        className="flex w-[92px] items-center justify-center sm:w-28"
-        style={{ ...style, background: "var(--resto-placeholder)" }}
-        aria-hidden
-      >
-        <ImageOff className="size-5" style={{ color: "var(--resto-text-subtle)" }} />
-      </div>
-    );
-  }
-
-  return (
-    /* eslint-disable-next-line @next/next/no-img-element */
-    <img
-      // Requested at the size it actually draws (112 CSS px at the widest, with
-      // dpr_auto covering retina) rather than at the 800px the upload stores.
-      // Thirty of these is the bulk of what a menu page weighs.
-      src={sizedImageUrl(url, { width: 224 })}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      className="w-[92px] object-cover sm:w-28"
-      style={style}
-    />
   );
 }
 

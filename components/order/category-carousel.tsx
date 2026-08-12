@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { sizedImageUrl } from "@/lib/restaurant/image";
 import { cn } from "@/lib/utils";
+import { DishImage } from "@/components/order/dish-image";
 import type { PublicMenuCategory } from "@/components/order/types";
 
 /**
@@ -25,10 +25,13 @@ import type { PublicMenuCategory } from "@/components/order/types";
 export function CategoryCarousel({
   categories,
   activeCategoryId,
+  restaurantLogoUrl,
   onSelect,
 }: {
   categories: PublicMenuCategory[];
   activeCategoryId: string | null;
+  /** Stands in for a category whose dishes carry no photo — see DishImage. */
+  restaurantLogoUrl: string | null;
   onSelect: (categoryId: string) => void;
 }) {
   const trackRef = useRef<HTMLUListElement>(null);
@@ -119,32 +122,15 @@ export function CategoryCarousel({
                   boxShadow: "var(--resto-shadow-card)",
                 }}
               >
-                {cover ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={sizedImageUrl(cover, { width: 320 })}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full object-cover"
-                    style={{
-                      aspectRatio: "var(--resto-dish-ratio)",
-                      borderRadius: "var(--resto-radius-md)",
-                    }}
-                  />
-                ) : (
-                  <span
-                    className="flex w-full items-center justify-center"
-                    style={{
-                      aspectRatio: "var(--resto-dish-ratio)",
-                      background: "var(--resto-placeholder)",
-                      borderRadius: "var(--resto-radius-md)",
-                    }}
-                    aria-hidden
-                  >
-                    <ImageOff className="size-4" style={{ color: "var(--resto-text-subtle)" }} />
-                  </span>
-                )}
+                {/* alt="" — the category name is the next line of the same
+                    button, so naming the image too would read it twice. */}
+                <DishImage
+                  url={cover}
+                  alt=""
+                  logoUrl={restaurantLogoUrl}
+                  width={320}
+                  className="w-full"
+                />
 
                 <span
                   className="line-clamp-1 text-[13px] font-semibold"

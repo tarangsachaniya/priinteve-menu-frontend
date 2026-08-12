@@ -379,6 +379,7 @@ export function MenuBrowser({
           <RecommendedStrip
             items={recommended}
             variant="recommended"
+            restaurantLogoUrl={restaurant.logoUrl}
             orderingDisabled={!isOpen}
             onSelect={handleAdd}
             onBuyNow={handleBuyNow}
@@ -386,6 +387,7 @@ export function MenuBrowser({
           <RecommendedStrip
             items={favouritesStrip}
             variant="favourites"
+            restaurantLogoUrl={restaurant.logoUrl}
             orderingDisabled={!isOpen}
             onSelect={handleAdd}
             onBuyNow={handleBuyNow}
@@ -402,6 +404,7 @@ export function MenuBrowser({
         <CategoryCarousel
           categories={categories}
           activeCategoryId={categoryFilter}
+          restaurantLogoUrl={restaurant.logoUrl}
           onSelect={(id) =>
             // Toggles, like the chips: tapping the category you are already in
             // is far more likely to mean "show me everything again" than a
@@ -483,6 +486,7 @@ export function MenuBrowser({
                     <MenuItemCard
                       item={item}
                       quantity={cart.quantityByItem.get(item.id) ?? 0}
+                      restaurantLogoUrl={restaurant.logoUrl}
                       orderingDisabled={!isOpen}
                       onAdd={() => handleAdd(item)}
                       onIncrement={() => handleAdd(item)}

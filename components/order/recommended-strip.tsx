@@ -1,10 +1,10 @@
 "use client";
 
-import { Flame, ImageOff, RotateCcw } from "lucide-react";
+import { Flame, RotateCcw } from "lucide-react";
 
 import { formatCurrency } from "@/lib/format";
-import { sizedImageUrl } from "@/lib/restaurant/image";
 import { formatServeTime } from "@/lib/restaurant/menu-display";
+import { DishImage } from "@/components/order/dish-image";
 import type { PublicMenuItem } from "@/components/order/types";
 
 /**
@@ -47,12 +47,15 @@ const VARIANT: Record<StripVariant, { title: string; Icon: typeof Flame }> = {
 export function RecommendedStrip({
   items,
   variant,
+  restaurantLogoUrl,
   orderingDisabled,
   onSelect,
   onBuyNow,
 }: {
   items: PublicMenuItem[];
   variant: StripVariant;
+  /** Stands in for a dish the owner never photographed — see DishImage. */
+  restaurantLogoUrl: string | null;
   orderingDisabled: boolean;
   onSelect: (item: PublicMenuItem) => void;
   onBuyNow: (item: PublicMenuItem) => void;
@@ -96,32 +99,15 @@ export function RecommendedStrip({
                   disabled={orderingDisabled}
                   className="flex flex-col gap-2 text-left transition-opacity disabled:opacity-60"
                 >
-                  {item.imageUrl ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={sizedImageUrl(item.imageUrl, { width: 320 })}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full object-cover"
-                      style={{
-                        aspectRatio: "var(--resto-dish-ratio)",
-                        borderRadius: "var(--resto-radius-md)",
-                      }}
-                    />
-                  ) : (
-                    <span
-                      className="flex w-full items-center justify-center"
-                      style={{
-                        aspectRatio: "var(--resto-dish-ratio)",
-                        background: "var(--resto-placeholder)",
-                        borderRadius: "var(--resto-radius-md)",
-                      }}
-                      aria-hidden
-                    >
-                      <ImageOff className="size-4" style={{ color: "var(--resto-text-subtle)" }} />
-                    </span>
-                  )}
+                  {/* alt="" — the dish name is the next line of the same
+                      button, so naming the image too would read it twice. */}
+                  <DishImage
+                    url={item.imageUrl}
+                    alt=""
+                    logoUrl={restaurantLogoUrl}
+                    width={320}
+                    className="w-full"
+                  />
 
                   {/* Two lines' worth of box whether the name fills it or not.
                       Without it a one-word dish sits its price row 18px higher

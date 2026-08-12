@@ -273,9 +273,11 @@ export function SettingsForm({
   }
 
   /**
-   * One upload endpoint, parameterised by `kind` — see
-   * app/api/restaurant/settings/upload/route.ts for why cover and logo get
-   * different Cloudinary transforms even though the flow is identical here.
+   * One upload endpoint, parameterised by `kind`. The server uses it to name
+   * the S3 object, which is now the only thing the two differ by — the transform
+   * that used to distinguish them went away with Cloudinary, since cover and
+   * logo are both stored at full resolution and sized on delivery instead. See
+   * priinteve-api/src/routes/restaurant/settings.routes.ts.
    */
   async function handleImageUpload(kind: "cover" | "logo", file: File) {
     const setUploading = kind === "cover" ? setUploadingCover : setUploadingLogo;

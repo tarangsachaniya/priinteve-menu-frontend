@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import { Banknote, CreditCard, ImagePlus, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { uploadDirect } from "@/lib/upload";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -283,22 +285,18 @@ export function SettingsForm({
     const setUploading = kind === "cover" ? setUploadingCover : setUploadingLogo;
     setUploading(true);
     try {
-      const body = new FormData();
-      body.append("file", file);
-      body.append("kind", kind);
-      const res = await fetch("/api/restaurant/settings/upload", { method: "POST", body });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(typeof data.error === "string" ? data.error : "Upload failed");
-        return;
-      }
+      const data = await uploadDirect(file, "/api/restaurant/settings/upload-url", {
+        extra: { kind },
+      });
       if (kind === "cover") {
-        update("coverImageUrl", data.imageUrl);
-        update("coverPublicId", data.imagePublicId);
+        update("coverImageUrl", data.imageUrl as string);
+        update("coverPublicId", data.imagePublicId as string);
       } else {
-        update("logoUrl", data.imageUrl);
-        update("logoPublicId", data.imagePublicId);
+        update("logoUrl", data.imageUrl as string);
+        update("logoPublicId", data.imagePublicId as string);
       }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
     }

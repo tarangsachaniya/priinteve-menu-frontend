@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import { ImagePlus, Loader2, Plus, Star, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { uploadDirect } from "@/lib/upload";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -161,19 +163,16 @@ export function MenuItemForm({
   async function handleUpload(file: File) {
     setIsUploading(true);
     try {
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch("/api/restaurant/menu-items/upload", { method: "POST", body });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(typeof data.error === "string" ? data.error : "Upload failed");
-        return;
-      }
+      // Goes straight to S3 — the API only signs it. See lib/upload.ts for why
+      // the bytes no longer pass through this app's proxy.
+      const data = await uploadDirect(file, "/api/restaurant/menu-items/upload-url");
       setForm((prev) => ({
         ...prev,
-        imageUrl: data.imageUrl,
-        imagePublicId: data.imagePublicId,
+        imageUrl: data.imageUrl as string,
+        imagePublicId: data.imagePublicId as string,
       }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setIsUploading(false);
       if (fileRef.current) fileRef.current.value = "";

@@ -23,7 +23,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
  * Tables, as a restaurant manages them.
  *
  * Note what is NOT here any more: the QR image, the PNG download, the copy-link
- * button, the print sheet, and the table `code` itself. Printeve produces the
+ * button, the print sheet, and the table `code` itself. Priinteve Innovations produces the
  * physical QR Menu Card, so the restaurant's job ends at telling us what its
  * tables are called.
  *
@@ -43,7 +43,7 @@ export type TableRow = {
 
 /** What the owner is told to do next, in the one place they'd look for a QR. */
 const PRINTEVE_NOTICE =
-  "Contact Printeve to get your printed QR Menu Card. We generate and print the code for each table and send it to you.";
+  "Contact Priinteve Innovations to get your printed QR Menu Card. We generate and print the code for each table and send it to you.";
 
 function AddTablesDialog({
   onCreated,
@@ -104,7 +104,7 @@ function AddTablesDialog({
         <DialogHeader>
           <DialogTitle>Add tables</DialogTitle>
           <DialogDescription>
-            Name your tables here. Printeve prints a QR Menu Card for each one.
+            Name your tables here. Priinteve Innovations prints a QR Menu Card for each one.
           </DialogDescription>
         </DialogHeader>
 
@@ -257,9 +257,9 @@ export function TablesManager({ initialTables }: { initialTables: TableRow[] }) 
         <CardContent className="flex items-start gap-3 p-4">
           <Info className="mt-0.5 size-4 shrink-0 text-ink" />
           <div className="text-sm">
-            <p className="font-medium">QR Menu Cards are printed by Printeve</p>
+            <p className="font-medium">QR Menu Cards are printed by Priinteve Innovations</p>
             <p className="mt-0.5 text-muted-foreground">
-              Add your tables here, then contact Printeve — we generate and print the QR Menu Card
+              Add your tables here, then contact Priinteve Innovations — we generate and print the QR Menu Card
               for each table and send them to you.
             </p>
           </div>
@@ -286,7 +286,7 @@ export function TablesManager({ initialTables }: { initialTables: TableRow[] }) 
             <div>
               <p className="font-medium">No tables yet</p>
               <p className="text-sm text-muted-foreground">
-                Add your tables and contact Printeve for your printed QR Menu Cards.
+                Add your tables and contact Priinteve Innovations for your printed QR Menu Cards.
               </p>
             </div>
             <AddTablesDialog

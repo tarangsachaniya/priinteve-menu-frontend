@@ -27,7 +27,7 @@ export default async function RestaurantTablesPage() {
       <PageHeader
         icon={Table2}
         title="Tables"
-        description="Add the tables in your restaurant. Printeve prints a QR Menu Card for each one."
+        description="Add the tables in your restaurant. Priinteve Innovations prints a QR Menu Card for each one."
       />
 
       <TablesManager initialTables={tables} />

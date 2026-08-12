@@ -23,7 +23,7 @@ export const RESTAURANT_NAV_ITEMS: RestaurantNavItem[] = [
   { href: "/r/history", label: "History", icon: History },
   { href: "/r/menu", label: "Menu", icon: BookOpen },
   // "Tables", not "Tables & QR": the QR half moved to the admin side when
-  // printing became a Printeve-operated step.
+  // printing became a Priinteve Innovations-operated step.
   { href: "/r/tables", label: "Tables", icon: Table2 },
   { href: "/r/reviews", label: "Reviews", icon: Star },
   { href: "/r/settings", label: "Settings", icon: Settings },

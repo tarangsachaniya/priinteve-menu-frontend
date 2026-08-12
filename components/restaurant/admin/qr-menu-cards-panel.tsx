@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
- * QR Menu Cards, from the Printeve side.
+ * QR Menu Cards, from the Priinteve Innovations side.
  *
  * Everything a restaurant used to be able to do to its own codes lives here
  * instead, on the admin restaurant detail page. All of it is served by
@@ -136,7 +136,7 @@ export function QrMenuCardsPanel({
             QR Menu Cards
           </CardTitle>
           <CardDescription>
-            The restaurant creates its tables; Printeve prints the cards. These codes are not
+            The restaurant creates its tables; Priinteve Innovations prints the cards. These codes are not
             visible to the restaurant.
           </CardDescription>
         </div>

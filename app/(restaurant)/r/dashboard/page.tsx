@@ -172,7 +172,7 @@ export default async function RestaurantDashboardPage({
 
         {/* The restaurant's own public menu URL — the same page anyone can
             reach without a table. Not a table link and not a QR: printed QR
-            Menu Cards come from Printeve, so this card points at naming your
+            Menu Cards come from Priinteve Innovations, so this card points at naming your
             tables rather than at generating codes. */}
         <Card className="border-border/80">
           <CardHeader>

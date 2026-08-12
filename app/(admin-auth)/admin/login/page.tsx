@@ -16,6 +16,11 @@ import { Label } from "@/components/ui/label";
  * /login (POST /api/auth/login, pv_session cookie, aud "user") — a
  * restaurant is created by the same ADMIN account that manages plans and
  * users there, just from this app's own /admin section instead.
+ *
+ * Deliberately kept in its own route group (admin-auth), separate from the
+ * (admin) group's layout guard — see app/(restaurant-auth)/r/login for the
+ * same pattern. If this page were nested under app/(admin)/layout.tsx, the
+ * guard would redirect an unauthenticated visitor here to itself forever.
  */
 export default function AdminLoginPage() {
   const router = useRouter();

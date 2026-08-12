@@ -41,6 +41,16 @@ export function RestoThemeScope({
           "--on-brand": brand.onBrand,
           "--resto-brand-text-light": brand.textOnLight,
           "--resto-brand-text-dark": brand.textOnDark,
+          /**
+           * Without this, unstyled text (a bare <h3>, a <span> with no
+           * text-* class) inherits `color` from <body>, which is the card
+           * product's own near-black --foreground — set once, globally, and
+           * never touched by this scope's custom properties. Light resto mode
+           * hid the bug: near-black on a near-white panel still reads fine.
+           * Dark mode is where it actually breaks — near-black on a 25%-
+           * lightness panel is the "text not visible" screenshot.
+           */
+          color: "var(--resto-text)",
         } as React.CSSProperties
       }
     >

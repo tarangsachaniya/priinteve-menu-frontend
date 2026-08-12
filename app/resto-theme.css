@@ -411,6 +411,13 @@
   --destructive-foreground: 0.98 0.005 80;
   --border: 0.2732 0.014 67.18;
   --input: 0.2732 0.014 67.18;
+  /* Missing from this remap is why the outline Button ("Change" on checkout)
+     drew near-black border and text on a dark panel: --ink held its globals.css
+     default, meant for a light dashboard, and nothing here overrode it. Same
+     values as --foreground/--muted-foreground above — --ink is that family's
+     name for the same tone in the card product, not a separate colour. */
+  --ink: 0.96 0.008 80;
+  --ink-muted: 0.71 0.015 70;
 }
 
 /* Deliberately NOT anchored to :root like §2 — these names are the card
@@ -435,6 +442,8 @@
   --destructive-foreground: 0.98 0.005 80;
   --border: 0.90 0.014 75;
   --input: 0.90 0.014 75;
+  --ink: 0.19 0.02 45;
+  --ink-muted: 0.52 0.02 55;
 }
 
 /* Tailwind's `primary` maps to the brand seed, so <Button> is brand-filled and

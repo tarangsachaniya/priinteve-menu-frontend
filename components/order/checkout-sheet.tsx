@@ -196,15 +196,25 @@ export function CheckoutSheet({
                 const Icon = ORDER_TYPE_ICON[type];
                 const active = orderType === type;
                 return (
+                  /* Coloured via the same --resto-chip-* tokens as the
+                     category filter chips, not bg-primary/text-primary-
+                     foreground: those pull the card product's own green
+                     accent rather than this restaurant's brand colour, and
+                     never picked up the resto dark/light remap at all. */
                   <button
                     key={type}
                     type="button"
                     onClick={() => setOrderType(type)}
-                    className={`flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-xs font-medium transition-colors ${
-                      active
-                        ? "border-transparent bg-primary text-primary-foreground"
-                        : "border-border text-muted-foreground hover:border-foreground/30"
-                    }`}
+                    className="flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-xs font-medium transition-colors"
+                    style={{
+                      backgroundColor: active
+                        ? "var(--resto-chip-active-bg)"
+                        : "var(--resto-chip-bg)",
+                      color: active ? "var(--resto-chip-active-text)" : "var(--resto-chip-text)",
+                      borderColor: active
+                        ? "var(--resto-chip-active-border)"
+                        : "var(--resto-border)",
+                    }}
                   >
                     <Icon className="size-4" />
                     {ORDER_TYPE_LABEL[type]}
@@ -263,20 +273,28 @@ export function CheckoutSheet({
           <section className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold">Pickup time</h3>
             <div className="grid grid-cols-2 gap-2">
-              {PICKUP_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setPickupInMinutes(option.value)}
-                  className={`rounded-2xl border px-3 py-2 text-xs font-medium transition-colors ${
-                    pickupInMinutes === option.value
-                      ? "border-transparent bg-primary text-primary-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/30"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
+              {PICKUP_OPTIONS.map((option) => {
+                const active = pickupInMinutes === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setPickupInMinutes(option.value)}
+                    className="rounded-2xl border px-3 py-2 text-xs font-medium transition-colors"
+                    style={{
+                      backgroundColor: active
+                        ? "var(--resto-chip-active-bg)"
+                        : "var(--resto-chip-bg)",
+                      color: active ? "var(--resto-chip-active-text)" : "var(--resto-chip-text)",
+                      borderColor: active
+                        ? "var(--resto-chip-active-border)"
+                        : "var(--resto-border)",
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
           </section>
         )}

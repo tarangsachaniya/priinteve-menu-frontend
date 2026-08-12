@@ -227,10 +227,15 @@ function describeSettingsIssue(issue: { path: PropertyKey[]; message: string } |
 export function SettingsForm({
   settings,
   razorpayConfigured,
+  upiQrAvailable,
   publishedReviews,
 }: {
   settings: RestaurantSettings;
   razorpayConfigured: boolean;
+  /** Whether the API will currently accept a UPI QR payment — see
+   * canAcceptUpiQr() in priinteve-api. Independent of razorpayConfigured: a
+   * UPI QR needs no Razorpay keys, only the platform-wide switch to be on. */
+  upiQrAvailable: boolean;
   /** Non-hidden guest reviews — the count that decides the rating lock below. */
   publishedReviews: number;
 }) {
@@ -312,6 +317,7 @@ export function SettingsForm({
       // and it is how a restaurant ends up flagged for a payment method the
       // guest is never offered.
       onlinePaymentEnabled: form.onlinePaymentEnabled && razorpayConfigured,
+      upiQrEnabled: form.upiQrEnabled && upiQrAvailable,
       // The only field edited as a string but sent as an array — split here
       // rather than keeping cuisineTags itself an array in form state, which
       // would fight the text input over every keystroke and comma typed.
@@ -623,12 +629,15 @@ export function SettingsForm({
           <CardDescription>How customers can pay for an order.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {!razorpayConfigured && (
+          {(!razorpayConfigured || !upiQrAvailable) && (
             <div className="flex gap-2 rounded-2xl bg-muted p-3 text-xs text-muted-foreground">
               <Info className="size-4 shrink-0" />
               <p>
-                Online payment isn&apos;t configured on this deployment yet. Once Razorpay keys are
-                added, this option becomes available.
+                {!razorpayConfigured && !upiQrAvailable
+                  ? "Online payment and UPI QR are both temporarily unavailable across the platform. Pay at Counter is the only option right now."
+                  : !razorpayConfigured
+                    ? "Online payment isn't available on this deployment right now."
+                    : "UPI QR is temporarily unavailable across the platform right now."}
               </p>
             </div>
           )}
@@ -640,8 +649,8 @@ export function SettingsForm({
                so a row carrying the schema default (true) used to render this
                switch on and immovable — the owner could see that online payment
                was enabled, could not turn it off, and the banner above claimed
-               it wasn't available. Off-and-disabled tells the truth: this
-               deployment has no keys, so nothing online is happening. */
+               it wasn't available. Off-and-disabled tells the truth: nothing
+               online is happening right now, whatever the reason. */
             checked={form.onlinePaymentEnabled && razorpayConfigured}
             disabled={!razorpayConfigured}
             onChange={(checked) => update("onlinePaymentEnabled", checked)}
@@ -657,11 +666,15 @@ export function SettingsForm({
             id="upi-qr-payment"
             title="Pay by UPI QR"
             description="Shows a QR with the amount filled in. You confirm each payment yourself."
-            checked={form.upiQrEnabled}
+            // Same off-and-disabled treatment as the online toggle, and for the
+            // same reason: a stale `true` from before the pause must not render
+            // as an active switch the owner can't turn off.
+            checked={form.upiQrEnabled && upiQrAvailable}
+            disabled={!upiQrAvailable}
             onChange={(checked) => update("upiQrEnabled", checked)}
           />
 
-          {form.upiQrEnabled && (
+          {form.upiQrEnabled && upiQrAvailable && (
             <div className="flex flex-col gap-3 rounded-2xl border border-border/70 p-3">
               {/* Said plainly and up front, because it is the one thing an
                   owner will otherwise assume works the other way round. */}

@@ -55,6 +55,7 @@ type SettingsResponse = {
     peakWindows: { dayOfWeek: number; startsAt: number; endsAt: number; label: string | null }[];
   };
   razorpayConfigured: boolean;
+  upiQrAvailable: boolean;
   publishedReviews: number;
   demotedDishCount: number;
 };
@@ -63,10 +64,8 @@ export default async function RestaurantSettingsPage() {
   const sessionData = await getRestaurantSession();
   if (!sessionData) redirect("/r/login");
 
-  const { restaurant, razorpayConfigured, publishedReviews, demotedDishCount } = await serverFetch<SettingsResponse>(
-    "/api/restaurant/settings",
-    { cache: "no-store" },
-  );
+  const { restaurant, razorpayConfigured, upiQrAvailable, publishedReviews, demotedDishCount } =
+    await serverFetch<SettingsResponse>("/api/restaurant/settings", { cache: "no-store" });
 
   return (
     <main className="mx-auto max-w-3xl p-6 sm:p-8 lg:p-10">
@@ -78,6 +77,7 @@ export default async function RestaurantSettingsPage() {
 
       <SettingsForm
         razorpayConfigured={razorpayConfigured}
+        upiQrAvailable={upiQrAvailable}
         publishedReviews={publishedReviews}
         settings={{
           name: restaurant.name,

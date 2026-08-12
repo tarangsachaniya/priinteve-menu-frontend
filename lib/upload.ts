@@ -42,11 +42,11 @@ const NEVER_REENCODE = ["image/gif", "image/svg+xml"];
 /**
  * Shrinks an oversized photo in the browser, before it is uploaded.
  *
- * Cloudinary used to cap dimensions on ingest, so the stored file was already
- * sensible no matter what a phone produced. S3 stores exactly what it is given,
- * so without this every dish photo would be kept and served at full camera
- * resolution — and a 5 MB upload would fail the size limit outright, which is
- * what prompted this.
+ * S3 stores exactly what it is given. The storage provider this replaced
+ * capped dimensions on ingest, so a file was already sensible no matter what a
+ * phone produced; nothing does that now, so without this every photo would be
+ * kept and served at full camera resolution — and a 5 MB upload would fail the
+ * signed size limit outright, which is what prompted it.
  *
  * Returns the original file untouched if it is already small enough, is a
  * format that must not be re-encoded, or if anything goes wrong: a failed

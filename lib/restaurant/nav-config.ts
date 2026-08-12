@@ -2,10 +2,10 @@ import {
   LayoutDashboard,
   BookOpen,
   History,
-  QrCode,
   ReceiptText,
   Settings,
   Star,
+  Table2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,7 +22,9 @@ export const RESTAURANT_NAV_ITEMS: RestaurantNavItem[] = [
   // startsWith(`${href}/`), so /r/orders/history would light up both entries.
   { href: "/r/history", label: "History", icon: History },
   { href: "/r/menu", label: "Menu", icon: BookOpen },
-  { href: "/r/tables", label: "Tables & QR", icon: QrCode },
+  // "Tables", not "Tables & QR": the QR half moved to the admin side when
+  // printing became a Printeve-operated step.
+  { href: "/r/tables", label: "Tables", icon: Table2 },
   { href: "/r/reviews", label: "Reviews", icon: Star },
   { href: "/r/settings", label: "Settings", icon: Settings },
 ];

@@ -1,11 +1,19 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 /**
- * On-demand ISR hook, called by the API's src/services/revalidate.ts via
- * revalidateMenuPaths(). All of this app's guest-facing pages are already
- * force-dynamic, so this exists mainly for symmetry with Cards and for any
- * future cached Menu page.
+ * On-demand cache invalidation, called by the API's src/services/revalidate.ts.
+ *
+ * Two mechanisms, because the app caches two different things:
+ *
+ *   - `tags` drops cached FETCH results. This is the one that matters for the
+ *     menu: the guest pages render per request but read their data from a
+ *     tagged, cached fetch, so dropping the tag is what makes an owner's edit
+ *     visible on the next scan instead of up to five minutes later.
+ *   - `paths` drops rendered routes, kept for symmetry with Cards and for any
+ *     Menu page that becomes statically rendered later.
+ *
+ * Both are accepted in one body; the API sends whichever it has.
  */
 export async function POST(req: Request) {
   const secret = req.headers.get("x-revalidate-secret");
@@ -14,11 +22,14 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => null);
-  const paths = Array.isArray(body?.paths) ? body.paths.filter((p: unknown) => typeof p === "string") : [];
+  const strings = (value: unknown) =>
+    Array.isArray(value) ? value.filter((v: unknown): v is string => typeof v === "string") : [];
 
-  for (const path of paths) {
-    revalidatePath(path);
-  }
+  const paths = strings(body?.paths);
+  const tags = strings(body?.tags);
 
-  return NextResponse.json({ revalidated: paths });
+  for (const path of paths) revalidatePath(path);
+  for (const tag of tags) revalidateTag(tag);
+
+  return NextResponse.json({ revalidated: { paths, tags } });
 }

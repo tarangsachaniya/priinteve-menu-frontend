@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
 
+import { sizedImageUrl } from "@/lib/restaurant/image";
 import { cn } from "@/lib/utils";
 import type { PublicMenuCategory } from "@/components/order/types";
 
@@ -121,9 +122,10 @@ export function CategoryCarousel({
                 {cover ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={cover}
+                    src={sizedImageUrl(cover, { width: 320 })}
                     alt=""
                     loading="lazy"
+                    decoding="async"
                     className="w-full object-cover"
                     style={{
                       aspectRatio: "var(--resto-dish-ratio)",

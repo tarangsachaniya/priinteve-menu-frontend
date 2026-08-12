@@ -1,45 +1,73 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-import { API_INTERNAL_URL } from "@/lib/api/config";
-import { apiRequest } from "@/lib/api/http";
+import { getPublicMenu, restaurantDescription, restaurantTitle } from "@/lib/order/menu-cache";
 import { ClosedNotice } from "@/components/order/closed-notice";
 import { MenuBrowser } from "@/components/order/menu-browser";
 import { RestoPage } from "@/components/order/resto-page";
-import type { PublicMenuCategory, PublicRestaurant } from "@/components/order/types";
-
-export const dynamic = "force-dynamic";
-
-type PublicMenu = { restaurant: PublicRestaurant; categories: PublicMenuCategory[]; recommendedItemIds: string[] };
-
-async function loadPublicMenu(slug: string): Promise<PublicMenu | null> {
-  return apiRequest<PublicMenu>(API_INTERNAL_URL, `/api/order/menu/${slug}`, { cache: "no-store", allow404: true });
-}
-
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const data = await loadPublicMenu(params.slug);
-  if (!data) return { title: "Restaurant not found" };
-
-  const title = data.restaurant.branch ? `${data.restaurant.name} — ${data.restaurant.branch}` : data.restaurant.name;
-  return { title: `${title} · Order online`, description: `Browse the menu and order from ${title}.` };
-}
 
 /**
  * Table-less entry point, for take-away and delivery. Dine-in is filtered out
  * downstream because there's no table to serve.
+ *
+ * This is the URL that should rank: it is the restaurant's menu page, the one
+ * every table URL points a canonical at.
  */
-export default async function RestaurantOrderPage({ params }: { params: { slug: string } }) {
-  const data = await loadPublicMenu(params.slug);
 
-  if (!data) {
-    return (
-      <ClosedNotice
-        title="Restaurant unavailable"
-        message="This restaurant isn't accepting orders right now. Please check the link or try again later."
-      />
-    );
-  }
+/**
+ * Rendered per request, over cached data. Those are separate settings and the
+ * distinction is the whole performance story here.
+ *
+ * The DATA is cached (see lib/order/menu-cache.ts), so a scan costs no
+ * database work. The RENDER is not, because the Open/Closed badge is resolved
+ * during it — full-route ISR would freeze that badge for the length of the
+ * revalidate window and hand a guest "Open until 11:00 pm" at ten past
+ * midnight. An explicit `next.revalidate` on a fetch survives force-dynamic;
+ * only fetches that say nothing about caching are downgraded by it.
+ */
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  // Same request the page component makes — React's cache() collapses the two.
+  const data = await getPublicMenu(params.slug);
+  if (!data) return { title: "Restaurant not found" };
+
+  const { restaurant } = data;
+  const title = `${restaurantTitle(restaurant)} · Menu & Online Ordering`;
+  const description = restaurantDescription(restaurant);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/order/${restaurant.slug}` },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url: `/order/${restaurant.slug}`,
+      siteName: restaurantTitle(restaurant),
+      images: restaurant.coverImageUrl ?? restaurant.logoUrl ?? undefined,
+    },
+    twitter: {
+      card: restaurant.coverImageUrl ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: restaurant.coverImageUrl ?? restaurant.logoUrl ?? undefined,
+    },
+  };
+}
+
+export default async function RestaurantOrderPage({ params }: { params: { slug: string } }) {
+  const data = await getPublicMenu(params.slug);
+
+  // An unknown or deactivated slug is a dead URL, not a page that renders a
+  // notice with a 200.
+  if (!data) notFound();
 
   const takeawayOrDelivery = data.restaurant.orderTypes.filter((type) => type !== "DINE_IN");
+
+  // This one IS a real page — the restaurant exists and simply takes orders at
+  // the table — so it keeps its 200 and its notice.
   if (takeawayOrDelivery.length === 0) {
     return (
       <ClosedNotice

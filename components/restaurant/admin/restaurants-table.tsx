@@ -64,6 +64,7 @@ export function RestaurantsTable({ initialRestaurants }: { initialRestaurants: A
                 <TableHead className="text-right">Menu</TableHead>
                 <TableHead className="text-right">Tables</TableHead>
                 <TableHead className="text-right">Orders</TableHead>
+                <TableHead>Right now</TableHead>
                 <TableHead>Active</TableHead>
                 <TableHead className="text-right">Manage</TableHead>
               </TableRow>
@@ -71,7 +72,7 @@ export function RestaurantsTable({ initialRestaurants }: { initialRestaurants: A
             <TableBody>
               {restaurants.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
                     No restaurants yet — add your first one to get started.
                   </TableCell>
                 </TableRow>
@@ -106,6 +107,27 @@ export function RestaurantsTable({ initialRestaurants }: { initialRestaurants: A
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{restaurant.tableCount}</TableCell>
                   <TableCell className="text-right tabular-nums">{restaurant.orderCount}</TableCell>
+                  {/* Open/closed in the restaurant's own timezone, resolved by
+                      the API. Separate from the Active switch beside it: a live
+                      restaurant is closed most of the night, and reading only
+                      "Live" here used to hide that entirely. */}
+                  <TableCell className="text-sm">
+                    {restaurant.openState ? (
+                      <div className="flex flex-col">
+                        <Badge
+                          variant={restaurant.openState.isOpen ? "default" : "secondary"}
+                          className="w-fit"
+                        >
+                          {restaurant.openState.isOpen ? "Open" : "Closed"}
+                        </Badge>
+                        <span className="mt-0.5 text-xs text-muted-foreground">
+                          {restaurant.openState.label}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch

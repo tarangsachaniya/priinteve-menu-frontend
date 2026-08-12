@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import type { OpenState } from "@/lib/restaurant/hours";
 import { restaurantCreateSchema } from "@/lib/validations/restaurant";
 
 export type AdminRestaurant = {
@@ -26,6 +27,13 @@ export type AdminRestaurant = {
   slug: string;
   phone: string | null;
   isActive: boolean;
+  /**
+   * Whether the kitchen is taking orders right now, in the restaurant's own
+   * timezone — resolved by the API with the same function the guest menu uses.
+   * Distinct from isActive, which is the platform switch. Optional because a
+   * freshly created restaurant is returned by POST before this is computed.
+   */
+  openState?: OpenState;
   ownerEmail: string | null;
   tableCount: number;
   menuItemCount: number;

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, Clock, MapPin, Phone, Star, UtensilsCrossed, Wallet } from "lucide-react";
 
 import { DAY_LABELS, formatMinutes, nowInTimezone } from "@/lib/restaurant/hours";
+import { sizedImageUrl } from "@/lib/restaurant/image";
 import {
   formatCostForTwo,
   formatPrepTime,
@@ -53,8 +54,14 @@ export function RestaurantHero({
         {restaurant.coverImageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={restaurant.coverImageUrl}
+            src={sizedImageUrl(restaurant.coverImageUrl, { width: 1200, height: 600 })}
             alt=""
+            // The largest thing above the fold, so it is the LCP element on
+            // every QR scan: eager and high priority, unlike every other image
+            // on the page. Left un-lazy deliberately — lazy-loading the LCP
+            // image delays the very measurement it would appear to improve.
+            fetchPriority="high"
+            decoding="async"
             className="size-full object-cover"
             aria-hidden
           />
@@ -106,7 +113,12 @@ export function RestaurantHero({
           >
             {restaurant.logoUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={restaurant.logoUrl} alt="" className="size-full object-contain" />
+              <img
+                src={sizedImageUrl(restaurant.logoUrl, { width: 192, fit: "limit" })}
+                alt=""
+                decoding="async"
+                className="size-full object-contain"
+              />
             ) : (
               <UtensilsCrossed
                 className="size-7 md:size-8"

@@ -1,19 +1,21 @@
 /**
- * Customer-facing URLs for display in the console — e.g. the "share this
- * link" line on the dashboard and tables pages. Not to be confused with the
- * API's services/restaurant/qr.ts, which builds the exact same URLs but
- * bakes them into printed QR code image bytes (GET /api/restaurant/tables/
- * :id/qr and /tables/qr-sheet); that one lives on the API because changing
- * MENU_APP_URL there is the single point of truth for what a physical,
- * already-printed QR code points at. This copy is display-only.
+ * The restaurant's own public ordering URL, for display in the console.
+ *
+ * Not to be confused with the API's services/restaurant/qr.ts, which builds
+ * the URLs baked into printed QR code image bytes. That one lives on the API
+ * because changing MENU_APP_URL there is the single point of truth for what a
+ * physical, already-printed QR code points at. This copy is display-only.
+ *
+ * getTableOrderUrl() USED TO LIVE HERE and was deliberately removed. A table's
+ * ordering URL is derived from its `code`, the API no longer sends a code to
+ * anyone but a platform admin, and the admin screens get the finished URL from
+ * GET /api/admin/restaurants/:id/tables rather than assembling one. Leaving a
+ * client-side builder in place would be an invitation to reintroduce the leak
+ * the moment someone finds a table code in a payload.
  */
 
 function baseUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "";
-}
-
-export function getTableOrderUrl(restaurantSlug: string, tableCode: string): string {
-  return `${baseUrl()}/order/${restaurantSlug}/${tableCode}`;
 }
 
 export function getRestaurantOrderUrl(restaurantSlug: string): string {

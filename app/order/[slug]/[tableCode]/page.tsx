@@ -1,69 +1,108 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-import { API_INTERNAL_URL } from "@/lib/api/config";
-import { apiRequest } from "@/lib/api/http";
-import { ClosedNotice } from "@/components/order/closed-notice";
+import {
+  getPublicMenu,
+  getTable,
+  restaurantDescription,
+  restaurantTitle,
+} from "@/lib/order/menu-cache";
 import { MenuBrowser } from "@/components/order/menu-browser";
 import { RestoPage } from "@/components/order/resto-page";
-import type { PublicMenuCategory, PublicRestaurant } from "@/components/order/types";
-
-export const dynamic = "force-dynamic";
-
-type PublicMenu = { restaurant: PublicRestaurant; categories: PublicMenuCategory[]; recommendedItemIds: string[] };
-type TableMenuResponse = { menu: PublicMenu | null; table: { code: string; label: string } | null };
-
-async function loadTableMenu(slug: string, tableCode: string): Promise<TableMenuResponse> {
-  const result = await apiRequest<TableMenuResponse>(API_INTERNAL_URL, `/api/order/menu/${slug}/table/${tableCode}`, {
-    cache: "no-store",
-    allow404: true,
-  });
-  return result ?? { menu: null, table: null };
-}
-
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const { menu } = await loadTableMenu(params.slug, "");
-  if (!menu) return { title: "Restaurant not found" };
-
-  const title = menu.restaurant.branch ? `${menu.restaurant.name} — ${menu.restaurant.branch}` : menu.restaurant.name;
-  return { title: `${title} · Order online`, description: `Browse the menu and order from ${title}.` };
-}
 
 /**
- * What a table's QR code opens. The tableCode is random and unguessable, so
- * scanning one table's code can't be edited into another's. The "table must
- * belong to this slug and be active" check happens on the API, inside the
- * same GET /api/order/menu/:slug/table/:tableCode call that loads the menu —
- * folded into one request rather than the two separate lookups the monolith
- * ran (loadPublicMenu + a direct restaurantTable.findFirst).
+ * What a table's QR code opens.
+ *
+ * The tableCode is random and unguessable, and the API requires it to belong
+ * to this slug and be active, so scanning one table's code cannot be edited
+ * into another's.
+ *
+ * The menu and the table are fetched separately and in parallel: the menu is
+ * cached per restaurant and shared by every table, while the table lookup is
+ * live because a retired table must stop working immediately. See
+ * lib/order/menu-cache.ts.
  */
+
+/** Per-request render over cached data — see the note on the sibling route. */
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string; tableCode: string };
+}): Promise<Metadata> {
+  /**
+   * This used to call the loader with an EMPTY table code — loadTableMenu(slug,
+   * "") — which never matched a route, 404'd every time, and gave every single
+   * table URL on the platform the title "Restaurant not found". Crawlers and
+   * shared links saw that string and nothing else.
+   *
+   * Only the restaurant is needed here, so only the restaurant is fetched, and
+   * React's cache() means the page component below reuses this exact response
+   * rather than issuing a second one.
+   */
+  const data = await getPublicMenu(params.slug);
+  if (!data) return { title: "Restaurant not found" };
+
+  const { restaurant } = data;
+  const title = `${restaurantTitle(restaurant)} · Menu & Online Ordering`;
+  const description = restaurantDescription(restaurant);
+  const url = `/order/${restaurant.slug}/${params.tableCode}`;
+
+  return {
+    title,
+    description,
+    // A table URL is scanned, not searched. Indexing one page per table would
+    // fill the index with near-duplicates of the restaurant's own menu page,
+    // which is the URL that should rank — so point every table at it.
+    alternates: { canonical: `/order/${restaurant.slug}` },
+    robots: { index: false, follow: true },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url,
+      siteName: restaurantTitle(restaurant),
+      images: restaurant.coverImageUrl ?? restaurant.logoUrl ?? undefined,
+    },
+    twitter: {
+      card: restaurant.coverImageUrl ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: restaurant.coverImageUrl ?? restaurant.logoUrl ?? undefined,
+    },
+  };
+}
+
 export default async function TableOrderPage({
   params,
 }: {
   params: { slug: string; tableCode: string };
 }) {
-  const { menu, table } = await loadTableMenu(params.slug, params.tableCode);
+  const [data, table] = await Promise.all([
+    getPublicMenu(params.slug),
+    getTable(params.slug, params.tableCode),
+  ]);
 
-  if (!menu) {
-    return (
-      <ClosedNotice
-        title="Restaurant unavailable"
-        message="This restaurant isn't accepting orders right now. Please check the link or try again later."
-      />
-    );
-  }
+  // A slug nobody owns is genuinely not a page. Rendering a friendly notice
+  // with a 200 told crawlers this URL exists, and told a guest who mistyped
+  // the link the same thing it tells one whose restaurant was deactivated.
+  if (!data) notFound();
 
-  if (!table) {
-    return (
-      <ClosedNotice
-        title="Table not found"
-        message="This QR code isn't linked to an active table. Please ask a staff member for help."
-      />
-    );
-  }
+  // A code that isn't an active table of this restaurant is likewise a dead
+  // URL, not a temporarily unavailable one.
+  if (!table) notFound();
+
+  const { restaurant, categories, recommendedItemIds } = data;
 
   return (
-    <RestoPage slug={menu.restaurant.slug} brandColor={menu.restaurant.brandColor} themeMode={menu.restaurant.themeMode}>
-      <MenuBrowser restaurant={menu.restaurant} table={table} categories={menu.categories} recommendedItemIds={menu.recommendedItemIds} />
+    <RestoPage slug={restaurant.slug} brandColor={restaurant.brandColor} themeMode={restaurant.themeMode}>
+      <MenuBrowser
+        restaurant={restaurant}
+        table={table}
+        categories={categories}
+        recommendedItemIds={recommendedItemIds}
+      />
     </RestoPage>
   );
 }

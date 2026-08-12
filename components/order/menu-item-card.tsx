@@ -3,6 +3,7 @@
 import { Clock, ImageOff, Minus, Plus, Star } from "lucide-react";
 
 import { formatCurrency } from "@/lib/format";
+import { sizedImageUrl } from "@/lib/restaurant/image";
 import { ITEM_BADGE_LABEL, formatRating, formatServeTime } from "@/lib/restaurant/menu-display";
 import { isCustomisable } from "@/components/order/use-cart";
 import type { PublicMenuItem } from "@/components/order/types";
@@ -238,7 +239,17 @@ function DishImage({ url, alt }: { url: string | null; alt: string }) {
 
   return (
     /* eslint-disable-next-line @next/next/no-img-element */
-    <img src={url} alt={alt} loading="lazy" className="w-[92px] object-cover sm:w-28" style={style} />
+    <img
+      // Requested at the size it actually draws (112 CSS px at the widest, with
+      // dpr_auto covering retina) rather than at the 800px the upload stores.
+      // Thirty of these is the bulk of what a menu page weighs.
+      src={sizedImageUrl(url, { width: 224 })}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      className="w-[92px] object-cover sm:w-28"
+      style={style}
+    />
   );
 }
 

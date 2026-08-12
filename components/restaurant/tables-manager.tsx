@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Download, Plus, Printer, QrCode, ShoppingBag, Trash2 } from "lucide-react";
+import { Info, Plus, Table2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -19,13 +19,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
+/**
+ * Tables, as a restaurant manages them.
+ *
+ * Note what is NOT here any more: the QR image, the PNG download, the copy-link
+ * button, the print sheet, and the table `code` itself. Printeve produces the
+ * physical QR Menu Card, so the restaurant's job ends at telling us what its
+ * tables are called.
+ *
+ * This is presentation only. The API does not send a restaurant session the
+ * code or the URL at all (see the API's routes/restaurant/tables.routes.ts), so
+ * removing these controls hides nothing that a devtools request could recover
+ * — TableRow below has no `code` field because the response has no `code`
+ * field.
+ */
+
 export type TableRow = {
   id: string;
   label: string;
-  code: string;
   seats: number | null;
   isActive: boolean;
 };
+
+/** What the owner is told to do next, in the one place they'd look for a QR. */
+const PRINTEVE_NOTICE =
+  "Contact Printeve to get your printed QR Menu Card. We generate and print the code for each table and send it to you.";
 
 function AddTablesDialog({
   onCreated,
@@ -62,7 +80,15 @@ function AddTablesDialog({
         toast.error(typeof data.error === "string" ? data.error : "Could not add tables");
         return;
       }
-      toast.success(data.tables.length === 1 ? "Table added" : `${data.tables.length} tables added`);
+
+      // The success message carries the next step, because there is no longer
+      // a QR button on the new card to imply one.
+      toast.success(
+        data.tables.length === 1
+          ? "Table created successfully."
+          : `${data.tables.length} tables created successfully.`,
+        { description: PRINTEVE_NOTICE, duration: 8000 },
+      );
       onCreated(data.tables);
       setLabel("");
       setOpen(false);
@@ -78,7 +104,7 @@ function AddTablesDialog({
         <DialogHeader>
           <DialogTitle>Add tables</DialogTitle>
           <DialogDescription>
-            Each table gets its own QR code linking to your menu.
+            Name your tables here. Printeve prints a QR Menu Card for each one.
           </DialogDescription>
         </DialogHeader>
 
@@ -162,136 +188,28 @@ function AddTablesDialog({
   );
 }
 
-/**
- * The single code for take-away and delivery. It opens the table-less menu,
- * so unlike the table cards there is nothing here to retire or delete —
- * print it once for the counter or the shopfront window.
- */
-function TakeawayQrCard({ orderUrl }: { orderUrl: string }) {
-  const [copied, setCopied] = useState(false);
-  const [showQr, setShowQr] = useState(false);
-
-  async function copyUrl() {
-    await navigator.clipboard.writeText(orderUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <Card className="border-border/80 bg-muted/30">
-      <CardContent className="flex flex-col gap-3 p-4">
-        <div className="flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-ink">
-            <ShoppingBag className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate font-medium">Take-away &amp; delivery</p>
-            <p className="text-xs text-muted-foreground">
-              One code for guests ordering without a table.
-            </p>
-          </div>
-        </div>
-
-        {showQr && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src="/api/restaurant/takeaway-qr"
-            alt="QR code for take-away and delivery orders"
-            className="mx-auto size-40 rounded-xl border border-border bg-white p-2"
-          />
-        )}
-
-        <div className="flex flex-wrap gap-1.5">
-          <Button type="button" variant="outline" size="xs" onClick={() => setShowQr((v) => !v)}>
-            <QrCode data-icon="inline-start" />
-            {showQr ? "Hide QR" : "Show QR"}
-          </Button>
-          <Button type="button" variant="outline" size="xs" onClick={copyUrl}>
-            {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
-            {copied ? "Copied" : "Copy link"}
-          </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            render={<a href="/api/restaurant/takeaway-qr" download="take-away-qr.png" />}
-          >
-            <Download data-icon="inline-start" />
-            PNG
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TableCard({
-  table,
-  orderUrl,
-  onDelete,
-}: {
-  table: TableRow;
-  orderUrl: string;
-  onDelete: (table: TableRow) => void;
-}) {
-  const [copied, setCopied] = useState(false);
-  const [showQr, setShowQr] = useState(false);
-
-  async function copyUrl() {
-    await navigator.clipboard.writeText(orderUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
+function TableCard({ table, onDelete }: { table: TableRow; onDelete: (table: TableRow) => void }) {
   return (
     <Card className="border-border/80">
-      <CardContent className="flex flex-col gap-3 p-4">
-        <div className="flex items-start justify-between gap-2">
+      <CardContent className="flex items-center justify-between gap-3 p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-ink">
+            <Table2 className="size-4" />
+          </span>
           <div className="min-w-0">
             <p className="truncate font-medium">{table.label}</p>
             <p className="truncate text-xs text-muted-foreground">
-              {table.seats ? `${table.seats} seats · ` : ""}
-              <span className="font-mono">{table.code}</span>
+              {table.seats ? `${table.seats} seats` : "Seats not set"}
             </p>
           </div>
-          {!table.isActive && <Badge variant="secondary">Retired</Badge>}
         </div>
 
-        {showQr && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={`/api/restaurant/tables/${table.id}/qr`}
-            alt={`QR code for ${table.label}`}
-            className="mx-auto size-40 rounded-xl border border-border bg-white p-2"
-          />
-        )}
-
-        <div className="flex flex-wrap gap-1.5">
-          <Button type="button" variant="outline" size="xs" onClick={() => setShowQr((v) => !v)}>
-            <QrCode data-icon="inline-start" />
-            {showQr ? "Hide QR" : "Show QR"}
-          </Button>
-          <Button type="button" variant="outline" size="xs" onClick={copyUrl}>
-            {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
-            {copied ? "Copied" : "Copy link"}
-          </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            render={
-              <a
-                href={`/api/restaurant/tables/${table.id}/qr`}
-                download={`${table.label.replace(/\s+/g, "-").toLowerCase()}-qr.png`}
-              />
-            }
-          >
-            <Download data-icon="inline-start" />
-            PNG
-          </Button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {!table.isActive && <Badge variant="secondary">Retired</Badge>}
           <Button
             type="button"
             variant="ghost"
             size="icon-xs"
-            className="ml-auto"
             aria-label={`Remove ${table.label}`}
             onClick={() => onDelete(table)}
           >
@@ -303,17 +221,7 @@ function TableCard({
   );
 }
 
-export function TablesManager({
-  initialTables,
-  restaurantSlug,
-  baseUrl,
-  offersTakeaway,
-}: {
-  initialTables: TableRow[];
-  restaurantSlug: string;
-  baseUrl: string;
-  offersTakeaway: boolean;
-}) {
+export function TablesManager({ initialTables }: { initialTables: TableRow[] }) {
   const [tables, setTables] = useState(initialTables);
   const [pendingDelete, setPendingDelete] = useState<TableRow | null>(null);
 
@@ -345,17 +253,20 @@ export function TablesManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap justify-end gap-2">
-        {(offersTakeaway || tables.some((t) => t.isActive)) && (
-          <Button
-            variant="outline"
-            size="sm"
-            render={<a href="/api/restaurant/tables/qr-sheet" target="_blank" rel="noreferrer" />}
-          >
-            <Printer data-icon="inline-start" />
-            Print all QR codes
-          </Button>
-        )}
+      <Card className="border-primary/25 bg-primary/5">
+        <CardContent className="flex items-start gap-3 p-4">
+          <Info className="mt-0.5 size-4 shrink-0 text-ink" />
+          <div className="text-sm">
+            <p className="font-medium">QR Menu Cards are printed by Printeve</p>
+            <p className="mt-0.5 text-muted-foreground">
+              Add your tables here, then contact Printeve — we generate and print the QR Menu Card
+              for each table and send them to you.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
         <AddTablesDialog
           onCreated={(created) => setTables((prev) => [...prev, ...created])}
           trigger={
@@ -366,18 +277,16 @@ export function TablesManager({
         />
       </div>
 
-      {offersTakeaway && <TakeawayQrCard orderUrl={`${baseUrl}/order/${restaurantSlug}`} />}
-
       {tables.length === 0 ? (
         <Card className="border-dashed border-border">
           <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
             <span className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-ink">
-              <QrCode className="size-6" />
+              <Table2 className="size-6" />
             </span>
             <div>
               <p className="font-medium">No tables yet</p>
               <p className="text-sm text-muted-foreground">
-                Add your tables and we&apos;ll generate a QR code for each one.
+                Add your tables and contact Printeve for your printed QR Menu Cards.
               </p>
             </div>
             <AddTablesDialog
@@ -393,12 +302,7 @@ export function TablesManager({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {tables.map((table) => (
-            <TableCard
-              key={table.id}
-              table={table}
-              orderUrl={`${baseUrl}/order/${restaurantSlug}/${table.code}`}
-              onDelete={setPendingDelete}
-            />
+            <TableCard key={table.id} table={table} onDelete={setPendingDelete} />
           ))}
         </div>
       )}

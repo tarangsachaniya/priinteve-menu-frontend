@@ -4,7 +4,7 @@ import {
   BookOpen,
   IndianRupee,
   LayoutDashboard,
-  QrCode,
+  Link2 as LinkIcon,
   ReceiptText,
   TrendingUp,
 } from "lucide-react";
@@ -170,14 +170,19 @@ export default async function RestaurantDashboardPage({
           </CardContent>
         </Card>
 
+        {/* The restaurant's own public menu URL — the same page anyone can
+            reach without a table. Not a table link and not a QR: printed QR
+            Menu Cards come from Printeve, so this card points at naming your
+            tables rather than at generating codes. */}
         <Card className="border-border/80">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <QrCode className="size-4" />
+              <LinkIcon className="size-4" />
               Your ordering link
             </CardTitle>
             <CardDescription>
-              Share this for take-away and delivery. Dine-in guests scan their table&apos;s own QR code.
+              Share this for take-away and delivery. Dine-in guests scan the QR Menu Card on their
+              table.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center gap-3">
@@ -190,7 +195,7 @@ export default async function RestaurantDashboardPage({
               {getRestaurantOrderUrl(restaurant.slug)}
             </a>
             <Button variant="outline" size="sm" render={<Link href="/r/tables" />}>
-              Manage table QR codes
+              Manage tables
             </Button>
           </CardContent>
         </Card>

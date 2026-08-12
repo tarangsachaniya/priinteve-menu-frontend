@@ -3,6 +3,7 @@
 import { Flame, ImageOff, RotateCcw } from "lucide-react";
 
 import { formatCurrency } from "@/lib/format";
+import { sizedImageUrl } from "@/lib/restaurant/image";
 import { formatServeTime } from "@/lib/restaurant/menu-display";
 import type { PublicMenuItem } from "@/components/order/types";
 
@@ -98,9 +99,10 @@ export function RecommendedStrip({
                   {item.imageUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={item.imageUrl}
+                      src={sizedImageUrl(item.imageUrl, { width: 320 })}
                       alt=""
                       loading="lazy"
+                      decoding="async"
                       className="w-full object-cover"
                       style={{
                         aspectRatio: "var(--resto-dish-ratio)",

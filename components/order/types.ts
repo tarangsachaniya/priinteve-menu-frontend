@@ -1,7 +1,7 @@
 import type { RestoItemBadge, RestoOrderType, RestoPaymentMode } from "@/lib/api/enums";
 
 import type { DayHours, OpenState } from "@/lib/restaurant/hours";
-import type { PeakState } from "@/lib/restaurant/peak-hours";
+import type { PeakState, PeakWindow } from "@/lib/restaurant/peak-hours";
 import type { ReviewSummary } from "@/lib/restaurant/reviews";
 
 /** Shared shapes for the customer ordering surface. */
@@ -74,7 +74,14 @@ export type PublicRestaurant = {
   minOrderValue: number;
   orderTypes: RestoOrderType[];
   paymentModes: RestoPaymentMode[];
-  /** Resolved server-side so the badge and the order API can never disagree. */
+  /**
+   * Resolved server-side so the badge and the order API can never disagree.
+   *
+   * The API resolves it when the payload is built; because that payload is
+   * cached, lib/order/menu-cache.ts re-resolves it from the raw fields below
+   * before the page renders. Components read this field and nothing else —
+   * whichever of the two wrote it, it is current as of this request.
+   */
   openState: OpenState;
   /**
    * Whether the kitchen is in a declared rush. Drives dish order only — see
@@ -85,8 +92,20 @@ export type PublicRestaurant = {
   peakState: PeakState;
   /** The full week, for the "see all hours" panel. Empty means always open. */
   hours: DayHours[];
-  /** The restaurant's own clock — hours are read in this zone, not the guest's. */
+  /**
+   * The restaurant's own clock — hours are read in this zone, not the guest's.
+   * Already normalised by the API, so it always parses.
+   */
   timezone: string;
+  /**
+   * The raw inputs openState and peakState are derived from, carried so a
+   * cached payload can be re-resolved against the current clock rather than
+   * serving a badge frozen at cache-write time. See lib/order/menu-cache.ts.
+   */
+  isActive: boolean;
+  acceptingOrders: boolean;
+  closedMessage: string | null;
+  peakWindows: PeakWindow[];
   /** Real guest reviews, published only past the threshold. */
   reviewSummary: ReviewSummary;
 };

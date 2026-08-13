@@ -35,6 +35,13 @@ export const metadata: Metadata = {
   title: "Priinteve Menu — QR ordering for restaurants",
   description: "Table-side QR ordering, a live kitchen board, and GST-ready invoices — set up in a day.",
   applicationName: "Priinteve Menu",
+  /**
+   * Not decoration: iOS and iPadOS deliver Web Push only to a site the user has
+   * added to their Home Screen, and a site with no manifest cannot be added.
+   * Without this line an owner's iPhone silently never rings — the one failure
+   * mode of the order alerts that reports itself as nothing at all.
+   */
+  manifest: "/manifest.webmanifest",
   openGraph: {
     siteName: "Priinteve Menu",
     type: "website",

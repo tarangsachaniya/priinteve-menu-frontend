@@ -1,0 +1,25 @@
+{
+  "name": "Priinteve Menu — Restaurant console",
+  "short_name": "Priinteve",
+  "description": "Live kitchen board and order alerts for your restaurant.",
+  "start_url": "/r/orders",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#16A34A",
+  "icons": [
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

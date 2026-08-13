@@ -432,23 +432,19 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
       ? orders
       : orders.filter((order) => order.tableLabel === tableFilter);
 
-  const refresh = useCallback(async (announce: boolean) => {
+  /**
+   * Keeps the board's list current. It no longer *announces* anything: telling
+   * the kitchen an order arrived belongs to OrderAlertProvider, mounted in the
+   * restaurant layout, which does it with the damru and a popup on every
+   * console page rather than a silent toast on this one. Two announcers would
+   * mean every order reporting itself twice while someone is on this screen.
+   */
+  const refresh = useCallback(async () => {
     try {
       const res = await fetch("/api/restaurant/orders?scope=live", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
       const fetched: BoardOrder[] = data.orders;
-
-      if (announce) {
-        const fresh = fetched.filter((order) => !knownIds.current.has(order.id));
-        if (fresh.length > 0) {
-          toast.success(
-            fresh.length === 1
-              ? `New order #${fresh[0].orderNumber}`
-              : `${fresh.length} new orders`
-          );
-        }
-      }
 
       knownIds.current = new Set(fetched.map((o) => o.id));
       setOrders(fetched);
@@ -458,7 +454,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => refresh(true), POLL_INTERVAL_MS);
+    const timer = setInterval(refresh, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [refresh]);
 
@@ -536,7 +532,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
 
   async function manualRefresh() {
     setIsRefreshing(true);
-    await refresh(false);
+    await refresh();
     setIsRefreshing(false);
   }
 

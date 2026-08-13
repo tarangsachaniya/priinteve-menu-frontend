@@ -4,6 +4,7 @@ import { Settings } from "lucide-react";
 import { getRestaurantSession, serverFetch } from "@/lib/api/server";
 import { normalizeRestoMode } from "@/lib/restaurant/theme";
 import { PageHeader } from "@/components/shared/page-header";
+import { AlertSettings } from "@/components/restaurant/alert-settings";
 import { HoursForm } from "@/components/restaurant/hours-form";
 import { PeakHoursForm } from "@/components/restaurant/peak-hours-form";
 import { SettingsForm } from "@/components/restaurant/settings-form";
@@ -115,6 +116,15 @@ export default async function RestaurantSettingsPage() {
           minOrderValue: restaurant.minOrderValue,
         }}
       />
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold tracking-tight">Order alerts</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Ring this device when an order comes in, so nobody has to watch the board. Set up each
+          phone, tablet and till separately — they each need their own permission.
+        </p>
+        <AlertSettings />
+      </section>
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold tracking-tight">Opening hours</h2>

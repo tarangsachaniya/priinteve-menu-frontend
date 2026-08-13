@@ -52,6 +52,19 @@ export type Damru = {
   unlock: () => Promise<void>;
   /** No-op when still locked, so callers never have to check first. */
   play: () => void;
+  /**
+   * Whether a gesture has ever armed this drum — NOT whether the context
+   * happens to be running this instant.
+   *
+   * The distinction is the whole fix for "no sound while the console sits in a
+   * background tab". Chrome suspends a hidden tab's AudioContext once it has
+   * been silent for a while, so a state check here would report false for a
+   * console that is perfectly capable of playing and only needs a resume().
+   * Deciding that from the current state made the provider show the "Enable
+   * sound" bar — on a tab nobody is looking at — instead of drumming.
+   *
+   * Armed is a one-way latch: recovering from suspension is play()'s job.
+   */
   isUnlocked: () => boolean;
 };
 
@@ -133,8 +146,42 @@ export function createDamru(): Damru {
     return ctx;
   }
 
+  /**
+   * Schedules one full damru run against a context already known to be
+   * running. Split out so the resume path below can reach it too.
+   */
+  function schedule(audio: AudioContext): void {
+    const master = audio.createGain();
+    master.gain.setValueAtTime(0.9, audio.currentTime);
+    master.connect(audio.destination);
+
+    // A hair in the future: scheduling exactly at currentTime races the audio
+    // thread and can clip the first strike's attack.
+    const start = audio.currentTime + 0.02;
+
+    for (let i = 0; i < STRIKE_COUNT; i += 1) {
+      const isLast = i === STRIKE_COUNT - 1;
+      const pitch = HEAD_PITCHES[i % HEAD_PITCHES.length];
+
+      // Slight random unevenness through the run, then a firm accent on the
+      // last strike — the wrist stopping, which is how a real damru phrase
+      // ends rather than just running out.
+      const velocity = isLast ? 0.95 : 0.55 + Math.random() * 0.2;
+
+      strike(audio, master, start + i * STRIKE_GAP, pitch, velocity);
+    }
+
+    // Release the master node once the tail is gone. Without this, a console
+    // left open through a busy service accumulates one orphaned GainNode per
+    // order for the life of the page.
+    window.setTimeout(
+      () => master.disconnect(),
+      (STRIKE_COUNT * STRIKE_GAP + 0.3) * 1000,
+    );
+  }
+
   return {
-    isUnlocked: () => unlocked && ctx?.state === "running",
+    isUnlocked: () => unlocked,
 
     /**
      * Autoplay policy is the real constraint on this whole feature.
@@ -164,40 +211,47 @@ export function createDamru(): Damru {
       silent.connect(audio.destination);
       silent.start(0);
 
-      unlocked = audio.state === "running";
+      // Latches on, never off. A later unlock() firing while the context
+      // happens to be suspended must not disarm a drum that has already been
+      // armed once — that would hand the background-tab case straight back to
+      // the bug this pair of flags exists to fix.
+      if (audio.state === "running") unlocked = true;
     },
 
+    /**
+     * THE BACKGROUND-TAB CASE, which is the one that matters here: a console
+     * minimized or sitting behind another tab is exactly where the kitchen
+     * needs the drum most, and exactly where the browser is most likely to have
+     * suspended the context to save power.
+     *
+     * Resuming needs no fresh gesture. The unlock already gave this page sticky
+     * activation, and that is what a browser checks — it does not require the
+     * resume to happen inside the gesture itself. So a suspended context is
+     * recoverable right here, at the moment the order lands, rather than
+     * something the user has to come back and re-enable.
+     *
+     * Still a no-op when never armed: without that first gesture, resume() is
+     * refused and the console falls back to its "Enable sound" affordance.
+     */
     play: () => {
       const audio = context();
-      if (!audio || audio.state !== "running") return;
+      if (!audio || !unlocked) return;
 
-      const master = audio.createGain();
-      master.gain.setValueAtTime(0.9, audio.currentTime);
-      master.connect(audio.destination);
-
-      // A hair in the future: scheduling exactly at currentTime races the audio
-      // thread and can clip the first strike's attack.
-      const start = audio.currentTime + 0.02;
-
-      for (let i = 0; i < STRIKE_COUNT; i += 1) {
-        const isLast = i === STRIKE_COUNT - 1;
-        const pitch = HEAD_PITCHES[i % HEAD_PITCHES.length];
-
-        // Slight random unevenness through the run, then a firm accent on the
-        // last strike — the wrist stopping, which is how a real damru phrase
-        // ends rather than just running out.
-        const velocity = isLast ? 0.95 : 0.55 + Math.random() * 0.2;
-
-        strike(audio, master, start + i * STRIKE_GAP, pitch, velocity);
+      if (audio.state === "running") {
+        schedule(audio);
+        return;
       }
 
-      // Release the master node once the tail is gone. Without this, a console
-      // left open through a busy service accumulates one orphaned GainNode per
-      // order for the life of the page.
-      window.setTimeout(
-        () => master.disconnect(),
-        (STRIKE_COUNT * STRIKE_GAP + 0.3) * 1000,
-      );
+      // ~50ms in practice, against a drum the kitchen hears for the next
+      // second — a resumed-then-played alert beats a silent one.
+      void audio
+        .resume()
+        .then(() => {
+          if (audio.state === "running") schedule(audio);
+        })
+        .catch(() => {
+          // Refused. The alert dialog and the OS notification still stand.
+        });
     },
   };
 }

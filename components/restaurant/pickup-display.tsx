@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, Minus, Plus, Volume2, WifiOff, X } from "lucide-react";
 
 import type { RestoOrderStatus } from "@/lib/api/enums";
+import { announceReady } from "@/lib/restaurant/announce";
 import { createChime, type Chime } from "@/lib/restaurant/chime";
 import { screenLockPath, screenPickupPath } from "@/lib/restaurant/screen-paths";
 import { useWakeLock } from "@/lib/restaurant/wake-lock";
@@ -22,6 +23,9 @@ import { cn } from "@/lib/utils";
  * The two columns are "Preparing" (ACCEPTED + PREPARING) and "Ready to collect"
  * (READY). A guest does not need to know the difference between accepted and
  * preparing; they need to know whether to stand up.
+ *
+ * Light-on-white, not inverted: a lobby is normally lit, and this is the one
+ * surface here read from across a room rather than up close.
  */
 
 const POLL_INTERVAL_MS = 5000;
@@ -154,8 +158,12 @@ export function PickupDisplay({
 
       if (fresh.length > 0) {
         // One chime however many flipped at once. Two orders becoming ready in
-        // the same five-second window is one event to the room.
-        if (window.localStorage.getItem(CHIME_KEY) !== "off") chime.current?.play();
+        // the same five-second window is one event to the room — the
+        // announcement follows the same rule, one utterance naming all of them.
+        if (window.localStorage.getItem(CHIME_KEY) !== "off") {
+          chime.current?.play();
+          announceReady(fresh);
+        }
 
         setFlashing(new Set(fresh));
         window.setTimeout(() => setFlashing(new Set()), 2800);
@@ -198,19 +206,16 @@ export function PickupDisplay({
     .slice(-READY_LIMIT);
 
   return (
-    // Inverted against the rest of the app: a wall screen in a lit room reads
-    // far better as light-on-dark, and it is the one surface here nobody is
-    // reading up close.
-    <main className="flex min-h-screen flex-col gap-4 bg-neutral-950 p-4 text-neutral-100 lg:p-8">
+    <main className="flex min-h-screen flex-col gap-4 bg-white p-4 text-neutral-900 lg:p-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold lg:text-2xl">
           {restaurantName}
-          {branch && <span className="ml-2 font-normal text-neutral-400">{branch}</span>}
+          {branch && <span className="ml-2 font-normal text-neutral-500">{branch}</span>}
         </h1>
 
         <div className="flex items-center gap-2">
           {stale && (
-            <span className="flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300">
+            <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
               <WifiOff className="size-3.5" />
               Reconnecting…
             </span>
@@ -221,7 +226,7 @@ export function PickupDisplay({
             type="button"
             onClick={() => changeScale(-1)}
             aria-label="Smaller text"
-            className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-neutral-300"
+            className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600"
           >
             <Minus className="size-4" />
           </button>
@@ -229,7 +234,7 @@ export function PickupDisplay({
             type="button"
             onClick={() => changeScale(1)}
             aria-label="Larger text"
-            className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-neutral-300"
+            className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600"
           >
             <Plus className="size-4" />
           </button>
@@ -237,7 +242,7 @@ export function PickupDisplay({
             type="button"
             onClick={() => void lock()}
             aria-label="Lock this screen"
-            className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-neutral-300"
+            className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600"
           >
             <Lock className="size-4" />
           </button>
@@ -264,16 +269,16 @@ export function PickupDisplay({
       </div>
 
       {needsChimeUnlock && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
           <span className="flex items-center gap-2">
             <Volume2 className="size-4 shrink-0" />
-            Tap anywhere on this screen to turn on the ready chime.
+            Tap anywhere on this screen to turn on ready alerts.
           </span>
           <button
             type="button"
             onClick={dismissChimeBar}
             aria-label="Keep this screen silent"
-            className="rounded-lg p-1.5 text-neutral-500 transition-colors hover:bg-neutral-800 hover:text-neutral-300"
+            className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-neutral-600"
           >
             <X className="size-4" />
           </button>
@@ -302,20 +307,20 @@ function Column({
     <section
       className={cn(
         "flex min-w-0 flex-col gap-4 rounded-3xl border p-4 lg:p-6",
-        tone === "ready" ? "border-emerald-500/40 bg-emerald-500/5" : "border-neutral-800 bg-neutral-900/40",
+        tone === "ready" ? "border-emerald-300 bg-emerald-50" : "border-neutral-200 bg-neutral-50",
       )}
     >
       <h2
         className={cn(
           "text-lg font-semibold uppercase tracking-wide lg:text-2xl",
-          tone === "ready" ? "text-emerald-400" : "text-neutral-400",
+          tone === "ready" ? "text-emerald-600" : "text-neutral-500",
         )}
       >
         {title}
       </h2>
 
       {numbers.length === 0 ? (
-        <p className="flex flex-1 items-center justify-center text-base text-neutral-600 lg:text-xl">
+        <p className="flex flex-1 items-center justify-center text-base text-neutral-400 lg:text-xl">
           {empty}
         </p>
       ) : (
@@ -326,7 +331,7 @@ function Column({
               className={cn(
                 "rounded-2xl px-4 py-2 font-bold tabular-nums leading-none lg:px-6 lg:py-4",
                 SCALES[scale],
-                tone === "ready" ? "bg-emerald-500 text-neutral-950" : "bg-neutral-800 text-neutral-300",
+                tone === "ready" ? "bg-emerald-500 text-white" : "bg-neutral-200 text-neutral-700",
                 // motion-safe, so a guest who asked their device for less motion
                 // still gets the colour change without the pulse.
                 flashing.has(number) && "motion-safe:animate-ready-flash",

@@ -44,7 +44,7 @@ export function ScreenSettings({
     { kind: ScreenKind; action: "rotate" | "revoke" } | { kind: "PIN"; action: "clear" } | null
   >(null);
 
-  const pinValid = /^(\d{4}|\d{6})$/.test(pin);
+  const pinValid = /^\d{6}$/.test(pin);
 
   async function savePin() {
     if (!pinValid) return;
@@ -135,7 +135,7 @@ export function ScreenSettings({
               Screen PIN
             </Label>
             <p className="text-xs text-muted-foreground">
-              4 or 6 digits, typed once on each screen when you put it up. Changing it signs every
+              6 digits, typed once on each screen when you put it up. Changing it signs every
               screen out immediately — that&apos;s how you revoke a device you can&apos;t get back to.
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -167,7 +167,7 @@ export function ScreenSettings({
               )}
             </div>
             {pin.length > 0 && !pinValid && (
-              <p className="text-xs font-medium text-destructive">The PIN must be exactly 4 or 6 digits.</p>
+              <p className="text-xs font-medium text-destructive">The PIN must be exactly 6 digits.</p>
             )}
             {!pinSet && (
               <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-800">

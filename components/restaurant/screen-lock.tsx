@@ -16,10 +16,8 @@ import { cn } from "@/lib/utils";
  * attached. Big targets and digits only. A login form here would mean summoning
  * an on-screen keyboard on a screen that will then never be typed into again.
  *
- * The PIN is 4 or 6 digits, so there is no "how long is it" to guess: the pad
- * submits by itself at four, and if that is refused because this restaurant uses
- * six, the typing simply continues to six. Nothing has to be told apart in
- * advance, and no Enter key has to be found.
+ * The PIN is always 6 digits, so the pad submits itself the moment the sixth
+ * digit is typed. No Enter key has to be found.
  *
  * NOTHING HERE DECIDES ANYTHING. The PIN is checked by the server, which is also
  * where the five-attempts-per-fifteen-minutes lockout lives — see
@@ -28,8 +26,6 @@ import { cn } from "@/lib/utils";
  */
 
 const PIN_MAX = 6;
-/** The pad tries at 4; if the restaurant's PIN is 6 the typing simply carries on. */
-const PIN_AUTOSUBMIT = 4;
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
@@ -47,8 +43,6 @@ export function ScreenLock({
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Guards the auto-submit at four digits from firing twice on the same value. */
-  const [triedAtFour, setTriedAtFour] = useState(false);
 
   const submit = useCallback(
     async (candidate: string) => {
@@ -69,11 +63,6 @@ export function ScreenLock({
         const data = (await res.json().catch(() => ({}))) as { error?: unknown };
         const message = typeof data.error === "string" ? data.error : "That PIN is not right";
 
-        // A refused 4-digit attempt on a 6-digit restaurant must not look like a
-        // failure — the person is still typing. The pad clears nothing and says
-        // nothing, and picks up again at six.
-        if (candidate.length === PIN_AUTOSUBMIT) return false;
-
         setError(message);
         setPin("");
         return false;
@@ -87,18 +76,13 @@ export function ScreenLock({
     [token, onUnlocked],
   );
 
-  // Auto-submit, so the common case is four taps and nothing else.
+  // Auto-submit, so the common case is six taps and nothing else.
   useEffect(() => {
     if (busy) return;
-    if (pin.length === PIN_AUTOSUBMIT && !triedAtFour) {
-      setTriedAtFour(true);
-      void submit(pin);
-      return;
-    }
     if (pin.length === PIN_MAX) {
       void submit(pin);
     }
-  }, [pin, busy, triedAtFour, submit]);
+  }, [pin, busy, submit]);
 
   const press = useCallback((digit: string) => {
     setError(null);
@@ -107,13 +91,7 @@ export function ScreenLock({
 
   const backspace = useCallback(() => {
     setError(null);
-    setPin((prev) => {
-      const next = prev.slice(0, -1);
-      // Stepping back below four re-arms the four-digit attempt, so a mistyped
-      // digit corrected in place still submits without needing six.
-      if (next.length < PIN_AUTOSUBMIT) setTriedAtFour(false);
-      return next;
-    });
+    setPin((prev) => prev.slice(0, -1));
   }, []);
 
   // A physical numpad is common on a till, and ignoring it would be perverse.
@@ -146,13 +124,7 @@ export function ScreenLock({
           {Array.from({ length: PIN_MAX }, (_, index) => (
             <span
               key={index}
-              className={cn(
-                "size-3 rounded-full transition-colors",
-                index < pin.length ? "bg-ink" : "bg-border",
-                // The last two dots are dimmer until reached — a quiet hint that
-                // six is allowed without insisting on it.
-                index >= PIN_AUTOSUBMIT && index >= pin.length && "opacity-40",
-              )}
+              className={cn("size-3 rounded-full transition-colors", index < pin.length ? "bg-ink" : "bg-border")}
             />
           ))}
         </div>

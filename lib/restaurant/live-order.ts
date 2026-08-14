@@ -33,6 +33,9 @@ export type LiveOrderItem = {
  * Narrower than LiveOrder on purpose. The mounted kitchen screen authenticates
  * with a link and a PIN rather than a staff login, so GET /api/screen/:token/orders
  * deliberately withholds totals, payment state and the customer's phone number.
+ * customerName is the one guest-identifying field both surfaces expose — a cook
+ * calling a name out to the counter is worth more than the privacy cost, which
+ * is why it is here even though mobile/total/address are not.
  * Typing the display against what it needs — instead of against the console's
  * fuller payload — is what lets one component serve both without either endpoint
  * having to pretend it returns fields it does not.
@@ -54,6 +57,7 @@ export type KitchenOrder = {
   orderNumber: number;
   status: RestoOrderStatus;
   type: RestoOrderType;
+  customerName: string;
   tableLabel: string | null;
   note: string | null;
   placedAt: string;

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Settings } from "lucide-react";
 
 import { getRestaurantSession, serverFetch } from "@/lib/api/server";
+import type { AnnounceLanguage } from "@/lib/restaurant/announce";
 import { normalizeRestoMode } from "@/lib/restaurant/theme";
 import { PageHeader } from "@/components/shared/page-header";
 import { AlertSettings } from "@/components/restaurant/alert-settings";
@@ -52,6 +53,7 @@ type SettingsResponse = {
     closedMessage: string | null;
     kitchenToken: string | null;
     displayToken: string | null;
+    announceLanguages: AnnounceLanguage[];
     /**
      * Whether a screen PIN exists — never the hash itself. The settings route
      * strips screenPinHash and substitutes this bit; see its comment for why.
@@ -145,6 +147,7 @@ export default async function RestaurantSettingsPage() {
           initialKitchenToken={restaurant.kitchenToken}
           initialDisplayToken={restaurant.displayToken}
           initialPinSet={restaurant.screenPinSet}
+          initialAnnounceLanguages={restaurant.announceLanguages}
         />
       </section>
 

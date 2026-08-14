@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PickupDisplay } from "@/components/restaurant/pickup-display";
 import { ScreenGate } from "@/components/restaurant/screen-gate";
 import type { RestoOrderStatus } from "@/lib/api/enums";
+import type { AnnounceLanguage } from "@/lib/restaurant/announce";
 import { probeScreen, screenFetch } from "@/lib/restaurant/screen";
 
 /**
@@ -54,8 +55,9 @@ export default async function PickupDisplayPage({ params }: { params: { token: s
     );
   }
 
-  const { orders } = await screenFetch<{
+  const { orders, announceLanguages } = await screenFetch<{
     orders: { orderNumber: number; status: RestoOrderStatus }[];
+    announceLanguages: AnnounceLanguage[];
   }>(params.token, "/pickup");
 
   return (
@@ -64,6 +66,7 @@ export default async function PickupDisplayPage({ params }: { params: { token: s
       restaurantName={screen.restaurantName}
       branch={screen.branch}
       initialOrders={orders}
+      initialAnnounceLanguages={announceLanguages}
     />
   );
 }

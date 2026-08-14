@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChefHat, Copy, ExternalLink, KeyRound, Monitor, RefreshCw, Trash2 } from "lucide-react";
+import { ChefHat, Copy, ExternalLink, KeyRound, Monitor, RefreshCw, Trash2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import type { AnnounceLanguage } from "@/lib/restaurant/announce";
 import { getKitchenScreenUrl, getPickupDisplayUrl } from "@/lib/restaurant/qr-url";
+
+const LANGUAGE_LABEL: Record<AnnounceLanguage, string> = { en: "English", hi: "Hindi", gu: "Gujarati" };
+const LANGUAGE_ORDER: AnnounceLanguage[] = ["en", "hi", "gu"];
 
 /**
  * The owner's controls for the two unattended screens.
@@ -29,14 +34,18 @@ export function ScreenSettings({
   initialKitchenToken,
   initialDisplayToken,
   initialPinSet,
+  initialAnnounceLanguages,
 }: {
   initialKitchenToken: string | null;
   initialDisplayToken: string | null;
   initialPinSet: boolean;
+  initialAnnounceLanguages: AnnounceLanguage[];
 }) {
   const [kitchenToken, setKitchenToken] = useState(initialKitchenToken);
   const [displayToken, setDisplayToken] = useState(initialDisplayToken);
   const [pinSet, setPinSet] = useState(initialPinSet);
+  const [announceLanguages, setAnnounceLanguages] = useState(initialAnnounceLanguages);
+  const [languageBusy, setLanguageBusy] = useState(false);
 
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
@@ -109,6 +118,37 @@ export function ScreenSettings({
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * Same immediate-effect pattern as the PIN and links above: every toggle
+   * PATCHes straight away. Unchecking the last enabled language is refused
+   * client-side — the API rejects an empty list too, but catching it here
+   * avoids a round trip for something the UI can already see is invalid.
+   */
+  async function toggleLanguage(lang: AnnounceLanguage, checked: boolean) {
+    const next = checked ? [...announceLanguages, lang] : announceLanguages.filter((l) => l !== lang);
+    if (next.length === 0) {
+      toast.error("At least one language has to stay on");
+      return;
+    }
+
+    const prev = announceLanguages;
+    setAnnounceLanguages(next);
+    setLanguageBusy(true);
+    try {
+      const res = await fetch("/api/restaurant/settings/announce-language", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ languages: next }),
+      });
+      if (!res.ok) {
+        setAnnounceLanguages(prev);
+        toast.error("Could not update the announcement languages");
+      }
+    } finally {
+      setLanguageBusy(false);
     }
   }
 
@@ -197,6 +237,32 @@ export function ScreenSettings({
             onRotate={() => setConfirming({ kind: "PICKUP", action: "rotate" })}
             onRevoke={() => setConfirming({ kind: "PICKUP", action: "revoke" })}
           />
+
+          <div className="flex flex-col gap-2.5 border-t border-border pt-5">
+            <Label className="flex items-center gap-1.5">
+              <Volume2 className="size-4" />
+              Pickup announcements
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              When an order goes Ready, the pickup board reads its number aloud in every language
+              turned on here — always English first, then Hindi, then Gujarati.
+            </p>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {LANGUAGE_ORDER.map((lang) => (
+                <div key={lang} className="flex items-center gap-2">
+                  <Switch
+                    id={`announce-${lang}`}
+                    checked={announceLanguages.includes(lang)}
+                    disabled={languageBusy}
+                    onCheckedChange={(checked) => void toggleLanguage(lang, checked)}
+                  />
+                  <Label htmlFor={`announce-${lang}`} className="font-normal">
+                    {LANGUAGE_LABEL[lang]}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <p className="rounded-xl bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
             Neither screen signs in as staff, so nobody can reach your settings, history or takings

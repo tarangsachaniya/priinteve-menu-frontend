@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, Minus, Plus, Volume2, WifiOff, X } from "lucide-react";
 
 import type { RestoOrderStatus } from "@/lib/api/enums";
-import { announceReady } from "@/lib/restaurant/announce";
+import { announceReady, type AnnounceLanguage } from "@/lib/restaurant/announce";
 import { createChime, type Chime } from "@/lib/restaurant/chime";
 import { screenLockPath, screenPickupPath } from "@/lib/restaurant/screen-paths";
 import { useWakeLock } from "@/lib/restaurant/wake-lock";
@@ -61,14 +61,22 @@ export function PickupDisplay({
   restaurantName,
   branch,
   initialOrders,
+  initialAnnounceLanguages,
 }: {
   token: string;
   restaurantName: string;
   branch: string | null;
   initialOrders: PickupOrder[];
+  initialAnnounceLanguages: AnnounceLanguage[];
 }) {
   const router = useRouter();
   const [orders, setOrders] = useState(initialOrders);
+  /**
+   * Read fresh out of every poll response rather than re-rendered from props —
+   * an owner flipping a language on in Settings should take effect on the next
+   * tick, not need this tablet reloaded.
+   */
+  const announceLanguages = useRef(initialAnnounceLanguages);
   const [stale, setStale] = useState(false);
   const [scale, setScale] = useState<ScaleKey>("M");
   const [needsChimeUnlock, setNeedsChimeUnlock] = useState(false);
@@ -135,9 +143,10 @@ export function PickupDisplay({
       }
       if (!res.ok) throw new Error("bad status");
 
-      const data = (await res.json()) as { orders: PickupOrder[] };
+      const data = (await res.json()) as { orders: PickupOrder[]; announceLanguages: AnnounceLanguage[] };
       failures.current = 0;
       setStale(false);
+      announceLanguages.current = data.announceLanguages;
 
       const nowReady = data.orders.filter((order) => order.status === "READY");
       const fresh = nowReady
@@ -162,7 +171,7 @@ export function PickupDisplay({
         // announcement follows the same rule, one utterance naming all of them.
         if (window.localStorage.getItem(CHIME_KEY) !== "off") {
           chime.current?.play();
-          announceReady(fresh);
+          announceReady(fresh, announceLanguages.current);
         }
 
         setFlashing(new Set(fresh));

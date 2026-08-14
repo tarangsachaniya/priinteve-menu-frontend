@@ -64,15 +64,16 @@ import { ORDER_TYPE_LABEL } from "@/lib/restaurant/order-status";
  */
 
 /**
- * Gap between phrases. One damru run is ~0.8s of sound, so this leaves ~3.2s of
- * silence — about fifteen phrases a minute.
- *
- * Tighter than ~3s and the phrases stop reading as separate events; the ear
- * files the result under "background noise" within a minute, which is the exact
- * opposite of what an unignorable alert is for. Looser than ~6s and it reads as
- * a notification rather than an alarm, and a busy kitchen will let it run.
+ * Gap between phrases, growing rather than fixed: 2s, 4s, 6s, 8s, then holding
+ * at 10s for as long as the order sits unaccepted. Tight at the start, when the
+ * alert is new and someone should glance over immediately; loosening it after
+ * that is what keeps an order still ringing five minutes in from reading as
+ * "background noise" the ear has already filed away, without also drumming
+ * every two seconds for the entire five minutes.
  */
-const RING_INTERVAL_MS = 4000;
+const RING_INTERVAL_START_MS = 2000;
+const RING_INTERVAL_STEP_MS = 2000;
+const RING_INTERVAL_MAX_MS = 10_000;
 
 /**
  * Poll cadence while something is ringing. Fast, because this is the only
@@ -337,9 +338,29 @@ export function OrderAlertProvider({
       }
     };
 
+    // Self-rescheduling rather than setInterval: the gap changes on every
+    // repeat, and a fresh setInterval call for each new gap would drift from
+    // the growing schedule instead of extending it.
+    let cancelled = false;
+    let timer: number | undefined;
+    let gap = RING_INTERVAL_START_MS;
+
+    const loop = () => {
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        fire();
+        gap = Math.min(gap + RING_INTERVAL_STEP_MS, RING_INTERVAL_MAX_MS);
+        loop();
+      }, gap);
+    };
+
     fire();
-    const timer = window.setInterval(fire, RING_INTERVAL_MS);
-    return () => window.clearInterval(timer);
+    loop();
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [isRinging]);
 
   // ── sound unlock ──────────────────────────────────────────────────────────

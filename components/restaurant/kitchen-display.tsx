@@ -291,6 +291,7 @@ function KitchenTicket({
           <p className="text-3xl font-bold tabular-nums leading-none text-ink">#{order.orderNumber}</p>
           <p className="mt-1 truncate text-sm text-muted-foreground">
             {order.tableLabel ?? ORDER_TYPE_LABEL[order.type]}
+            {order.customerName && <span> · {order.customerName}</span>}
           </p>
         </div>
         <p

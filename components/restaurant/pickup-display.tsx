@@ -1,0 +1,342 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Lock, Minus, Plus, Volume2, WifiOff, X } from "lucide-react";
+
+import type { RestoOrderStatus } from "@/lib/api/enums";
+import { createChime, type Chime } from "@/lib/restaurant/chime";
+import { screenLockPath, screenPickupPath } from "@/lib/restaurant/screen-paths";
+import { useWakeLock } from "@/lib/restaurant/wake-lock";
+import { cn } from "@/lib/utils";
+
+/**
+ * The customer pickup board — a TV or tablet on a wall, read from across a room
+ * by people waiting for food.
+ *
+ * WHAT IS ON IT: order numbers, in two columns. That is the whole design. No
+ * names, no dishes, no totals — the API does not even send them (see the select
+ * in screen.routes.ts), because a screen a room full of strangers can read is
+ * the wrong place for any of it.
+ *
+ * The two columns are "Preparing" (ACCEPTED + PREPARING) and "Ready to collect"
+ * (READY). A guest does not need to know the difference between accepted and
+ * preparing; they need to know whether to stand up.
+ */
+
+const POLL_INTERVAL_MS = 5000;
+
+/** Failed polls before the screen admits it. A frozen board that looks fine is worse than one that says so. */
+const STALE_AFTER_FAILURES = 3;
+
+/** Second guard on top of the API's six-hour window, so the Ready column cannot fill with yesterday. */
+const READY_LIMIT = 12;
+
+const SCALE_KEY = "pv:display:scale";
+const CHIME_KEY = "pv:display:chime";
+
+type PickupOrder = { orderNumber: number; status: RestoOrderStatus };
+
+/**
+ * Sized off vmin, not vw. A portrait tablet and a 55" landscape TV produce
+ * wildly different results from the same vw figure, and this component has to
+ * be legible on both without anyone editing code. The S/M/L toggle then covers
+ * the rest, and is remembered per device so a venue tunes it once.
+ */
+const SCALES = {
+  S: "text-[clamp(2rem,7vmin,5rem)]",
+  M: "text-[clamp(2.5rem,10vmin,8rem)]",
+  L: "text-[clamp(3rem,14vmin,11rem)]",
+} as const;
+
+type ScaleKey = keyof typeof SCALES;
+const SCALE_ORDER: ScaleKey[] = ["S", "M", "L"];
+
+export function PickupDisplay({
+  token,
+  restaurantName,
+  branch,
+  initialOrders,
+}: {
+  token: string;
+  restaurantName: string;
+  branch: string | null;
+  initialOrders: PickupOrder[];
+}) {
+  const router = useRouter();
+  const [orders, setOrders] = useState(initialOrders);
+  const [stale, setStale] = useState(false);
+  const [scale, setScale] = useState<ScaleKey>("M");
+  const [needsChimeUnlock, setNeedsChimeUnlock] = useState(false);
+  const [flashing, setFlashing] = useState<Set<number>>(new Set());
+
+  const chime = useRef<Chime | null>(null);
+  const failures = useRef(0);
+  /**
+   * Numbers already seen as READY.
+   *
+   * SEEDED FROM THE FIRST PAYLOAD WITHOUT CHIMING, and here that is the correct
+   * behaviour — unlike in the order alert, where the equivalent seeding pass had
+   * to be removed. A wall display that reloads after a power cut must not
+   * announce every order that was already sitting ready.
+   */
+  const announced = useRef<Set<number>>(new Set(initialOrders.filter((o) => o.status === "READY").map((o) => o.orderNumber)));
+
+  useWakeLock();
+
+  if (chime.current === null && typeof window !== "undefined") {
+    chime.current = createChime();
+  }
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(SCALE_KEY);
+    if (stored === "S" || stored === "M" || stored === "L") setScale(stored);
+    if (window.localStorage.getItem(CHIME_KEY) !== "off") setNeedsChimeUnlock(true);
+  }, []);
+
+  // Any tap anywhere arms the audio — the bar below only has to explain why one
+  // is needed. Unhooked only once the chime is genuinely armed, because unlock()
+  // can fail on iOS and a listener that gave up on that first failure would
+  // leave the board permanently silent.
+  useEffect(() => {
+    const sound = chime.current;
+    if (!sound) return;
+
+    const unlock = () => {
+      void sound.unlock().then(() => {
+        if (!sound.isUnlocked()) return;
+        setNeedsChimeUnlock(false);
+        window.removeEventListener("pointerdown", unlock);
+        window.removeEventListener("keydown", unlock);
+      });
+    };
+
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  const tick = useCallback(async () => {
+    try {
+      const res = await fetch(screenPickupPath(token), { cache: "no-store" });
+      if (res.status === 401 || res.status === 404) {
+        // The owner rotated the link or changed the PIN. Re-render on the server
+        // so the board turns back into a keypad rather than sitting on stale
+        // numbers looking healthy.
+        router.refresh();
+        return;
+      }
+      if (!res.ok) throw new Error("bad status");
+
+      const data = (await res.json()) as { orders: PickupOrder[] };
+      failures.current = 0;
+      setStale(false);
+
+      const nowReady = data.orders.filter((order) => order.status === "READY");
+      const fresh = nowReady
+        .map((order) => order.orderNumber)
+        .filter((number) => !announced.current.has(number));
+
+      // Announced first, so a failed render or a re-entrant tick cannot chime
+      // twice for the same number.
+      for (const number of fresh) announced.current.add(number);
+      // Anything no longer on the board can be forgotten, so a number reissued
+      // tomorrow still announces.
+      const stillPresent = new Set(data.orders.map((order) => order.orderNumber));
+      announced.current.forEach((number) => {
+        if (!stillPresent.has(number)) announced.current.delete(number);
+      });
+
+      setOrders(data.orders);
+
+      if (fresh.length > 0) {
+        // One chime however many flipped at once. Two orders becoming ready in
+        // the same five-second window is one event to the room.
+        if (window.localStorage.getItem(CHIME_KEY) !== "off") chime.current?.play();
+
+        setFlashing(new Set(fresh));
+        window.setTimeout(() => setFlashing(new Set()), 2800);
+      }
+    } catch {
+      failures.current += 1;
+      if (failures.current >= STALE_AFTER_FAILURES) setStale(true);
+    }
+  }, [token, router]);
+
+  useEffect(() => {
+    const timer = window.setInterval(tick, POLL_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [tick]);
+
+  function changeScale(direction: 1 | -1) {
+    setScale((prev) => {
+      const next = SCALE_ORDER[Math.min(2, Math.max(0, SCALE_ORDER.indexOf(prev) + direction))];
+      window.localStorage.setItem(SCALE_KEY, next);
+      return next;
+    });
+  }
+
+  function dismissChimeBar() {
+    window.localStorage.setItem(CHIME_KEY, "off");
+    setNeedsChimeUnlock(false);
+  }
+
+  async function lock() {
+    await fetch(screenLockPath(token), { method: "POST" }).catch(() => {});
+    router.refresh();
+  }
+
+  const preparing = orders
+    .filter((order) => order.status === "ACCEPTED" || order.status === "PREPARING")
+    .map((order) => order.orderNumber);
+  const ready = orders
+    .filter((order) => order.status === "READY")
+    .map((order) => order.orderNumber)
+    .slice(-READY_LIMIT);
+
+  return (
+    // Inverted against the rest of the app: a wall screen in a lit room reads
+    // far better as light-on-dark, and it is the one surface here nobody is
+    // reading up close.
+    <main className="flex min-h-screen flex-col gap-4 bg-neutral-950 p-4 text-neutral-100 lg:p-8">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold lg:text-2xl">
+          {restaurantName}
+          {branch && <span className="ml-2 font-normal text-neutral-400">{branch}</span>}
+        </h1>
+
+        <div className="flex items-center gap-2">
+          {stale && (
+            <span className="flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300">
+              <WifiOff className="size-3.5" />
+              Reconnecting…
+            </span>
+          )}
+          {/* Deliberately small and dim. These are set once when the screen is
+              mounted and must never compete with the numbers. */}
+          <button
+            type="button"
+            onClick={() => changeScale(-1)}
+            aria-label="Smaller text"
+            className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-neutral-300"
+          >
+            <Minus className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => changeScale(1)}
+            aria-label="Larger text"
+            className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-neutral-300"
+          >
+            <Plus className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => void lock()}
+            aria-label="Lock this screen"
+            className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-neutral-300"
+          >
+            <Lock className="size-4" />
+          </button>
+        </div>
+      </header>
+
+      <div className="grid min-h-0 flex-1 gap-4 sm:grid-cols-2">
+        <Column
+          title="Preparing"
+          numbers={preparing}
+          scale={scale}
+          tone="muted"
+          flashing={flashing}
+          empty="Nothing cooking"
+        />
+        <Column
+          title="Ready to collect"
+          numbers={ready}
+          scale={scale}
+          tone="ready"
+          flashing={flashing}
+          empty="Nothing ready yet"
+        />
+      </div>
+
+      {needsChimeUnlock && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
+          <span className="flex items-center gap-2">
+            <Volume2 className="size-4 shrink-0" />
+            Tap anywhere on this screen to turn on the ready chime.
+          </span>
+          <button
+            type="button"
+            onClick={dismissChimeBar}
+            aria-label="Keep this screen silent"
+            className="rounded-lg p-1.5 text-neutral-500 transition-colors hover:bg-neutral-800 hover:text-neutral-300"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function Column({
+  title,
+  numbers,
+  scale,
+  tone,
+  flashing,
+  empty,
+}: {
+  title: string;
+  numbers: number[];
+  scale: ScaleKey;
+  tone: "muted" | "ready";
+  flashing: Set<number>;
+  empty: string;
+}) {
+  return (
+    <section
+      className={cn(
+        "flex min-w-0 flex-col gap-4 rounded-3xl border p-4 lg:p-6",
+        tone === "ready" ? "border-emerald-500/40 bg-emerald-500/5" : "border-neutral-800 bg-neutral-900/40",
+      )}
+    >
+      <h2
+        className={cn(
+          "text-lg font-semibold uppercase tracking-wide lg:text-2xl",
+          tone === "ready" ? "text-emerald-400" : "text-neutral-400",
+        )}
+      >
+        {title}
+      </h2>
+
+      {numbers.length === 0 ? (
+        <p className="flex flex-1 items-center justify-center text-base text-neutral-600 lg:text-xl">
+          {empty}
+        </p>
+      ) : (
+        <div className="flex flex-wrap content-start gap-3 lg:gap-4">
+          {numbers.map((number) => (
+            <span
+              key={number}
+              className={cn(
+                "rounded-2xl px-4 py-2 font-bold tabular-nums leading-none lg:px-6 lg:py-4",
+                SCALES[scale],
+                tone === "ready" ? "bg-emerald-500 text-neutral-950" : "bg-neutral-800 text-neutral-300",
+                // motion-safe, so a guest who asked their device for less motion
+                // still gets the colour change without the pulse.
+                flashing.has(number) && "motion-safe:animate-ready-flash",
+              )}
+            >
+              {number}
+            </span>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}

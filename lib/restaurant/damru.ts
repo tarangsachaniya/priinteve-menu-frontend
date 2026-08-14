@@ -53,6 +53,20 @@ export type Damru = {
   /** No-op when still locked, so callers never have to check first. */
   play: () => void;
   /**
+   * Cuts short every phrase currently sounding.
+   *
+   * The drum now repeats until an order is accepted or cancelled, so the moment
+   * someone taps Accept there is very often a run mid-flight with four strikes
+   * still scheduled. Letting those land means the console bangs out an alert for
+   * an order that has already been dealt with — which reads as the feature being
+   * broken, not as a rounding error.
+   *
+   * A short fade rather than an abrupt disconnect: killing a running oscillator
+   * dead produces a click, and on a till speaker that is more startling than the
+   * drum it is replacing.
+   */
+  stopAll: () => void;
+  /**
    * Whether a gesture has ever armed this drum — NOT whether the context
    * happens to be running this instant.
    *
@@ -138,6 +152,14 @@ export function createDamru(): Damru {
   let ctx: AudioContext | null = null;
   let unlocked = false;
 
+  /**
+   * Master nodes for phrases that are still sounding, so stopAll() has
+   * something to reach. Entries remove themselves on the cleanup timer below,
+   * so this holds at most one or two at a time rather than growing with the
+   * service.
+   */
+  const sounding: GainNode[] = [];
+
   function context(): AudioContext | null {
     if (ctx) return ctx;
     const Ctor = getAudioContextCtor();
@@ -154,6 +176,7 @@ export function createDamru(): Damru {
     const master = audio.createGain();
     master.gain.setValueAtTime(0.9, audio.currentTime);
     master.connect(audio.destination);
+    sounding.push(master);
 
     // A hair in the future: scheduling exactly at currentTime races the audio
     // thread and can clip the first strike's attack.
@@ -173,15 +196,39 @@ export function createDamru(): Damru {
 
     // Release the master node once the tail is gone. Without this, a console
     // left open through a busy service accumulates one orphaned GainNode per
-    // order for the life of the page.
-    window.setTimeout(
-      () => master.disconnect(),
-      (STRIKE_COUNT * STRIKE_GAP + 0.3) * 1000,
-    );
+    // order for the life of the page — and now that the drum repeats every few
+    // seconds until someone accepts, "per order" would be "per four seconds".
+    window.setTimeout(() => {
+      master.disconnect();
+      const at = sounding.indexOf(master);
+      if (at !== -1) sounding.splice(at, 1);
+    }, (STRIKE_COUNT * STRIKE_GAP + 0.3) * 1000);
   }
 
   return {
     isUnlocked: () => unlocked,
+
+    stopAll: () => {
+      const audio = ctx;
+      if (!audio) return;
+
+      for (const master of sounding) {
+        try {
+          const now = audio.currentTime;
+          master.gain.cancelScheduledValues(now);
+          master.gain.setValueAtTime(master.gain.value, now);
+          master.gain.linearRampToValueAtTime(0.0001, now + 0.03);
+        } catch {
+          // Already torn down by its own cleanup timer. Nothing to do.
+        }
+      }
+
+      // The nodes are left connected for the length of the fade and reaped by
+      // the cleanup timers scheduled in schedule(), which is why this only
+      // clears the list rather than disconnecting here. Disconnecting mid-ramp
+      // is the click this fade exists to avoid.
+      sounding.length = 0;
+    },
 
     /**
      * Autoplay policy is the real constraint on this whole feature.

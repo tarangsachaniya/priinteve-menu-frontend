@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { AlertSettings } from "@/components/restaurant/alert-settings";
 import { HoursForm } from "@/components/restaurant/hours-form";
 import { PeakHoursForm } from "@/components/restaurant/peak-hours-form";
+import { ScreenSettings } from "@/components/restaurant/screen-settings";
 import { SettingsForm } from "@/components/restaurant/settings-form";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,13 @@ type SettingsResponse = {
     timezone: string;
     acceptingOrders: boolean;
     closedMessage: string | null;
+    kitchenToken: string | null;
+    displayToken: string | null;
+    /**
+     * Whether a screen PIN exists — never the hash itself. The settings route
+     * strips screenPinHash and substitutes this bit; see its comment for why.
+     */
+    screenPinSet: boolean;
     // Minutes from midnight in the restaurant's timezone (Prisma Int columns,
     // not clock strings) — see prisma/schema.prisma's RestaurantHours/
     // RestaurantPeakWindow models on the API.
@@ -124,6 +132,20 @@ export default async function RestaurantSettingsPage() {
           phone, tablet and till separately — they each need their own permission.
         </p>
         <AlertSettings />
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold tracking-tight">Screens</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          A kitchen display for the pass and a pickup board your guests can read. Each runs on its
+          own link and unlocks with one shared PIN — neither signs in as staff, so a screen on the
+          wall can never reach the rest of your console.
+        </p>
+        <ScreenSettings
+          initialKitchenToken={restaurant.kitchenToken}
+          initialDisplayToken={restaurant.displayToken}
+          initialPinSet={restaurant.screenPinSet}
+        />
       </section>
 
       <section className="mt-10">

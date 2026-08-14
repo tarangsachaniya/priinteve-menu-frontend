@@ -169,7 +169,8 @@ export function AlertSettings() {
               Damru sound
             </Label>
             <p className="text-xs text-muted-foreground">
-              Plays once per order while this console is open in any window.
+              Repeats every few seconds until someone accepts or cancels the order. Turning this off
+              leaves the popup and the tab badge — only the drum goes quiet.
             </p>
           </div>
           <Switch id="alert-sound" checked={sound} onCheckedChange={toggleSound} />

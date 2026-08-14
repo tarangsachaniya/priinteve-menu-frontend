@@ -25,3 +25,20 @@ export function getRestaurantOrderUrl(restaurantSlug: string): string {
 export function getOrderStatusUrl(restaurantSlug: string, orderId: string): string {
   return `${baseUrl()}/order/${restaurantSlug}/status/${orderId}`;
 }
+
+/**
+ * The two mounted-screen links, for the owner to copy into a tablet or a TV.
+ *
+ * Unlike the table URLs removed above, these belong here: a screen token is
+ * meant to be shown to the owner — reading it off this card and typing it into
+ * a device is the entire setup flow. It is still a credential, so the settings
+ * card treats it like one (revocable, rotatable, and never rendered anywhere a
+ * guest can reach).
+ */
+export function getKitchenScreenUrl(kitchenToken: string): string {
+  return `${baseUrl()}/kds/${kitchenToken}`;
+}
+
+export function getPickupDisplayUrl(displayToken: string): string {
+  return `${baseUrl()}/display/${displayToken}`;
+}

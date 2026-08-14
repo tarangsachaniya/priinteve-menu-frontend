@@ -19,18 +19,12 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { CancelOrderDialog } from "@/components/restaurant/cancel-order-dialog";
 import { formatCurrency } from "@/lib/format";
+import type { LiveOrder } from "@/lib/restaurant/live-order";
 import { formatMobile } from "@/lib/restaurant/mobile";
+import { patchOrderStatus } from "@/lib/restaurant/order-actions";
+import { subscribeOrderAck } from "@/lib/restaurant/order-ack";
 import {
   ORDER_STATUS_BADGE,
   ORDER_STATUS_LABEL,
@@ -54,32 +48,8 @@ const COLUMNS: { status: RestoOrderStatus; hint: string }[] = [
   { status: "READY", hint: "Waiting for pickup" },
 ];
 
-export type BoardOrder = {
-  id: string;
-  orderNumber: number;
-  status: RestoOrderStatus;
-  type: RestoOrderType;
-  /** Null until the customer picks a method on the payment screen. */
-  paymentMode: "ONLINE" | "COUNTER" | "UPI_QR" | null;
-  paymentStatus: "PENDING" | "REQUESTED" | "PAID" | "FAILED" | "REFUNDED";
-  customerName: string;
-  customerMobile: string;
-  tableLabel: string | null;
-  total: number;
-  note: string | null;
-  deliveryAddress: string | null;
-  deliveryPincode: string | null;
-  pickupInMinutes: number | null;
-  placedAt: string;
-  items: {
-    id: string;
-    name: string;
-    quantity: number;
-    lineTotal: number;
-    variantName: string | null;
-    addOns: string[];
-  }[];
-};
+/** The board's name for the shared live-order DTO. See lib/restaurant/live-order.ts. */
+export type BoardOrder = LiveOrder;
 
 function minutesAgo(iso: string): string {
   const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -340,74 +310,6 @@ function OrderCard({
   );
 }
 
-/**
- * Replaces the native prompt() the cancel action used to open — same reason
- * confirm() was replaced elsewhere: it blocks the render thread and can't be
- * styled or made keyboard/screen-reader friendly like the rest of the app.
- */
-function CancelOrderDialog({
-  order,
-  onOpenChange,
-  onConfirm,
-}: {
-  order: BoardOrder | null;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: (reason: string) => void;
-}) {
-  const [reason, setReason] = useState("");
-
-  return (
-    <Dialog
-      open={order !== null}
-      onOpenChange={(open) => {
-        if (!open) setReason("");
-        onOpenChange(open);
-      }}
-    >
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Cancel order?</DialogTitle>
-          <DialogDescription>
-            {order && `Let the kitchen know why order #${order.orderNumber} is being cancelled.`}
-          </DialogDescription>
-        </DialogHeader>
-        {order?.paymentStatus === "PAID" && (
-          <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700">
-            This order has already been paid ({formatCurrency(order.total)}). Cancelling it will mark it
-            as Refunded — you&apos;ll still need to process the actual refund yourself.
-          </p>
-        )}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="cancel-reason">Reason (optional)</Label>
-          <Textarea
-            id="cancel-reason"
-            rows={2}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Out of stock, guest changed their mind…"
-            autoFocus
-          />
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Keep order
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => {
-              onConfirm(reason.trim());
-              setReason("");
-            }}
-          >
-            Cancel order
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) {
   const [orders, setOrders] = useState(initialOrders);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -458,17 +360,35 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
     return () => clearInterval(timer);
   }, [refresh]);
 
+  /**
+   * A till commonly has the board in one tab and the kitchen display in
+   * another. Without this the board sits on a stale card for up to eight
+   * seconds after the kitchen bumps the same order on the other screen.
+   *
+   * Only the ack's orderId is trusted — its status is the attempted one, which
+   * a 409 makes a guess. So this refetches rather than patching state locally.
+   */
+  useEffect(() => {
+    return subscribeOrderAck((ack) => {
+      if (knownIds.current.has(ack.orderId)) void refresh();
+    });
+  }, [refresh]);
+
+  /**
+   * Goes through patchOrderStatus rather than fetching directly so the ack that
+   * silences the damru is published as part of the request — see
+   * lib/restaurant/order-actions.ts. The optimistic update below still runs, so
+   * the drum stops on the same frame the card moves.
+   */
   async function updateStatus(order: BoardOrder, status: RestoOrderStatus, cancelReason?: string) {
     setBusyId(order.id);
     try {
-      const res = await fetch(`/api/restaurant/orders/${order.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, cancelReason }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(typeof data.error === "string" ? data.error : "Could not update the order");
+      const result = await patchOrderStatus(order.id, status, cancelReason);
+      if (!result.ok) {
+        toast.error(result.error ?? "Could not update the order");
+        // A conflict means someone else already moved this order, so the card
+        // on screen is stale. Pull the truth rather than leaving it there.
+        if (result.conflict) void refresh();
         return;
       }
 

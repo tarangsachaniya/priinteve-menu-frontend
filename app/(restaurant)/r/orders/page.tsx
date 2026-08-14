@@ -2,30 +2,11 @@ import { redirect } from "next/navigation";
 import { ReceiptText } from "lucide-react";
 
 import { getRestaurantSession, serverFetch } from "@/lib/api/server";
-import type { RestoOrderStatus, RestoOrderType, RestoPaymentMode, RestoPaymentStatus } from "@/lib/api/enums";
+import type { LiveOrder } from "@/lib/restaurant/live-order";
 import { PageHeader } from "@/components/shared/page-header";
 import { OrdersBoard } from "@/components/restaurant/orders-board";
 
 export const dynamic = "force-dynamic";
-
-type LiveOrder = {
-  id: string;
-  orderNumber: number;
-  status: RestoOrderStatus;
-  type: RestoOrderType;
-  paymentMode: RestoPaymentMode | null;
-  paymentStatus: RestoPaymentStatus;
-  customerName: string;
-  customerMobile: string;
-  tableLabel: string | null;
-  total: number;
-  note: string | null;
-  deliveryAddress: string | null;
-  deliveryPincode: string | null;
-  pickupInMinutes: number | null;
-  placedAt: string;
-  items: { id: string; name: string; quantity: number; lineTotal: number; variantName: string | null; addOns: string[] }[];
-};
 
 export default async function RestaurantOrdersPage() {
   const sessionData = await getRestaurantSession();

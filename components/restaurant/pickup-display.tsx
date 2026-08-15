@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Minus, Plus, Volume2, WifiOff, X } from "lucide-react";
+import { CircleAlert, Lock, Minus, Plus, Volume2, WifiOff, X } from "lucide-react";
 
 import type { RestoOrderStatus } from "@/lib/api/enums";
-import { announceReady, type AnnounceLanguage } from "@/lib/restaurant/announce";
+import { announceReady, hasVoiceFor, type AnnounceLanguage } from "@/lib/restaurant/announce";
 import { createChime, type Chime } from "@/lib/restaurant/chime";
 import { screenLockPath, screenPickupPath } from "@/lib/restaurant/screen-paths";
 import { useWakeLock } from "@/lib/restaurant/wake-lock";
@@ -15,12 +15,12 @@ import { cn } from "@/lib/utils";
  * The customer pickup board — a TV or tablet on a wall, read from across a room
  * by people waiting for food.
  *
- * WHAT IS ON IT: order numbers, in two columns, each with the guest's first
- * name underneath so more than one waiting party can tell their number apart
- * at a glance. Still no dishes, no totals, no full name, no mobile number —
- * the API enforces the first-name-only trim server-side (see firstNameOnly()
- * in screen.routes.ts), because a screen a room full of strangers can read is
- * the wrong place for anything more identifying than that.
+ * WHAT IS ON IT: order numbers, in two columns. Nothing else — no names, no
+ * dishes, no totals, no mobile numbers. The number printed on the guest's
+ * receipt is the whole identifier, and the API does not send anything more
+ * (see the select in screen.routes.ts): a board a room full of strangers can
+ * read, which also calls out over a speaker, is the wrong place to say who
+ * anybody is.
  *
  * The two columns are "Preparing" (ACCEPTED + PREPARING) and "Ready to collect"
  * (READY). A guest does not need to know the difference between accepted and
@@ -41,7 +41,9 @@ const READY_LIMIT = 12;
 const SCALE_KEY = "pv:display:scale";
 const CHIME_KEY = "pv:display:chime";
 
-export type PickupOrder = { orderNumber: number; status: RestoOrderStatus; customerName: string };
+const LANGUAGE_LABEL: Record<AnnounceLanguage, string> = { en: "English", hi: "Hindi", gu: "Gujarati" };
+
+export type PickupOrder = { orderNumber: number; status: RestoOrderStatus };
 
 /**
  * Sized off vmin, not vw. A portrait tablet and a 55" landscape TV produce
@@ -83,6 +85,16 @@ export function PickupDisplay({
   const [scale, setScale] = useState<ScaleKey>("M");
   const [needsChimeUnlock, setNeedsChimeUnlock] = useState(false);
   const [flashing, setFlashing] = useState<Set<number>>(new Set());
+  /**
+   * Enabled languages this device has no speechSynthesis voice for — the
+   * board still speaks them (announceReady falls back to English rather than
+   * garbling the Devanagari/Gujarati string), but this is what turns "the
+   * board sounds wrong" into "here's why and where to fix it" rather than a
+   * silent surprise. Owner also sees this per-device in Settings; this is the
+   * copy that is actually true of the device running the board.
+   */
+  const [missingVoiceLanguages, setMissingVoiceLanguages] = useState<AnnounceLanguage[]>([]);
+  const [voiceWarningDismissed, setVoiceWarningDismissed] = useState(false);
 
   const chime = useRef<Chime | null>(null);
   const failures = useRef(0);
@@ -106,6 +118,23 @@ export function PickupDisplay({
     const stored = window.localStorage.getItem(SCALE_KEY);
     if (stored === "S" || stored === "M" || stored === "L") setScale(stored);
     if (window.localStorage.getItem(CHIME_KEY) !== "off") setNeedsChimeUnlock(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+    // Voices load asynchronously in Chrome — an empty list on the very first
+    // check does not mean the language is missing, only that the browser
+    // hasn't reported its voices yet. Re-checking on this event is what keeps
+    // that from being a false alarm.
+    function recheck() {
+      setMissingVoiceLanguages(announceLanguages.current.filter((lang) => !hasVoiceFor(lang)));
+    }
+
+    recheck();
+    window.speechSynthesis.addEventListener("voiceschanged", recheck);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", recheck);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- announceLanguages is a ref; the tick loop below re-runs this same check whenever its value changes.
   }, []);
 
   // Any tap anywhere arms the audio — the bar below only has to explain why one
@@ -149,6 +178,7 @@ export function PickupDisplay({
       failures.current = 0;
       setStale(false);
       announceLanguages.current = data.announceLanguages;
+      setMissingVoiceLanguages(data.announceLanguages.filter((lang) => !hasVoiceFor(lang)));
 
       const nowReady = data.orders.filter((order) => order.status === "READY");
       const freshOrders = nowReady.filter((order) => !announced.current.has(order.orderNumber));
@@ -167,16 +197,22 @@ export function PickupDisplay({
       setOrders(data.orders);
 
       if (fresh.length > 0) {
-        // One chime however many flipped at once. Two orders becoming ready in
-        // the same five-second window is one event to the room — the
-        // announcement follows the same rule, naming each of them in turn.
+        // The chime is the only thing CHIME_KEY silences. Speech used to be
+        // silenced along with it — dismissing an annoying beep also dropped
+        // every Hindi/Gujarati announcement, which is a much bigger loss than
+        // the beep itself. They're independent now: a muted board still
+        // speaks.
         if (window.localStorage.getItem(CHIME_KEY) !== "off") {
           chime.current?.play();
-          announceReady(
-            freshOrders.map((order) => ({ orderNumber: order.orderNumber, customerName: order.customerName })),
-            announceLanguages.current,
-          );
         }
+
+        // One announcement per order however many flipped at once. Two orders
+        // becoming ready in the same five-second window is one event to the
+        // room, and the announcement follows the same rule, naming each in turn.
+        announceReady(
+          freshOrders.map((order) => ({ orderNumber: order.orderNumber })),
+          announceLanguages.current,
+        );
 
         setFlashing(new Set(fresh));
         window.setTimeout(() => setFlashing(new Set()), 2800);
@@ -212,10 +248,10 @@ export function PickupDisplay({
 
   const preparing = orders
     .filter((order) => order.status === "ACCEPTED" || order.status === "PREPARING")
-    .map((order) => ({ orderNumber: order.orderNumber, customerName: order.customerName }));
+    .map((order) => ({ orderNumber: order.orderNumber }));
   const ready = orders
     .filter((order) => order.status === "READY")
-    .map((order) => ({ orderNumber: order.orderNumber, customerName: order.customerName }))
+    .map((order) => ({ orderNumber: order.orderNumber }))
     .slice(-READY_LIMIT);
 
   return (
@@ -297,11 +333,35 @@ export function PickupDisplay({
           </button>
         </div>
       )}
+
+      {/* This is the only place this check means anything — it reads the
+          voices actually installed on the device running the board, not on
+          whatever device the owner happens to be holding when they check
+          Settings. Session-only dismissal: it comes back on reload, which is
+          right for something that is telling you about this device, not
+          asking your preference. */}
+      {!voiceWarningDismissed && missingVoiceLanguages.length > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="flex items-center gap-2">
+            <CircleAlert className="size-4 shrink-0" />
+            No {missingVoiceLanguages.map((lang) => LANGUAGE_LABEL[lang]).join(" or ")} voice is installed on
+            this device, so it announces in English instead. Install it from the Settings page.
+          </span>
+          <button
+            type="button"
+            onClick={() => setVoiceWarningDismissed(true)}
+            aria-label="Dismiss this warning"
+            className="rounded-lg p-1.5 text-amber-500 transition-colors hover:bg-amber-100 hover:text-amber-700"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
     </main>
   );
 }
 
-type ColumnEntry = { orderNumber: number; customerName: string };
+type ColumnEntry = { orderNumber: number };
 
 function Column({
   title,
@@ -340,11 +400,11 @@ function Column({
         </p>
       ) : (
         <div className="flex flex-wrap content-start gap-3 lg:gap-4">
-          {entries.map(({ orderNumber, customerName }) => (
+          {entries.map(({ orderNumber }) => (
             <span
               key={orderNumber}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-2xl px-4 py-2 lg:px-6 lg:py-4",
+                "flex items-center justify-center rounded-2xl px-4 py-2 lg:px-6 lg:py-4",
                 tone === "ready" ? "bg-emerald-500 text-white" : "bg-neutral-200 text-neutral-700",
                 // motion-safe, so a guest who asked their device for less motion
                 // still gets the colour change without the pulse.
@@ -352,14 +412,6 @@ function Column({
               )}
             >
               <span className={cn("font-bold tabular-nums leading-none", SCALES[scale])}>{orderNumber}</span>
-              {/* Deliberately its own, much smaller size — the giant SCALES
-                  text above is this component's whole reason for existing,
-                  and a name must never compete with it for legibility from
-                  across a room. Truncated: names can run long and this badge
-                  cannot grow to fit one. */}
-              <span className="max-w-[9ch] truncate text-xs font-medium opacity-90 lg:text-sm">
-                {customerName}
-              </span>
             </span>
           ))}
         </div>

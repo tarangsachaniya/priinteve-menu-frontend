@@ -1,13 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, CircleX, Clock, Download, Loader2, PartyPopper } from "lucide-react";
+import {
+  Check,
+  CircleX,
+  Clock,
+  Download,
+  Loader2,
+  PartyPopper,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
 import type { RestoOrderStatus, RestoPaymentStatus } from "@/lib/api/enums";
 
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { estimateOrderMinutes } from "@/lib/restaurant/menu-display";
+import { announceReady, type AnnounceLanguage } from "@/lib/restaurant/announce";
+import { createChime, type Chime } from "@/lib/restaurant/chime";
+import { enableOrderReadyPush } from "@/lib/order-push-client";
 import {
   ORDER_STATUS_CUSTOMER_LABEL,
   ORDER_STATUS_FLOW,
@@ -18,6 +31,13 @@ import { PlatformCredit } from "@/components/order/platform-credit";
 import { ReviewPrompt } from "@/components/order/review-prompt";
 
 const POLL_INTERVAL_MS = 8000;
+
+/**
+ * Own key, deliberately — not shared with the pickup board's pv:display:chime.
+ * Muting this device's own order-ready alert has nothing to do with the
+ * lobby board, and the two must never read each other's preference.
+ */
+const SOUND_KEY = "pv:order:sound";
 
 const STATUS_HINT: Record<RestoOrderStatus, string> = {
   PLACED: "Waiting for the restaurant to confirm.",
@@ -57,6 +77,8 @@ export type StatusOrder = {
   restaurantName: string;
   restaurantSlug: string;
   brandColor: string;
+  /** Which languages to speak "your order is ready" in — same set and order the pickup board uses. */
+  announceLanguages: AnnounceLanguage[];
   canPayOnline: boolean;
   canPayCash: boolean;
   canPayUpiQr: boolean;
@@ -75,9 +97,85 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
   const isCompleted = status === "COMPLETED";
 
   /**
+   * Read fresh out of every poll response, same reason the pickup board does
+   * this — an owner flipping a language on in Settings should take effect on
+   * the next tick, not need this page reloaded.
+   */
+  const announceLanguages = useRef(initialOrder.announceLanguages);
+  const chime = useRef<Chime | null>(null);
+  const [needsSoundUnlock, setNeedsSoundUnlock] = useState(false);
+  const [soundMuted, setSoundMuted] = useState(false);
+  /**
+   * Seeded true when the order is already at or past READY on first load, so
+   * reopening a link to an order that has been sitting ready for an hour does
+   * not chime and speak the moment the page mounts — only the actual
+   * PLACED/ACCEPTED/PREPARING → READY transition, once, should ever fire it.
+   */
+  const hasAnnouncedReady = useRef(
+    initialOrder.status !== "PLACED" &&
+      initialOrder.status !== "ACCEPTED" &&
+      initialOrder.status !== "PREPARING",
+  );
+
+  if (chime.current === null && typeof window !== "undefined") {
+    chime.current = createChime();
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem(SOUND_KEY) === "off") {
+      setSoundMuted(true);
+    } else {
+      setNeedsSoundUnlock(true);
+    }
+  }, []);
+
+  // Same tap-anywhere unlock as the pickup board (see chime.ts) — a guest who
+  // just tapped through checkout has usually already satisfied this, but a
+  // cold reload of a saved link has not.
+  //
+  // The same gesture also asks for notification permission, once. Both are
+  // "let me tell you when your order is ready" and both need a real user
+  // gesture to work at all — Notification.requestPermission() is ignored
+  // outside one — so there is no reason to make the guest tap twice for two
+  // halves of one request. Guarded by a ref, not state: unlike the chime,
+  // which only stops listening once it actually succeeds, this must fire
+  // exactly once regardless of outcome, or a chime that keeps failing to
+  // unlock would keep reopening the browser's permission prompt on every tap.
+  useEffect(() => {
+    const sound = chime.current;
+    if (!sound) return;
+    let pushRequested = false;
+
+    const unlock = () => {
+      void sound.unlock().then(() => {
+        if (!sound.isUnlocked()) return;
+        setNeedsSoundUnlock(false);
+        window.removeEventListener("pointerdown", unlock);
+        window.removeEventListener("keydown", unlock);
+      });
+
+      // Skip once the order has already reached READY — see the seeding
+      // comment on hasAnnouncedReady above. There is nothing left to notify
+      // about, so there is no reason to ask for the permission at all.
+      if (!pushRequested && !hasAnnouncedReady.current) {
+        pushRequested = true;
+        void enableOrderReadyPush(initialOrder.id);
+      }
+    };
+
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, [initialOrder.id]);
+
+  /**
    * Polling continues after the kitchen is done, which it did not used to.
    * The interesting events now happen *after* COMPLETED — the restaurant
-   * closing the bill, and the counter confirming cash — so stopping at a
+   * closing the invoice, and the counter confirming cash — so stopping at a
    * terminal kitchen status would leave the guest staring at a screen that
    * never opens its payment panel.
    */
@@ -91,27 +189,75 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         const res = await fetch(`/api/order/${initialOrder.id}/status`, { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
-        setStatus(data.order.status);
+        const nextStatus: RestoOrderStatus = data.order.status;
+        setStatus(nextStatus);
         setPaymentStatus(data.order.paymentStatus);
         setPaymentMode(data.order.paymentMode);
         setCancelReason(data.order.cancelReason);
         setHasReview(data.order.hasReview);
+        announceLanguages.current = data.order.announceLanguages;
+
+        // Same chime + speech the pickup board uses, in every language the
+        // restaurant enabled — this device is the guest's own, so unlike the
+        // board (which speaks every enabled language for a room of strangers),
+        // it still speaks all of them: whichever the guest actually reads.
+        if (nextStatus === "READY" && !hasAnnouncedReady.current) {
+          hasAnnouncedReady.current = true;
+          if (window.localStorage.getItem(SOUND_KEY) !== "off") {
+            chime.current?.play();
+            announceReady([{ orderNumber: initialOrder.orderNumber }], announceLanguages.current);
+          }
+        }
       } catch {
         // A dropped poll is harmless — the next tick will catch up.
       }
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(timer);
-  }, [initialOrder.id, settled]);
+  }, [initialOrder.id, initialOrder.orderNumber, settled]);
+
+  function toggleSound() {
+    setSoundMuted((prev) => {
+      const next = !prev;
+      window.localStorage.setItem(SOUND_KEY, next ? "off" : "on");
+      if (next) setNeedsSoundUnlock(false);
+      return next;
+    });
+  }
+
+  function dismissSoundBar() {
+    window.localStorage.setItem(SOUND_KEY, "off");
+    setSoundMuted(true);
+    setNeedsSoundUnlock(false);
+  }
 
   const currentIndex = ORDER_STATUS_FLOW.indexOf(status);
   const awaitingPayment = paymentStatus === "REQUESTED" || paymentStatus === "FAILED";
 
+  // Nothing left for the sound to announce once the order is done — there is
+  // no reason to offer a mute for a chime that will never play again.
+  const soundStillMatters = !isCancelled && !isCompleted;
+
   return (
     <main
-      className="mx-auto flex min-h-screen max-w-lg flex-col gap-5 px-4 py-8"
+      className="relative mx-auto flex min-h-screen max-w-lg flex-col gap-5 px-4 py-8"
       style={{ backgroundColor: "var(--resto-bg)" }}
     >
+      {soundStillMatters && (
+        <button
+          type="button"
+          onClick={toggleSound}
+          aria-label={soundMuted ? "Turn on order-ready sound" : "Turn off order-ready sound"}
+          className="absolute right-4 top-4 flex size-8 items-center justify-center transition-colors"
+          style={{
+            color: "var(--resto-text-muted)",
+            borderRadius: "var(--resto-radius-full)",
+          }}
+        >
+          {soundMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+        </button>
+      )}
+
       <header className="text-center">
         <p className="text-sm" style={{ color: "var(--resto-text-muted)" }}>
           {initialOrder.restaurantName}
@@ -124,6 +270,31 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
           {initialOrder.tableLabel ? ` · ${initialOrder.tableLabel}` : ""}
         </p>
       </header>
+
+      {soundStillMatters && needsSoundUnlock && !soundMuted && (
+        <div
+          className="flex items-center justify-between gap-3 border px-4 py-3 text-sm"
+          style={{
+            backgroundColor: "var(--resto-surface)",
+            borderColor: "var(--resto-border)",
+            borderRadius: "var(--resto-radius-lg)",
+            color: "var(--resto-text-muted)",
+          }}
+        >
+          <span className="flex items-center gap-2">
+            <Volume2 className="size-4 shrink-0" aria-hidden />
+            Tap anywhere to hear when your order is ready.
+          </span>
+          <button
+            type="button"
+            onClick={dismissSoundBar}
+            aria-label="Keep this quiet"
+            className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[var(--resto-surface-alt)]"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
 
       {/* Payment first once it is due: it is the only thing on this page the
           guest still has to act on. */}
@@ -329,7 +500,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
               color: "var(--resto-text-muted)",
             }}
           >
-            Pay after your meal — the restaurant will open your bill here.
+            Pay after your meal — the restaurant will open your invoice here.
           </p>
         )}
 
@@ -337,22 +508,26 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
             download handling is what a guest expects on a phone, and it works
             when the page's JavaScript doesn't.
 
-            Offered before payment too. Looking at the bill is exactly what
-            someone does while deciding whether it's right, and the PDF marks
-            itself "Not paid" rather than pretending otherwise. */}
-        <a
-          href={`/api/order/${initialOrder.id}/invoice`}
-          download
-          className="mt-3 flex items-center justify-center gap-2 border py-2.5 text-sm font-semibold transition-colors hover:bg-[var(--resto-surface-alt)]"
-          style={{
-            borderColor: "var(--resto-border)",
-            borderRadius: "var(--resto-radius-full)",
-            color: "var(--resto-text)",
-          }}
-        >
-          <Download className="size-4" aria-hidden />
-          Download bill (PDF)
-        </a>
+            Shown only once paid — the API rejects the download until then
+            (see /api/order/:orderId/invoice), so there is no point offering a
+            link that would 404. The tracker already polls paymentStatus, so
+            this appears on its own the moment staff mark the order paid,
+            with no extra request needed. */}
+        {isPaid && (
+          <a
+            href={`/api/order/${initialOrder.id}/invoice`}
+            download
+            className="mt-3 flex items-center justify-center gap-2 border py-2.5 text-sm font-semibold transition-colors hover:bg-[var(--resto-surface-alt)]"
+            style={{
+              borderColor: "var(--resto-border)",
+              borderRadius: "var(--resto-radius-full)",
+              color: "var(--resto-text)",
+            }}
+          >
+            <Download className="size-4" aria-hidden />
+            Download invoice (PDF)
+          </a>
+        )}
       </section>
 
       <Link

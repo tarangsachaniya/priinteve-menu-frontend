@@ -53,8 +53,12 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
  * Returns the ArrayBuffer rather than the view: applicationServerKey is typed
  * as BufferSource, and a Uint8Array built without an explicit backing buffer
  * infers ArrayBufferLike, which TypeScript will not narrow to it.
+ *
+ * Exported: lib/order-push-client.ts (the diner's own "order ready" push,
+ * subscribing against a different endpoint but the same VAPID keypair and the
+ * same conversion) reuses this rather than a second copy.
  */
-function urlBase64ToBytes(base64: string): ArrayBuffer {
+export function urlBase64ToBytes(base64: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const normalized = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = window.atob(normalized);

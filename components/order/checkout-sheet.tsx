@@ -35,7 +35,7 @@ const PICKUP_OPTIONS = [
  * Placing an order and paying for it are now two separate moments. This sheet
  * only does the first: it collects who the guest is and how they want the food
  * delivered, then hands off to the kitchen. Payment happens on the status page
- * once the restaurant closes the bill — see components/order/payment-panel.tsx.
+ * once the restaurant closes the invoice — see components/order/payment-panel.tsx.
  */
 export function CheckoutSheet({
   restaurant,
@@ -351,7 +351,7 @@ export function CheckoutSheet({
         >
           <Wallet className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           {orderType === "DINE_IN"
-            ? "No payment now. You'll be asked to pay by UPI or cash once the restaurant closes your bill."
+            ? "No payment now. You'll be asked to pay by UPI or cash once the restaurant closes your invoice."
             : "You'll pay by UPI or cash right after you place this order."}
         </p>
 

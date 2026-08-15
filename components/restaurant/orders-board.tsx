@@ -58,7 +58,7 @@ function minutesAgo(iso: string): string {
   return `${Math.floor(minutes / 60)}h ago`;
 }
 
-/** How a settled bill was settled, for the pill and nothing else. */
+/** How a settled invoice was settled, for the pill and nothing else. */
 const PAID_LABEL: Record<NonNullable<BoardOrder["paymentMode"]>, string> = {
   ONLINE: "Paid · UPI",
   COUNTER: "Paid · cash",
@@ -94,7 +94,7 @@ function PaymentPill({ order }: { order: BoardOrder }) {
               : paymentMode === "UPI_QR"
                 ? { label: "UPI QR sent", tone: "bg-blue-500/10 text-blue-700" }
                 : { label: "Awaiting payment", tone: "bg-violet-500/10 text-violet-700" }
-            : { label: "Bill open", tone: "bg-amber-500/10 text-amber-700" };
+            : { label: "Invoice open", tone: "bg-amber-500/10 text-amber-700" };
 
   return <Badge className={cn("border-transparent", tone)}>{label}</Badge>;
 }
@@ -117,8 +117,8 @@ function OrderCard({
   const TypeIcon = TYPE_ICON[order.type];
   const advanceTo = nextStatus(order.status);
 
-  // The bill can be closed once the kitchen has accepted; before that there is
-  // nothing to charge for yet.
+  // The invoice can be closed once the kitchen has accepted; before that there
+  // is nothing to charge for yet.
   const canRequestPayment =
     order.paymentStatus === "PENDING" && order.status !== "PLACED";
   const canMarkPaid = order.paymentStatus === "REQUESTED" || order.paymentStatus === "FAILED";
@@ -280,7 +280,7 @@ function OrderCard({
                 <a
                   href={`/api/restaurant/orders/${order.id}/invoice`}
                   download
-                  aria-label={`Download the bill for order ${order.orderNumber}`}
+                  aria-label={`Download the invoice for order ${order.orderNumber}`}
                 />
               }
             >
@@ -419,7 +419,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
   }
 
   /**
-   * Closing the bill and settling it are two separate endpoints because they
+   * Closing the invoice and settling it are two separate endpoints because they
    * are two separate decisions: the first opens the customer's payment screen,
    * the second records that money actually arrived.
    */

@@ -76,14 +76,10 @@ export function MenuBrowser({
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [panel, setPanel] = useState<"none" | "cart" | "checkout">("none");
-  // The dish being configured, plus where to go once it is. "Buy now" on a
-  // shortcut tile has to survive the options sheet, or a customisable dish
-  // would quietly land in the cart and leave the guest on the menu — the one
-  // thing that button promises not to do.
-  const [optionsFor, setOptionsFor] = useState<{
-    item: PublicMenuItem;
-    checkoutAfter: boolean;
-  } | null>(null);
+  // The dish being configured. Confirming the sheet always adds to the cart
+  // and returns to the menu — nothing here jumps to checkout, so there is no
+  // "and then where" to carry alongside the item.
+  const [optionsFor, setOptionsFor] = useState<PublicMenuItem | null>(null);
   // Independent of `panel`: this is a lookup dialog reachable from anywhere
   // on the page, not a step in the cart → checkout flow.
   const [showTrackOrder, setShowTrackOrder] = useState(false);
@@ -282,31 +278,20 @@ export function MenuBrowser({
    * add-on has to be asked about first. Tapping + on a card that is already in
    * the cart bumps the plain line, since that is the one the card's count came
    * from.
+   *
+   * This is the ONLY way a dish enters the cart, and it always leaves the
+   * guest on the menu. There used to be a "Buy now" on the shortcut tiles that
+   * added and jumped to checkout, which meant a table wanting a second dish
+   * was pushed at the pay screen after the first. Adding and paying are
+   * separate steps now: the cart bar is the only road to checkout.
    */
   function handleAdd(item: PublicMenuItem) {
     if (!isOpen) return;
     if (isCustomisable(item)) {
-      setOptionsFor({ item, checkoutAfter: false });
+      setOptionsFor(item);
       return;
     }
     cart.add({ itemId: item.id, variantId: null, addOnIds: [] });
-  }
-
-  /**
-   * The same add, followed by checkout rather than by staying on the menu.
-   *
-   * Deliberately not a cart reset. A table orders once, so whatever is already
-   * in the cart is part of the same order and travels to checkout with this
-   * dish; "buy now" is a shortcut past the cart screen, not a different basket.
-   */
-  function handleBuyNow(item: PublicMenuItem) {
-    if (!isOpen) return;
-    if (isCustomisable(item)) {
-      setOptionsFor({ item, checkoutAfter: true });
-      return;
-    }
-    cart.add({ itemId: item.id, variantId: null, addOnIds: [] });
-    setPanel("checkout");
   }
 
   return (
@@ -382,7 +367,6 @@ export function MenuBrowser({
             restaurantLogoUrl={restaurant.logoUrl}
             orderingDisabled={!isOpen}
             onSelect={handleAdd}
-            onBuyNow={handleBuyNow}
           />
           <RecommendedStrip
             items={favouritesStrip}
@@ -390,7 +374,6 @@ export function MenuBrowser({
             restaurantLogoUrl={restaurant.logoUrl}
             orderingDisabled={!isOpen}
             onSelect={handleAdd}
-            onBuyNow={handleBuyNow}
           />
         </>
       )}
@@ -528,11 +511,10 @@ export function MenuBrowser({
 
       {optionsFor && (
         <ItemOptionsSheet
-          item={optionsFor.item}
+          item={optionsFor}
           onClose={() => setOptionsFor(null)}
           onConfirm={({ quantity, ...selection }) => {
             cart.add(selection, quantity);
-            if (optionsFor.checkoutAfter) setPanel("checkout");
             setOptionsFor(null);
           }}
         />

@@ -50,7 +50,6 @@ export function RecommendedStrip({
   restaurantLogoUrl,
   orderingDisabled,
   onSelect,
-  onBuyNow,
 }: {
   items: PublicMenuItem[];
   variant: StripVariant;
@@ -58,7 +57,6 @@ export function RecommendedStrip({
   restaurantLogoUrl: string | null;
   orderingDisabled: boolean;
   onSelect: (item: PublicMenuItem) => void;
-  onBuyNow: (item: PublicMenuItem) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -142,9 +140,9 @@ export function RecommendedStrip({
                     somehow renders shorter than the box above allows for. */}
                 <button
                   type="button"
-                  onClick={() => onBuyNow(item)}
+                  onClick={() => onSelect(item)}
                   disabled={orderingDisabled}
-                  aria-label={`Buy ${item.name} now`}
+                  aria-label={`Add ${item.name}`}
                   className="mt-auto w-full py-1.5 text-[12px] font-semibold transition-opacity disabled:opacity-60"
                   style={{
                     backgroundColor: "var(--resto-add-bg)",
@@ -152,7 +150,7 @@ export function RecommendedStrip({
                     borderRadius: "var(--resto-radius-full)",
                   }}
                 >
-                  Buy now
+                  Add
                 </button>
               </div>
             </li>

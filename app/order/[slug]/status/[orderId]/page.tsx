@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { API_INTERNAL_URL } from "@/lib/api/config";
 import { apiRequest } from "@/lib/api/http";
 import type { RestoOrderStatus, RestoOrderType, RestoPaymentMode, RestoPaymentStatus } from "@/lib/api/enums";
+import type { AnnounceLanguage } from "@/lib/restaurant/announce";
 import { ClosedNotice } from "@/components/order/closed-notice";
 import { OrderStatusTracker } from "@/components/order/order-status-tracker";
 import { RestoPage } from "@/components/order/resto-page";
@@ -29,6 +30,8 @@ type OrderPageDTO = {
   restaurantSlug: string;
   brandColor: string;
   themeMode: string;
+  /** Which languages to speak "your order is ready" in — same set and order the pickup board uses. */
+  announceLanguages: AnnounceLanguage[];
   canPayOnline: boolean;
   canPayCash: boolean;
   canPayUpiQr: boolean;

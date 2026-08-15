@@ -25,7 +25,7 @@ type PayMethod = "UPI" | "CASH" | "UPI_QR";
 type UpiQrDetails = { uri: string; qrDataUrl: string; vpa: string; payeeName: string };
 
 /**
- * How a guest settles their bill, shown once the restaurant closes it.
+ * How a guest settles their invoice, shown once the restaurant closes it.
  *
  * Three methods, two kinds. UPI goes through Razorpay Checkout, which offers
  * UPI alongside cards and netbanking — one integration, and the guest picks
@@ -212,7 +212,7 @@ export function PaymentPanel({
       >
         <div className="text-center">
           <p className="text-sm" style={{ color: "var(--resto-text-muted)" }}>
-            Your bill is ready
+            Your invoice is ready
           </p>
           <p
             className="resto-display resto-numeric text-3xl font-bold"
@@ -312,7 +312,7 @@ export function PaymentPanel({
  * the fallback rather than the other way round.
  *
  * It says plainly that the restaurant has to confirm. A guest who pays and
- * then walks out believing the bill is settled is the exact failure this
+ * then walks out believing the invoice is settled is the exact failure this
  * whole flow has to avoid, and the honest sentence is cheaper than the
  * argument at the door.
  */

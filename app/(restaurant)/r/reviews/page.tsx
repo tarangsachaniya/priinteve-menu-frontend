@@ -50,7 +50,7 @@ export default async function RestaurantReviewsPage() {
       <PageHeader
         icon={Star}
         title="Reviews"
-        description="Guests are asked to rate their meal once their bill is paid."
+        description="Guests are asked to rate their meal once they've paid."
       />
 
       <Card className="mb-6">
@@ -81,7 +81,7 @@ export default async function RestaurantReviewsPage() {
             <Star className="size-8 text-muted-foreground" />
             <p className="font-medium">No reviews yet</p>
             <p className="text-sm text-muted-foreground">
-              Guests see the rating prompt on their order page as soon as you mark their bill paid.
+              Guests see the rating prompt on their order page as soon as you mark their order paid.
             </p>
           </CardContent>
         </Card>

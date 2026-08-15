@@ -1,5 +1,5 @@
 /**
- * GST identifiers and the tax split a restaurant bill has to show.
+ * GST identifiers and the tax split a restaurant invoice has to show.
  *
  * Pure functions, no database and no PDF: the same maths decides what the
  * invoice prints and could later decide what a return export contains, and
@@ -89,12 +89,12 @@ export type TaxSplit = {
 };
 
 /**
- * The CGST/SGST split an Indian restaurant bill shows.
+ * The CGST/SGST split an Indian restaurant invoice shows.
  *
  * Always an intra-state supply, so always split in half rather than charged as
  * IGST: a guest eats where the restaurant is. The rounding puts any odd rupee
  * on CGST so the two halves still add back to exactly the tax that was charged
- * — a bill whose parts don't sum to its total is one an auditor stops at.
+ * — an invoice whose parts don't sum to its total is one an auditor stops at.
  */
 export function splitTax(taxAmount: number, taxPercent: number): TaxSplit {
   const cgst = Math.ceil(taxAmount / 2);

@@ -134,7 +134,13 @@ export default async function RestaurantSettingsPage() {
         <p className="mb-4 text-sm text-muted-foreground">
           Extra text your restaurant adds to every invoice, in addition to the tax details above.
         </p>
-        <InvoiceSectionsForm initial={restaurant.invoiceSections} />
+        {/* Defensive: falls back to empty rather than crashing the whole
+            Settings page if the API response is ever missing this field —
+            confirmed live on menu.priinteve.com, where a still-deploying API
+            build was omitting invoiceSections from GET /restaurant/settings
+            entirely, and InvoiceSectionsForm's useState took the resulting
+            undefined at face value. */}
+        <InvoiceSectionsForm initial={restaurant.invoiceSections ?? []} />
       </section>
 
       <section className="mt-10">

@@ -28,7 +28,10 @@ const MAX_SECTIONS = 6;
  * sortOrder on save.
  */
 export function InvoiceSectionsForm({ initial }: { initial: InvoiceSection[] }) {
-  const [sections, setSections] = useState<InvoiceSection[]>(initial);
+  // Falls back rather than trusting the prop outright — every .length read
+  // below would otherwise crash the whole Settings page if the API response
+  // this came from was ever missing the field. See settings/page.tsx.
+  const [sections, setSections] = useState<InvoiceSection[]>(initial ?? []);
   const [isSaving, setIsSaving] = useState(false);
 
   function addSection() {

@@ -160,11 +160,28 @@ export function createDamru(): Damru {
    */
   const sounding: GainNode[] = [];
 
+  /**
+   * One limiter shared by every phrase, downstream of all of them — not one
+   * created fresh per schedule() call. The drum repeats every few seconds
+   * until an order is accepted (see stopAll's doc comment below), so
+   * overlapping runs are the normal case, and only a shared node actually
+   * catches the SUM of concurrent runs rather than compressing each one in
+   * isolation and still letting the total clip at the destination.
+   */
+  let compressor: DynamicsCompressorNode | null = null;
+
   function context(): AudioContext | null {
     if (ctx) return ctx;
     const Ctor = getAudioContextCtor();
     if (!Ctor) return null;
     ctx = new Ctor();
+    compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-8, ctx.currentTime);
+    compressor.knee.setValueAtTime(6, ctx.currentTime);
+    compressor.ratio.setValueAtTime(16, ctx.currentTime);
+    compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+    compressor.release.setValueAtTime(0.15, ctx.currentTime);
+    compressor.connect(ctx.destination);
     return ctx;
   }
 
@@ -174,8 +191,10 @@ export function createDamru(): Damru {
    */
   function schedule(audio: AudioContext): void {
     const master = audio.createGain();
-    master.gain.setValueAtTime(0.9, audio.currentTime);
-    master.connect(audio.destination);
+    master.gain.setValueAtTime(1.3, audio.currentTime);
+    // Through the shared compressor, not straight to destination — see
+    // `compressor`'s doc comment above for why it has to be shared.
+    master.connect(compressor ?? audio.destination);
     sounding.push(master);
 
     // A hair in the future: scheduling exactly at currentTime races the audio

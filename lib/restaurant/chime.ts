@@ -35,8 +35,13 @@ const DECAY = 1.2;
  */
 const DETUNE_CENTS = 3;
 
-/** Against the damru's 0.9. This plays in a dining room, not a kitchen. */
-const MASTER_GAIN = 0.25;
+/**
+ * Raised from the original 0.25 after feedback that guests in a busier room
+ * weren't hearing it. Still well under the damru's 1.3 (plus its faster
+ * limiter) — this plays in a dining room, not a kitchen, and a compressor
+ * gentler than the damru's keeps that softer character at the new level.
+ */
+const MASTER_GAIN = 0.45;
 
 export type Chime = {
   /** Must be called from inside a real user gesture. See the note on unlock below. */
@@ -82,18 +87,35 @@ export function createChime(): Chime {
   let ctx: AudioContext | null = null;
   let unlocked = false;
 
+  /**
+   * One limiter shared by every play(), downstream of all of them. Even a
+   * single chime already overlaps two notes across their decay tails (see
+   * NOTE_GAP vs DECAY above), so a shared node is what actually catches the
+   * combined level rather than limiting each note in isolation.
+   */
+  let compressor: DynamicsCompressorNode | null = null;
+
   function context(): AudioContext | null {
     if (ctx) return ctx;
     const Ctor = getAudioContextCtor();
     if (!Ctor) return null;
     ctx = new Ctor();
+    compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-10, ctx.currentTime);
+    compressor.knee.setValueAtTime(8, ctx.currentTime);
+    compressor.ratio.setValueAtTime(12, ctx.currentTime);
+    compressor.attack.setValueAtTime(0.01, ctx.currentTime);
+    compressor.release.setValueAtTime(0.3, ctx.currentTime);
+    compressor.connect(ctx.destination);
     return ctx;
   }
 
   function schedule(audio: AudioContext): void {
     const master = audio.createGain();
     master.gain.setValueAtTime(MASTER_GAIN, audio.currentTime);
-    master.connect(audio.destination);
+    // Through the shared compressor, not straight to destination — see
+    // `compressor`'s doc comment above for why it has to be shared.
+    master.connect(compressor ?? audio.destination);
 
     // A hair in the future: scheduling exactly at currentTime races the audio
     // thread and can clip the attack.

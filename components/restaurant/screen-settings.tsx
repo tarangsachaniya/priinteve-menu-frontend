@@ -1,7 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { ChefHat, Copy, ExternalLink, KeyRound, Monitor, RefreshCw, Trash2, Volume2 } from "lucide-react";
+import {
+  ChefHat,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  ExternalLink,
+  KeyRound,
+  Monitor,
+  RefreshCw,
+  Trash2,
+  Volume2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -9,12 +21,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import type { AnnounceLanguage } from "@/lib/restaurant/announce";
 import { getKitchenScreenUrl, getPickupDisplayUrl } from "@/lib/restaurant/qr-url";
 
 const LANGUAGE_LABEL: Record<AnnounceLanguage, string> = { en: "English", hi: "Hindi", gu: "Gujarati" };
-const LANGUAGE_ORDER: AnnounceLanguage[] = ["en", "hi", "gu"];
+/** The full set of languages the board can speak — not a speaking order (that's `announceLanguages`'s own array order now, set by the reorder controls below). */
+const ALL_LANGUAGES: AnnounceLanguage[] = ["en", "hi", "gu"];
 
 /**
  * The owner's controls for the two unattended screens.
@@ -122,18 +134,13 @@ export function ScreenSettings({
   }
 
   /**
-   * Same immediate-effect pattern as the PIN and links above: every toggle
-   * PATCHes straight away. Unchecking the last enabled language is refused
-   * client-side — the API rejects an empty list too, but catching it here
-   * avoids a round trip for something the UI can already see is invalid.
+   * Same immediate-effect pattern as the PIN and links above: every change
+   * PATCHes straight away, optimistically, and rolls back on failure. Shared
+   * by toggling a language on/off and by the reorder arrows below — both are
+   * just "here's the new array", and the array's own order is what the board
+   * speaks in now (see announce.ts), so there's nothing else to persist.
    */
-  async function toggleLanguage(lang: AnnounceLanguage, checked: boolean) {
-    const next = checked ? [...announceLanguages, lang] : announceLanguages.filter((l) => l !== lang);
-    if (next.length === 0) {
-      toast.error("At least one language has to stay on");
-      return;
-    }
-
+  async function reorder(next: AnnounceLanguage[]) {
     const prev = announceLanguages;
     setAnnounceLanguages(next);
     setLanguageBusy(true);
@@ -150,6 +157,26 @@ export function ScreenSettings({
     } finally {
       setLanguageBusy(false);
     }
+  }
+
+  /** Unchecking the last enabled language is refused client-side — the API rejects an empty list too, but catching it here avoids a round trip for something the UI can already see is invalid. */
+  async function toggleLanguage(lang: AnnounceLanguage, checked: boolean) {
+    const next = checked ? [...announceLanguages, lang] : announceLanguages.filter((l) => l !== lang);
+    if (next.length === 0) {
+      toast.error("At least one language has to stay on");
+      return;
+    }
+    void reorder(next);
+  }
+
+  /** Swaps an enabled language with its neighbour — its row position is its speaking priority, so moving it is the entire mechanism for changing which language speaks first. */
+  function moveLanguage(lang: AnnounceLanguage, direction: -1 | 1) {
+    const index = announceLanguages.indexOf(lang);
+    const target = index + direction;
+    if (index === -1 || target < 0 || target >= announceLanguages.length) return;
+    const next = [...announceLanguages];
+    [next[index], next[target]] = [next[target], next[index]];
+    void reorder(next);
   }
 
   function confirmed() {
@@ -230,7 +257,7 @@ export function ScreenSettings({
           <ScreenLinkRow
             icon={Monitor}
             title="Pickup board"
-            description="Order numbers only, in two columns, for a screen guests can see. No names, no prices."
+            description="Order numbers and first names, in two columns, for a screen guests can see. No full names, no prices."
             url={displayToken ? getPickupDisplayUrl(displayToken) : null}
             busy={busy}
             onCreate={() => void changeLink("PICKUP", "create")}
@@ -244,24 +271,64 @@ export function ScreenSettings({
               Pickup announcements
             </Label>
             <p className="text-xs text-muted-foreground">
-              When an order goes Ready, the pickup board reads its number aloud in every language
-              turned on here — always English first, then Hindi, then Gujarati.
+              When an order goes Ready, the pickup board reads its number and name aloud in every
+              language turned on below, in this order — top to bottom. Use the arrows to change
+              which one speaks first.
             </p>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
-              {LANGUAGE_ORDER.map((lang) => (
-                <div key={lang} className="flex items-center gap-2">
-                  <Switch
-                    id={`announce-${lang}`}
-                    checked={announceLanguages.includes(lang)}
+            <div className="flex flex-col gap-1.5">
+              {announceLanguages.map((lang, index) => (
+                <div key={lang} className="flex items-center gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
+                  <span className="w-5 text-center text-xs font-medium text-muted-foreground">{index + 1}</span>
+                  <span className="flex-1 text-sm">{LANGUAGE_LABEL[lang]}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={languageBusy || index === 0}
+                    aria-label={`Move ${LANGUAGE_LABEL[lang]} earlier`}
+                    onClick={() => moveLanguage(lang, -1)}
+                  >
+                    <ChevronUp className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={languageBusy || index === announceLanguages.length - 1}
+                    aria-label={`Move ${LANGUAGE_LABEL[lang]} later`}
+                    onClick={() => moveLanguage(lang, 1)}
+                  >
+                    <ChevronDown className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     disabled={languageBusy}
-                    onCheckedChange={(checked) => void toggleLanguage(lang, checked)}
-                  />
-                  <Label htmlFor={`announce-${lang}`} className="font-normal">
-                    {LANGUAGE_LABEL[lang]}
-                  </Label>
+                    aria-label={`Turn off ${LANGUAGE_LABEL[lang]}`}
+                    onClick={() => void toggleLanguage(lang, false)}
+                  >
+                    <X className="size-4" />
+                  </Button>
                 </div>
               ))}
             </div>
+            {announceLanguages.length < ALL_LANGUAGES.length && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {ALL_LANGUAGES.filter((lang) => !announceLanguages.includes(lang)).map((lang) => (
+                  <Button
+                    key={lang}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={languageBusy}
+                    onClick={() => void toggleLanguage(lang, true)}
+                  >
+                    + {LANGUAGE_LABEL[lang]}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
 
           <p className="rounded-xl bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">

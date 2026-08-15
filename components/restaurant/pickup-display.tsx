@@ -15,10 +15,12 @@ import { cn } from "@/lib/utils";
  * The customer pickup board — a TV or tablet on a wall, read from across a room
  * by people waiting for food.
  *
- * WHAT IS ON IT: order numbers, in two columns. That is the whole design. No
- * names, no dishes, no totals — the API does not even send them (see the select
+ * WHAT IS ON IT: order numbers, in two columns, each with the guest's first
+ * name underneath so more than one waiting party can tell their number apart
+ * at a glance. Still no dishes, no totals, no full name, no mobile number —
+ * the API enforces the first-name-only trim server-side (see firstNameOnly()
  * in screen.routes.ts), because a screen a room full of strangers can read is
- * the wrong place for any of it.
+ * the wrong place for anything more identifying than that.
  *
  * The two columns are "Preparing" (ACCEPTED + PREPARING) and "Ready to collect"
  * (READY). A guest does not need to know the difference between accepted and
@@ -39,7 +41,7 @@ const READY_LIMIT = 12;
 const SCALE_KEY = "pv:display:scale";
 const CHIME_KEY = "pv:display:chime";
 
-type PickupOrder = { orderNumber: number; status: RestoOrderStatus };
+export type PickupOrder = { orderNumber: number; status: RestoOrderStatus; customerName: string };
 
 /**
  * Sized off vmin, not vw. A portrait tablet and a 55" landscape TV produce
@@ -149,9 +151,8 @@ export function PickupDisplay({
       announceLanguages.current = data.announceLanguages;
 
       const nowReady = data.orders.filter((order) => order.status === "READY");
-      const fresh = nowReady
-        .map((order) => order.orderNumber)
-        .filter((number) => !announced.current.has(number));
+      const freshOrders = nowReady.filter((order) => !announced.current.has(order.orderNumber));
+      const fresh = freshOrders.map((order) => order.orderNumber);
 
       // Announced first, so a failed render or a re-entrant tick cannot chime
       // twice for the same number.
@@ -168,10 +169,13 @@ export function PickupDisplay({
       if (fresh.length > 0) {
         // One chime however many flipped at once. Two orders becoming ready in
         // the same five-second window is one event to the room — the
-        // announcement follows the same rule, one utterance naming all of them.
+        // announcement follows the same rule, naming each of them in turn.
         if (window.localStorage.getItem(CHIME_KEY) !== "off") {
           chime.current?.play();
-          announceReady(fresh, announceLanguages.current);
+          announceReady(
+            freshOrders.map((order) => ({ orderNumber: order.orderNumber, customerName: order.customerName })),
+            announceLanguages.current,
+          );
         }
 
         setFlashing(new Set(fresh));
@@ -208,10 +212,10 @@ export function PickupDisplay({
 
   const preparing = orders
     .filter((order) => order.status === "ACCEPTED" || order.status === "PREPARING")
-    .map((order) => order.orderNumber);
+    .map((order) => ({ orderNumber: order.orderNumber, customerName: order.customerName }));
   const ready = orders
     .filter((order) => order.status === "READY")
-    .map((order) => order.orderNumber)
+    .map((order) => ({ orderNumber: order.orderNumber, customerName: order.customerName }))
     .slice(-READY_LIMIT);
 
   return (
@@ -261,7 +265,7 @@ export function PickupDisplay({
       <div className="grid min-h-0 flex-1 gap-4 sm:grid-cols-2">
         <Column
           title="Preparing"
-          numbers={preparing}
+          entries={preparing}
           scale={scale}
           tone="muted"
           flashing={flashing}
@@ -269,7 +273,7 @@ export function PickupDisplay({
         />
         <Column
           title="Ready to collect"
-          numbers={ready}
+          entries={ready}
           scale={scale}
           tone="ready"
           flashing={flashing}
@@ -297,16 +301,18 @@ export function PickupDisplay({
   );
 }
 
+type ColumnEntry = { orderNumber: number; customerName: string };
+
 function Column({
   title,
-  numbers,
+  entries,
   scale,
   tone,
   flashing,
   empty,
 }: {
   title: string;
-  numbers: number[];
+  entries: ColumnEntry[];
   scale: ScaleKey;
   tone: "muted" | "ready";
   flashing: Set<number>;
@@ -328,25 +334,32 @@ function Column({
         {title}
       </h2>
 
-      {numbers.length === 0 ? (
+      {entries.length === 0 ? (
         <p className="flex flex-1 items-center justify-center text-base text-neutral-400 lg:text-xl">
           {empty}
         </p>
       ) : (
         <div className="flex flex-wrap content-start gap-3 lg:gap-4">
-          {numbers.map((number) => (
+          {entries.map(({ orderNumber, customerName }) => (
             <span
-              key={number}
+              key={orderNumber}
               className={cn(
-                "rounded-2xl px-4 py-2 font-bold tabular-nums leading-none lg:px-6 lg:py-4",
-                SCALES[scale],
+                "flex flex-col items-center gap-1 rounded-2xl px-4 py-2 lg:px-6 lg:py-4",
                 tone === "ready" ? "bg-emerald-500 text-white" : "bg-neutral-200 text-neutral-700",
                 // motion-safe, so a guest who asked their device for less motion
                 // still gets the colour change without the pulse.
-                flashing.has(number) && "motion-safe:animate-ready-flash",
+                flashing.has(orderNumber) && "motion-safe:animate-ready-flash",
               )}
             >
-              {number}
+              <span className={cn("font-bold tabular-nums leading-none", SCALES[scale])}>{orderNumber}</span>
+              {/* Deliberately its own, much smaller size — the giant SCALES
+                  text above is this component's whole reason for existing,
+                  and a name must never compete with it for legibility from
+                  across a room. Truncated: names can run long and this badge
+                  cannot grow to fit one. */}
+              <span className="max-w-[9ch] truncate text-xs font-medium opacity-90 lg:text-sm">
+                {customerName}
+              </span>
             </span>
           ))}
         </div>

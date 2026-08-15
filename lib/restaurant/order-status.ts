@@ -69,7 +69,7 @@ export function canTransition(from: RestoOrderStatus, to: RestoOrderStatus): boo
 }
 
 /**
- * Whether the bill is actually settled. Kept separate from canTransition —
+ * Whether the invoice is actually settled. Kept separate from canTransition —
  * kitchen status and payment status are independent facts (see the request-
  * payment and pay routes), so this is checked at the point of use rather than
  * folded into the status transition map.
@@ -110,15 +110,15 @@ export const ORDER_TYPE_LABEL: Record<RestoOrderType, string> = {
 
 /** Owner-facing wording, for the board and the order list. */
 export const PAYMENT_STATUS_LABEL: Record<RestoPaymentStatus, string> = {
-  PENDING: "Bill open",
-  REQUESTED: "Bill closed — awaiting payment",
+  PENDING: "Invoice open",
+  REQUESTED: "Invoice closed — awaiting payment",
   PAID: "Paid",
   FAILED: "Payment failed",
   REFUNDED: "Refunded",
 };
 
 /**
- * Customer-facing wording. "Bill open" is restaurant vocabulary and means
+ * Customer-facing wording. "Invoice open" is restaurant vocabulary and means
  * nothing to the person eating — from their side the useful distinction is
  * whether they are being asked for money yet.
  */

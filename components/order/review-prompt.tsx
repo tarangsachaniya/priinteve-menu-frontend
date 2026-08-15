@@ -5,7 +5,7 @@ import { Loader2, Star } from "lucide-react";
 import { toast } from "sonner";
 
 /**
- * Asked once, after the bill is paid.
+ * Asked once, after the invoice is paid.
  *
  * The rating is one tap and the comment is optional, because the moment this
  * appears the guest is standing up to leave. Anything longer gets skipped, and

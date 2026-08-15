@@ -181,8 +181,8 @@ export const restaurantSettingsSchema = z
     path: ["upiVpa"],
   })
   // Checked only when one was entered. A malformed GSTIN on a tax invoice is
-  // worse than none at all: it turns a plain bill into a document that claims
-  // a registration the restaurant can't back up.
+  // worse than none at all: it turns a plain invoice into a document that
+  // claims a registration the restaurant can't back up.
   .refine((v) => v.gstin == null || isValidGstin(v.gstin), {
     message: "A GSTIN is 15 characters, like 27AAACR1234R1ZQ",
     path: ["gstin"],
@@ -410,7 +410,7 @@ export const placeOrderSchema = z
     mobile: mobileSchema,
     type: z.enum(["DINE_IN", "TAKE_AWAY", "DELIVERY"]),
     // No paymentMode: the customer picks cash or UPI on the payment screen,
-    // after the restaurant closes the bill. See settleOrderSchema below.
+    // after the restaurant closes the invoice. See settleOrderSchema below.
     // Only ids and quantities: prices are always read from the database. The
     // option ids are no exception — they name a choice, they don't price it.
     items: z
@@ -452,7 +452,7 @@ export const verifyPaymentSchema = z.object({
 
 /**
  * What the customer chooses on the payment screen, once the restaurant has
- * closed the bill. UPI routes through Razorpay Checkout (which offers UPI as
+ * closed the invoice. UPI routes through Razorpay Checkout (which offers UPI as
  * a method); CASH declares an intention to pay at the counter and waits for
  * the restaurant to confirm receipt.
  */
@@ -525,6 +525,29 @@ export const peakWindowsUpdateSchema = z.object({
         ),
       { message: `A day can hold at most ${MAX_PEAK_WINDOWS_PER_DAY} rush windows` }
     ),
+});
+
+// ─── Restaurant: invoice sections ──────────────────────────────────────────
+
+/** A6-ish paper has room for a handful of extra lines, not a second document. */
+const MAX_INVOICE_SECTIONS = 6;
+
+/**
+ * One restaurant-authored block on the invoice — a title and a body, printed
+ * below the totals and payment status. See RestoInvoiceSection in
+ * schema.prisma for what this becomes on the printed page.
+ */
+export const invoiceSectionSchema = z.object({
+  title: z.string().trim().min(1, "Give this section a title").max(40),
+  body: z.string().trim().min(1, "This section needs some text").max(300),
+  isActive: z.boolean().default(true),
+});
+
+export const invoiceSectionsUpdateSchema = z.object({
+  // The whole list at once, same replace-the-set reasoning as peak windows —
+  // these rows carry no natural key to reconcile against, and the owner's
+  // on-screen order is what becomes sortOrder.
+  sections: z.array(invoiceSectionSchema).max(MAX_INVOICE_SECTIONS, `At most ${MAX_INVOICE_SECTIONS} sections`),
 });
 
 // ─── Customer: reviews ─────────────────────────────────────────────────────

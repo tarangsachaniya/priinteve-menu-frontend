@@ -7,6 +7,7 @@ import { normalizeRestoMode } from "@/lib/restaurant/theme";
 import { PageHeader } from "@/components/shared/page-header";
 import { AlertSettings } from "@/components/restaurant/alert-settings";
 import { HoursForm } from "@/components/restaurant/hours-form";
+import { InvoiceSectionsForm, type InvoiceSection } from "@/components/restaurant/invoice-sections-form";
 import { PeakHoursForm } from "@/components/restaurant/peak-hours-form";
 import { ScreenSettings } from "@/components/restaurant/screen-settings";
 import { SettingsForm } from "@/components/restaurant/settings-form";
@@ -64,6 +65,7 @@ type SettingsResponse = {
     // RestaurantPeakWindow models on the API.
     hours: { dayOfWeek: number; opensAt: number; closesAt: number; isClosed: boolean }[];
     peakWindows: { dayOfWeek: number; startsAt: number; endsAt: number; label: string | null }[];
+    invoiceSections: InvoiceSection[];
   };
   razorpayConfigured: boolean;
   upiQrAvailable: boolean;
@@ -126,6 +128,14 @@ export default async function RestaurantSettingsPage() {
           minOrderValue: restaurant.minOrderValue,
         }}
       />
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold tracking-tight">Invoice sections</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Extra text your restaurant adds to every invoice, in addition to the tax details above.
+        </p>
+        <InvoiceSectionsForm initial={restaurant.invoiceSections} />
+      </section>
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold tracking-tight">Order alerts</h2>

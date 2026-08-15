@@ -213,7 +213,7 @@ export function OrderHistoryTable({
                   Total
                 </SortableHead>
                 {/* Unsortable and unlabelled — an action column, not data. */}
-                <TableHead className="w-10" aria-label="Bill" />
+                <TableHead className="w-10" aria-label="Invoice" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -277,8 +277,8 @@ export function OrderHistoryTable({
                     <a
                       href={`/api/restaurant/orders/${row.id}/invoice`}
                       download
-                      aria-label={`Download the bill for order ${row.orderNumber}`}
-                      title="Download bill"
+                      aria-label={`Download the invoice for order ${row.orderNumber}`}
+                      title="Download invoice"
                       className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <Receipt className="size-4" />

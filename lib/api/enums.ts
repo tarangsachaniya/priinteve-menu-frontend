@@ -24,7 +24,7 @@ export type RestoPaymentMode = "ONLINE" | "COUNTER" | "UPI_QR";
 
 /**
  * PENDING is "the meal is not over yet" — no one is expected to pay.
- * REQUESTED means the restaurant has closed the bill and the customer's
+ * REQUESTED means the restaurant has closed the invoice and the customer's
  * payment screen has opened. Nothing charges a customer before REQUESTED.
  */
 export type RestoPaymentStatus = "PENDING" | "REQUESTED" | "PAID" | "FAILED" | "REFUNDED";

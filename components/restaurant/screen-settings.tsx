@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  CircleAlert,
+  CircleCheck,
   ChefHat,
   ChevronDown,
   ChevronUp,
@@ -16,13 +18,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { AnnounceLanguage } from "@/lib/restaurant/announce";
+import { hasVoiceFor, type AnnounceLanguage } from "@/lib/restaurant/announce";
 import { getKitchenScreenUrl, getPickupDisplayUrl } from "@/lib/restaurant/qr-url";
+import { cn } from "@/lib/utils";
 
 const LANGUAGE_LABEL: Record<AnnounceLanguage, string> = { en: "English", hi: "Hindi", gu: "Gujarati" };
 /** The full set of languages the board can speak — not a speaking order (that's `announceLanguages`'s own array order now, set by the reorder controls below). */
@@ -271,9 +275,9 @@ export function ScreenSettings({
               Pickup announcements
             </Label>
             <p className="text-xs text-muted-foreground">
-              When an order goes Ready, the pickup board reads its number and name aloud in every
-              language turned on below, in this order — top to bottom. Use the arrows to change
-              which one speaks first.
+              When an order goes Ready, the pickup board reads its number aloud in every language
+              turned on below, in this order — top to bottom. Use the arrows to change which one
+              speaks first.
             </p>
             <div className="flex flex-col gap-1.5">
               {announceLanguages.map((lang, index) => (
@@ -329,6 +333,8 @@ export function ScreenSettings({
                 ))}
               </div>
             )}
+
+            <VoiceAvailability languages={announceLanguages} />
           </div>
 
           <p className="rounded-xl bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
@@ -440,6 +446,96 @@ function ScreenLinkRow({
             </Button>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+const OS_VOICE_INSTRUCTIONS = [
+  { os: "Windows", steps: "Settings → Time & language → Speech → Manage voices → Add voices" },
+  { os: "Android", steps: "Settings → Accessibility → Text-to-speech output → Google TTS → Install voice data" },
+  { os: "iPad / iPhone", steps: "Settings → Accessibility → Spoken Content → Voices" },
+] as const;
+
+/**
+ * Reports which of the enabled languages the CURRENT DEVICE can actually
+ * speak — the missing half of the fallback in lib/restaurant/announce.ts.
+ * That file silently substitutes English when a language has no installed
+ * voice, which keeps the board from garbling Devanagari, but gives nobody a
+ * reason to fix it. This is that reason. It reads the exact same
+ * speechSynthesis voice list the board itself uses (hasVoiceFor), so what it
+ * reports and what the board actually does can never disagree.
+ *
+ * ONE REAL CAVEAT, stated in the UI rather than hidden: this only sees the
+ * voices on whatever device is showing Settings right now. Checking from an
+ * owner's phone says nothing about the Windows PC actually running the pickup
+ * board — the same check runs on the board itself for that (see the warning
+ * banner in pickup-display.tsx).
+ */
+function VoiceAvailability({ languages }: { languages: AnnounceLanguage[] }) {
+  const [, forceRender] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    // Voices can arrive asynchronously after this component mounts — Chrome
+    // reports an empty list on the very first call — so a re-render is needed
+    // once they do. hasVoiceFor() always reads the live cache; this just
+    // triggers React to ask it again.
+    const rerender = () => forceRender((n) => n + 1);
+    window.speechSynthesis.addEventListener("voiceschanged", rerender);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", rerender);
+  }, []);
+
+  if (typeof window === "undefined" || !window.speechSynthesis) return null;
+
+  const missing = languages.filter((lang) => !hasVoiceFor(lang));
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl bg-muted/40 p-3">
+      <div className="flex flex-col gap-1.5">
+        {languages.map((lang) => {
+          const installed = hasVoiceFor(lang);
+          return (
+            <div key={lang} className="flex items-center justify-between gap-2 text-xs">
+              <span>{LANGUAGE_LABEL[lang]} voice on this device</span>
+              <Badge
+                className={cn(
+                  "border-transparent",
+                  installed ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700",
+                )}
+              >
+                {installed ? (
+                  <>
+                    <CircleCheck data-icon="inline-start" />
+                    Installed
+                  </>
+                ) : (
+                  <>
+                    <CircleAlert data-icon="inline-start" />
+                    Not installed
+                  </>
+                )}
+              </Badge>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        This checks only the device open to this page right now — checking from your phone says
+        nothing about a Windows PC running the pickup board. Open this same page on that PC to
+        check it directly.
+      </p>
+
+      {missing.length > 0 && (
+        <div className="flex flex-col gap-1 border-t border-border pt-2 text-[11px] text-muted-foreground">
+          <p className="font-medium text-foreground">To install a missing voice on this device:</p>
+          {OS_VOICE_INSTRUCTIONS.map(({ os, steps }) => (
+            <p key={os}>
+              <span className="font-medium text-foreground">{os}:</span> {steps}
+            </p>
+          ))}
+        </div>
       )}
     </div>
   );

@@ -16,14 +16,19 @@
  *   showNotification()  — always. This is the OS-level popup, and it is the
  *                         only half that works when the browser is closed. It
  *                         plays the operating system's notification sound.
- *   postMessage()       — when a console window exists. That page can do what
- *                         this worker cannot: play the synthesized damru and
- *                         show the in-app dialog.
+ *   postMessage()       — when a console (or, for ORDER_READY, a status page)
+ *                         window exists. That page can do what this worker
+ *                         cannot: play a synthesized sound and show an
+ *                         in-app dialog.
  *
  * The showNotification is NOT optional. Chrome enforces that every push a site
  * receives results in a visible notification, and an origin that repeatedly
  * pushes silently has its push permission revoked — which would break the
  * feature for that restaurant permanently, with no error anyone would see.
+ *
+ * TWO AUDIENCES SHARE THIS ONE WORKER: restaurant staff (NEW_ORDER, TEST) and
+ * a diner's own phone (ORDER_READY). Same origin, same registration at root
+ * scope, so one worker covers both /r/* and /order/* — no reason to ship two.
  */
 
 const CONSOLE_URL = "/r/orders";
@@ -50,6 +55,13 @@ self.addEventListener("activate", (event) => {
 function describe(data) {
   if (data.type === "TEST") {
     return { title: "Test alert", body: data.message ?? "Order alerts are working." };
+  }
+
+  if (data.type === "ORDER_READY") {
+    return {
+      title: `Order #${data.orderNumber} is ready`,
+      body: "Tap to see your order.",
+    };
   }
 
   const where =
@@ -110,16 +122,17 @@ self.addEventListener("push", (event) => {
         // Stays on screen until someone deals with it. A kitchen alert that
         // auto-dismisses after four seconds is one nobody sees.
         requireInteraction: data.type !== "TEST",
-        data: { url: CONSOLE_URL },
+        data: { url: data.type === "ORDER_READY" ? data.statusUrl : CONSOLE_URL },
       });
     })(),
   );
 });
 
 /**
- * Clicking the notification should land on the board, not open a fifth copy of
- * the console. Focuses an existing window when there is one — including a
- * console sitting on some other page, which is navigated across.
+ * Clicking the notification should land on the right page, not open a fifth
+ * copy of it — the console for a staff alert, the guest's own status page for
+ * ORDER_READY. Focuses an existing window when there is one, navigating it
+ * across only if it isn't already sitting on the target.
  */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
@@ -137,7 +150,7 @@ self.addEventListener("notificationclick", (event) => {
         const url = new URL(client.url);
         if (url.origin !== self.location.origin) continue;
         await client.focus();
-        if (!url.pathname.startsWith("/r/orders") && "navigate" in client) {
+        if (url.pathname !== target && "navigate" in client) {
           await client.navigate(target);
         }
         return;

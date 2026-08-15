@@ -410,7 +410,7 @@ export function SettingsForm({
               placeholder={"Shop 4, Linking Road\nBandra West, Mumbai\nMaharashtra 400050"}
             />
             <p className="text-xs text-muted-foreground">
-              Printed on every bill — use your full postal address, including city, state and
+              Printed on every invoice — use your full postal address, including city, state and
               pincode.
             </p>
           </div>
@@ -658,7 +658,7 @@ export function SettingsForm({
           <ToggleRow
             id="counter-payment"
             title="Pay at Counter / Cash on Delivery"
-            description="Customer settles the bill in person."
+            description="Customer settles the invoice in person."
             checked={form.counterPaymentEnabled}
             onChange={(checked) => update("counterPaymentEnabled", checked)}
           />
@@ -761,9 +761,9 @@ export function SettingsForm({
 
       <Card className="border-border/80">
         <CardHeader>
-          <CardTitle className="text-base">Bill details</CardTitle>
+          <CardTitle className="text-base">Invoice details</CardTitle>
           <CardDescription>
-            What appears on the PDF bill you and your customers can download.
+            What appears on the PDF invoice you and your customers can download.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -772,9 +772,9 @@ export function SettingsForm({
           <div className="flex gap-2 rounded-2xl bg-muted p-3 text-xs text-muted-foreground">
             <Info className="size-4 shrink-0" />
             <p>
-              Add a GSTIN and every bill becomes a proper{" "}
+              Add a GSTIN and every invoice becomes a proper{" "}
               <span className="font-medium text-foreground">tax invoice</span>, with GST split into
-              CGST and SGST. Leave it blank and customers still get a clean bill — just not one
+              CGST and SGST. Leave it blank and customers still get a clean invoice — just not one
               that claims a registration you don&apos;t have.
             </p>
           </div>
@@ -820,7 +820,7 @@ export function SettingsForm({
                 className="font-mono"
               />
               <p className="text-xs text-muted-foreground">
-                Required on food bills in India.
+                Required on food invoices in India.
               </p>
             </div>
           </div>
@@ -828,7 +828,7 @@ export function SettingsForm({
           <p className="text-xs text-muted-foreground">
             Your address, phone and email from{" "}
             <span className="font-medium text-foreground">Restaurant details</span> above are
-            printed on the bill too — make sure the address there is your full postal one.
+            printed on the invoice too — make sure the address there is your full postal one.
           </p>
         </CardContent>
       </Card>

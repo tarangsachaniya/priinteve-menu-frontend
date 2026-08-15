@@ -60,7 +60,10 @@ export function ScreenSettings({
   const [kitchenToken, setKitchenToken] = useState(initialKitchenToken);
   const [displayToken, setDisplayToken] = useState(initialDisplayToken);
   const [pinSet, setPinSet] = useState(initialPinSet);
-  const [announceLanguages, setAnnounceLanguages] = useState(initialAnnounceLanguages);
+  // Falls back rather than trusting the prop outright — every .length read
+  // below would otherwise crash the whole Settings page for a restaurant
+  // row that somehow reached this without the field set.
+  const [announceLanguages, setAnnounceLanguages] = useState(initialAnnounceLanguages ?? ["en"]);
   const [languageBusy, setLanguageBusy] = useState(false);
 
   const [pin, setPin] = useState("");

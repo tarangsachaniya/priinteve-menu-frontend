@@ -157,7 +157,12 @@ export default async function RestaurantSettingsPage() {
           initialKitchenToken={restaurant.kitchenToken}
           initialDisplayToken={restaurant.displayToken}
           initialPinSet={restaurant.screenPinSet}
-          initialAnnounceLanguages={restaurant.announceLanguages}
+          // Defensive: announceLanguages is a NOT-NULL column with a DB
+          // default, but a restaurant row written through a path that
+          // predates it (or a response that dropped the field) must not
+          // crash the whole Settings page — see the same fallback in
+          // ScreenSettings.
+          initialAnnounceLanguages={restaurant.announceLanguages ?? ["en"]}
         />
       </section>
 

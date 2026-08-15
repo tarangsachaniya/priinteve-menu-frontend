@@ -21,12 +21,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { AnnounceLanguage } from "@/lib/restaurant/announce";
+import { ANNOUNCE_LANGUAGES, type AnnounceLanguage } from "@/lib/restaurant/announce";
 import { getKitchenScreenUrl, getPickupDisplayUrl } from "@/lib/restaurant/qr-url";
 
-const LANGUAGE_LABEL: Record<AnnounceLanguage, string> = { en: "English", hi: "Hindi", gu: "Gujarati" };
+// Derived from the single source of truth in announce.ts, so this picker can
+// never drift out of sync with what the board can actually speak.
+const LANGUAGE_LABEL = Object.fromEntries(
+  ANNOUNCE_LANGUAGES.map(({ code, label }) => [code, label]),
+) as Record<AnnounceLanguage, string>;
 /** The full set of languages the board can speak — not a speaking order (that's `announceLanguages`'s own array order now, set by the reorder controls below). */
-const ALL_LANGUAGES: AnnounceLanguage[] = ["en", "hi", "gu"];
+const ALL_LANGUAGES: AnnounceLanguage[] = ANNOUNCE_LANGUAGES.map(({ code }) => code);
 
 /**
  * The owner's controls for the two unattended screens.

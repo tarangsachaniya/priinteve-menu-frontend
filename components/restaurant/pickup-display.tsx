@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CircleAlert, Lock, Minus, Plus, Volume2, WifiOff, X } from "lucide-react";
+import { Lock, Minus, Plus, Volume2, WifiOff, X } from "lucide-react";
 
 import type { RestoOrderStatus } from "@/lib/api/enums";
-import { announceReady, hasVoiceFor, type AnnounceLanguage } from "@/lib/restaurant/announce";
+import { announceReady, type AnnounceLanguage } from "@/lib/restaurant/announce";
 import { createChime, type Chime } from "@/lib/restaurant/chime";
 import { screenLockPath, screenPickupPath } from "@/lib/restaurant/screen-paths";
 import { useWakeLock } from "@/lib/restaurant/wake-lock";
@@ -40,8 +40,6 @@ const READY_LIMIT = 12;
 
 const SCALE_KEY = "pv:display:scale";
 const CHIME_KEY = "pv:display:chime";
-
-const LANGUAGE_LABEL: Record<AnnounceLanguage, string> = { en: "English", hi: "Hindi", gu: "Gujarati" };
 
 export type PickupOrder = { orderNumber: number; status: RestoOrderStatus };
 
@@ -85,16 +83,6 @@ export function PickupDisplay({
   const [scale, setScale] = useState<ScaleKey>("M");
   const [needsChimeUnlock, setNeedsChimeUnlock] = useState(false);
   const [flashing, setFlashing] = useState<Set<number>>(new Set());
-  /**
-   * Enabled languages this device has no speechSynthesis voice for — the
-   * board still speaks them (announceReady falls back to English rather than
-   * garbling the Devanagari/Gujarati string), but this is what turns "the
-   * board sounds wrong" into "here's why and where to fix it" rather than a
-   * silent surprise. Owner also sees this per-device in Settings; this is the
-   * copy that is actually true of the device running the board.
-   */
-  const [missingVoiceLanguages, setMissingVoiceLanguages] = useState<AnnounceLanguage[]>([]);
-  const [voiceWarningDismissed, setVoiceWarningDismissed] = useState(false);
 
   const chime = useRef<Chime | null>(null);
   const failures = useRef(0);
@@ -118,23 +106,6 @@ export function PickupDisplay({
     const stored = window.localStorage.getItem(SCALE_KEY);
     if (stored === "S" || stored === "M" || stored === "L") setScale(stored);
     if (window.localStorage.getItem(CHIME_KEY) !== "off") setNeedsChimeUnlock(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-
-    // Voices load asynchronously in Chrome — an empty list on the very first
-    // check does not mean the language is missing, only that the browser
-    // hasn't reported its voices yet. Re-checking on this event is what keeps
-    // that from being a false alarm.
-    function recheck() {
-      setMissingVoiceLanguages(announceLanguages.current.filter((lang) => !hasVoiceFor(lang)));
-    }
-
-    recheck();
-    window.speechSynthesis.addEventListener("voiceschanged", recheck);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", recheck);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- announceLanguages is a ref; the tick loop below re-runs this same check whenever its value changes.
   }, []);
 
   // Any tap anywhere arms the audio — the bar below only has to explain why one
@@ -178,7 +149,6 @@ export function PickupDisplay({
       failures.current = 0;
       setStale(false);
       announceLanguages.current = data.announceLanguages;
-      setMissingVoiceLanguages(data.announceLanguages.filter((lang) => !hasVoiceFor(lang)));
 
       const nowReady = data.orders.filter((order) => order.status === "READY");
       const freshOrders = nowReady.filter((order) => !announced.current.has(order.orderNumber));
@@ -328,30 +298,6 @@ export function PickupDisplay({
             onClick={dismissChimeBar}
             aria-label="Keep this screen silent"
             className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-neutral-600"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
-
-      {/* This is the only place this check means anything — it reads the
-          voices actually installed on the device running the board, not on
-          whatever device the owner happens to be holding when they check
-          Settings. Session-only dismissal: it comes back on reload, which is
-          right for something that is telling you about this device, not
-          asking your preference. */}
-      {!voiceWarningDismissed && missingVoiceLanguages.length > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span className="flex items-center gap-2">
-            <CircleAlert className="size-4 shrink-0" />
-            No {missingVoiceLanguages.map((lang) => LANGUAGE_LABEL[lang]).join(" or ")} voice is installed on
-            this device, so it announces in English instead. Install it from the Settings page.
-          </span>
-          <button
-            type="button"
-            onClick={() => setVoiceWarningDismissed(true)}
-            aria-label="Dismiss this warning"
-            className="rounded-lg p-1.5 text-amber-500 transition-colors hover:bg-amber-100 hover:text-amber-700"
           >
             <X className="size-4" />
           </button>

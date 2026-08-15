@@ -21,12 +21,36 @@
  * both independent of speech and keep working regardless.
  */
 
-export type AnnounceLanguage = "en" | "hi" | "gu";
+/**
+ * Every language the pickup board and order-status page can announce in —
+ * the single source of truth for both the type below and the Settings
+ * picker (screen-settings.tsx imports this list directly rather than
+ * keeping its own copy). Must mirror announceLanguageEnum in priinteve-api's
+ * validations/restaurant.ts exactly: that's the real ceiling, since it's
+ * every language Sarvam's Bulbul v3 voice can actually speak — see
+ * services/integrations/sarvam.ts over there for why "any language" still
+ * stops at eleven.
+ */
+export const ANNOUNCE_LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "hi", label: "Hindi" },
+  { code: "gu", label: "Gujarati" },
+  { code: "bn", label: "Bengali" },
+  { code: "ta", label: "Tamil" },
+  { code: "te", label: "Telugu" },
+  { code: "kn", label: "Kannada" },
+  { code: "ml", label: "Malayalam" },
+  { code: "mr", label: "Marathi" },
+  { code: "pa", label: "Punjabi" },
+  { code: "od", label: "Odia" },
+] as const;
+
+export type AnnounceLanguage = (typeof ANNOUNCE_LANGUAGES)[number]["code"];
 
 export type ReadyAnnouncement = { orderNumber: number };
 
 function isKnownLanguage(lang: string): lang is AnnounceLanguage {
-  return lang === "en" || lang === "hi" || lang === "gu";
+  return ANNOUNCE_LANGUAGES.some((l) => l.code === lang);
 }
 
 /**

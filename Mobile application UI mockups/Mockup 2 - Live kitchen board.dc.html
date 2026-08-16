@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet"><script src="./image-slot.js"></script><style>body{margin:0;font-family:Poppins,system-ui,sans-serif}a{color:#C4552F}a:hover{color:#171512}</style></helmet>
+<div style="--k:{{ k }};min-height:100vh;box-sizing:border-box;padding:72px 64px;background:{{ bg }};display:flex;align-items:center;justify-content:center;gap:72px;overflow:hidden">
+  <div style="display:flex;flex-direction:column;gap:22px;max-width:400px">
+    <div style="font:500 11px/1 Poppins,system-ui;letter-spacing:1.4px;color:#C4552F;text-transform:uppercase">02</div>
+    <div style="font:400 40px/1.14 'Instrument Serif',Georgia,serif;color:#171512">Live kitchen board</div>
+    <div style="font:400 15px/1.7 Poppins,system-ui;color:#6E695F;text-wrap:pretty">Every order lands on one screen the moment it's placed, moving from placed to preparing to ready as you work.</div>
+    <div style="width:100%;height:280px;border-radius:18px;overflow:hidden;display:{{ photos }}"><image-slot id="m2-photo" shape="rounded" radius="18" placeholder="Chef at the pass"></image-slot></div>
+  </div>
+  <div style="perspective:1700px;flex:none">
+    <div style="transform:rotateY(calc(15deg * var(--k))) rotateX(calc(-3deg * var(--k)));filter:drop-shadow(0 28px 36px rgba(23,21,18,.14))">
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenKitchenBoard" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;angleIntensity&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0,&quot;min&quot;:0,&quot;max&quot;:1.6,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;},&quot;background&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#FAF8F2&quot;,&quot;options&quot;:[&quot;#FAF8F2&quot;,&quot;#FAF8F2&quot;,&quot;#E4F1EA&quot;,&quot;#171512&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showPhoto&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      k: this.props.angleIntensity ?? 0,
+      bg: this.props.background ?? '#FAF8F2',
+      photos: (this.props.showPhoto ?? true) ? 'block' : 'none',
+    };
+  }
+}
+</script>
+</body>
+</html>

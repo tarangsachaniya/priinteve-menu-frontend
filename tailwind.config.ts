@@ -22,6 +22,11 @@ const config: Config = {
         // the base "sans" utility is DM Sans/Outfit, not Cards' Geist.
         sans: ["var(--font-dm-sans)", ...defaultTheme.fontFamily.sans],
         display: ["var(--font-outfit)", ...defaultTheme.fontFamily.sans],
+        // Instrument Serif italic, loaded by lib/marketing/fonts.ts and applied
+        // only on the marketing wrapper. Off that page the variable is unset
+        // and this falls through to the platform serif — nothing on the
+        // console uses font-serif, so that fallback is never rendered.
+        serif: ["var(--font-instrument-serif)", ...defaultTheme.fontFamily.serif],
       },
       colors: {
         border: "oklch(var(--border) / <alpha-value>)",
@@ -61,6 +66,16 @@ const config: Config = {
           DEFAULT: "oklch(var(--ink) / <alpha-value>)",
           muted: "oklch(var(--ink-muted) / <alpha-value>)",
         },
+        // Marketing-page-only accents. Defined here so the landing page can use
+        // plain utilities, but the variables behind them only exist inside
+        // [data-marketing] (app/marketing-theme.css) — using these classes
+        // anywhere else resolves to nothing, which is the intended guard rail.
+        mint: {
+          DEFAULT: "oklch(var(--mint) / <alpha-value>)",
+          ink: "oklch(var(--mint-ink) / <alpha-value>)",
+        },
+        clay: "oklch(var(--clay) / <alpha-value>)",
+        hairline: "oklch(var(--hairline) / <alpha-value>)",
       },
       borderRadius: {
         lg: "var(--radius)",

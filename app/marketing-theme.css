@@ -1,0 +1,195 @@
+/* ============================================================================
+   MARKETING THEME SCOPE
+   ----------------------------------------------------------------------------
+   The landing page runs a different palette from the rest of the product:
+   deep green on cream, taken from the mobile mockups in
+   "Mobile application UI mockups/", rather than the lime the console uses.
+
+   It is applied as [data-marketing] on the marketing page wrapper only —
+   the same scoping trick app/resto-theme.css uses — so the restaurant
+   console, the kitchen display and the guest ordering screens keep their own
+   tokens untouched. In particular the pickup board's ready-flash alert still
+   fires in the lime staff already read across a room; nothing in here
+   reaches it.
+
+   Values are OKLCH triplets (no oklch() wrapper) because tailwind.config.ts
+   composes every colour as oklch(var(--token) / <alpha-value>). Overriding
+   the existing semantic names means the shared components in components/ui
+   re-theme themselves here with no per-component branching.
+
+   SOURCE PALETTE (hex -> the triplet below)
+     #FAF8F2 cream ground   #171512 ink        #FFFFFF card
+     #097B45 green          #075C36 deep green #E4F1EA mint
+     #C4552F clay           #6E695F muted      #8C877C meta
+     #E3E0D6 border         #F2EFE7 muted bg   #EDEAE1 hairline
+   ========================================================================== */
+
+[data-marketing] {
+  --background: 0.979 0.0082 91.48;
+  --foreground: 0.1969 0.0067 78.16;
+
+  --card: 1 0 0;
+  --card-foreground: 0.1969 0.0067 78.16;
+  --popover: 1 0 0;
+  --popover-foreground: 0.1969 0.0067 78.16;
+
+  /* Green replaces lime as --primary. Unlike lime, it carries white text at
+     6.1:1, so primary-foreground flips from ink to white and green becomes
+     legal as a text colour on cream — which is what fixes the invisible
+     "Bestseller" tag the lime build shipped. */
+  --primary: 0.513 0.125 154.64;
+  --primary-foreground: 1 0 0;
+
+  --secondary: 0.9522 0.0111 89.72;
+  --secondary-foreground: 0.1969 0.0067 78.16;
+  --muted: 0.9522 0.0111 89.72;
+  --muted-foreground: 0.5223 0.0166 84.59;
+  --accent: 0.9465 0.0166 162.74;
+  --accent-foreground: 0.4189 0.0974 156.6;
+
+  --border: 0.9063 0.0138 92.99;
+  --input: 0.9063 0.0138 92.99;
+  --ring: 0.513 0.125 154.64;
+
+  --ink: 0.1969 0.0067 78.16;
+  --ink-muted: 0.6245 0.0172 86.45;
+
+  --radius: 1rem;
+
+  /* Marketing-only additions, surfaced in tailwind.config.ts as
+     mint / mint-ink / clay / hairline. */
+  --mint: 0.9465 0.0166 162.74;
+  --mint-ink: 0.4189 0.0974 156.6;
+  --clay: 0.5851 0.1516 38.8;
+  --hairline: 0.9369 0.0124 91.52;
+}
+
+/* ============================================================================
+   FEATURE ILLUSTRATIONS
+   ----------------------------------------------------------------------------
+   Three small looping animations, one per feature that has no phone mockup.
+   Scoped here rather than added to tailwind.config.ts keyframes because they
+   are specific to this page and meaningless anywhere else.
+
+   Every one is paused under prefers-reduced-motion — these loop forever, and
+   a permanently moving page is exactly what that preference exists to stop.
+   ========================================================================== */
+
+/* GST invoice: line items landing one after another as a table orders. */
+@keyframes mk-line-in {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  16%,
+  88% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+/* The filed chip arriving last, once the totals exist to file. */
+@keyframes mk-stamp {
+  0%,
+  52% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  64%,
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* Peak-hour: demand bars rising, tallest during the rush window. */
+@keyframes mk-bar-rise {
+  0%,
+  100% {
+    transform: scaleY(var(--bar-low, 0.35));
+  }
+  50% {
+    transform: scaleY(var(--bar-high, 1));
+  }
+}
+
+/* Guest reviews: stars filling left to right, then holding. */
+@keyframes mk-star-fill {
+  0%,
+  10% {
+    opacity: 0.18;
+    transform: scale(0.82);
+  }
+  30%,
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.18;
+    transform: scale(0.82);
+  }
+}
+
+/* A review card settling onto the stack. */
+@keyframes mk-card-settle {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  22%,
+  92% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+[data-marketing] .mk-line {
+  animation: mk-line-in 6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+[data-marketing] .mk-stamp {
+  animation: mk-stamp 6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+[data-marketing] .mk-bar {
+  transform-origin: bottom;
+  animation: mk-bar-rise 4.2s ease-in-out infinite;
+}
+[data-marketing] .mk-star {
+  animation: mk-star-fill 4.5s ease-in-out infinite;
+}
+[data-marketing] .mk-review {
+  animation: mk-card-settle 6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-marketing] .mk-line,
+  [data-marketing] .mk-stamp,
+  [data-marketing] .mk-bar,
+  [data-marketing] .mk-star,
+  [data-marketing] .mk-review {
+    animation: none;
+  }
+  /* Resting state has to be the informative one, not the first keyframe —
+     a fully assembled invoice, filled stars, a settled review. */
+  [data-marketing] .mk-line,
+  [data-marketing] .mk-stamp,
+  [data-marketing] .mk-star,
+  [data-marketing] .mk-review {
+    opacity: 1;
+    transform: none;
+  }
+}

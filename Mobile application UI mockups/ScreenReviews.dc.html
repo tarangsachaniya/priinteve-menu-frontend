@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet"></helmet>
+<div style="height:100%;min-height:780px;box-sizing:border-box;padding:60px 0 30px;background:#FFFFFF;font-family:Poppins,system-ui,sans-serif;color:#171512;display:flex;flex-direction:column;overflow:hidden">
+
+  <div style="padding:6px 20px 0;display:flex;flex-direction:column;gap:3px">
+    <div style="font-size:23px;font-weight:600;letter-spacing:-0.3px">Guest reviews</div>
+    <div style="font-size:12.5px;color:#736E64">You choose what goes public</div>
+  </div>
+
+  <div style="margin:16px 20px 0;background:#FAF8F2;border-radius:16px;padding:15px 16px;display:flex;align-items:center;gap:16px">
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <div style="font-size:30px;font-weight:600;line-height:1">4.6</div>
+      <div style="font-size:11px;color:#736E64">128 rated</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+      <div style="display:flex;align-items:center;gap:7px"><div style="font-size:10px;color:#8C877C;width:8px">5</div><div style="flex:1;height:5px;border-radius:9px;background:#EDEAE1;overflow:hidden"><div style="width:74%;height:100%;background:#097B45"></div></div></div>
+      <div style="display:flex;align-items:center;gap:7px"><div style="font-size:10px;color:#8C877C;width:8px">4</div><div style="flex:1;height:5px;border-radius:9px;background:#EDEAE1;overflow:hidden"><div style="width:18%;height:100%;background:#097B45"></div></div></div>
+      <div style="display:flex;align-items:center;gap:7px"><div style="font-size:10px;color:#8C877C;width:8px">3</div><div style="flex:1;height:5px;border-radius:9px;background:#EDEAE1;overflow:hidden"><div style="width:6%;height:100%;background:#E4A33B"></div></div></div>
+      <div style="display:flex;align-items:center;gap:7px"><div style="font-size:10px;color:#8C877C;width:8px">2</div><div style="flex:1;height:5px;border-radius:9px;background:#EDEAE1;overflow:hidden"><div style="width:2%;height:100%;background:#C4552F"></div></div></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;padding:16px 20px 0">
+    <div style="padding:7px 13px;border-radius:999px;background:#171512;color:#fff;font-size:12px;font-weight:500">All</div>
+    <div style="padding:7px 13px;border-radius:999px;background:#FAF8F2;color:#736E64;font-size:12px;font-weight:500">Published · {{ nPub }}</div>
+    <div style="padding:7px 13px;border-radius:999px;background:#FAF8F2;color:#736E64;font-size:12px;font-weight:500">Private</div>
+  </div>
+
+  <div style="padding:14px 20px 0;display:flex;flex-direction:column;gap:10px;overflow:hidden">
+
+    <div style="background:#FAF8F2;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;gap:11px;align-items:flex-start">
+        <div style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-size:13.5px;font-weight:500">Ananya S.</div>
+            <div style="font-size:11.5px;color:#097B45;letter-spacing:1px">★★★★★</div>
+          </div>
+          <div style="font-size:11px;color:#8C877C">Table 4 · Paneer Tikka · 12 min ago</div>
+        </div>
+      </div>
+      <div style="font-size:12.5px;line-height:1.55;color:#3C3830;text-wrap:pretty">Tikka came out hot and the QR ordering meant we never waited for anyone to take the order.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:2px">
+        <div style="font-size:11.5px;color:{{ c1 }};font-weight:500">{{ l1 }}</div>
+        <div data-k="1" onClick="{{ toggle }}" style="cursor:pointer;width:42px;height:24px;border-radius:99px;background:{{ b1 }};padding:3px;box-sizing:border-box;display:flex;transition:background .2s"><div style="width:18px;height:18px;border-radius:99px;background:#fff;transform:{{ x1 }};transition:transform .2s"></div></div>
+      </div>
+    </div>
+
+    <div style="background:#FAF8F2;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;gap:11px;align-items:flex-start">
+        <div style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-size:13.5px;font-weight:500">Rohit M.</div>
+            <div style="font-size:11.5px;color:#E4A33B;letter-spacing:1px">★★★☆☆</div>
+          </div>
+          <div style="font-size:11px;color:#8C877C">Terrace 2 · Veg Thali · 1 hr ago</div>
+        </div>
+      </div>
+      <div style="font-size:12.5px;line-height:1.55;color:#3C3830;text-wrap:pretty">Thali was fine but the dal arrived cold. Everything else was quick.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:2px">
+        <div style="font-size:11.5px;color:{{ c2 }};font-weight:500">{{ l2 }}</div>
+        <div data-k="2" onClick="{{ toggle }}" style="cursor:pointer;width:42px;height:24px;border-radius:99px;background:{{ b2 }};padding:3px;box-sizing:border-box;display:flex;transition:background .2s"><div style="width:18px;height:18px;border-radius:99px;background:#fff;transform:{{ x2 }};transition:transform .2s"></div></div>
+      </div>
+    </div>
+
+    <div style="background:#FAF8F2;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;gap:11px;align-items:flex-start">
+        <div style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-size:13.5px;font-weight:500">Meera J.</div>
+            <div style="font-size:11.5px;color:#097B45;letter-spacing:1px">★★★★★</div>
+          </div>
+          <div style="font-size:11px;color:#8C877C">Table 9 · Masala Dosa · 2 hr ago</div>
+        </div>
+      </div>
+      <div style="font-size:12.5px;line-height:1.55;color:#3C3830;text-wrap:pretty">Crispest dosa in the area. Paid from the phone, walked out.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:2px">
+        <div style="font-size:11.5px;color:{{ c3 }};font-weight:500">{{ l3 }}</div>
+        <div data-k="3" onClick="{{ toggle }}" style="cursor:pointer;width:42px;height:24px;border-radius:99px;background:{{ b3 }};padding:3px;box-sizing:border-box;display:flex;transition:background .2s"><div style="width:18px;height:18px;border-radius:99px;background:#fff;transform:{{ x3 }};transition:transform .2s"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:402,&quot;height&quot;:874}}">
+class Component extends DCLogic {
+  state = { pub: { 1: true, 2: false, 3: true } };
+  renderVals() {
+    const p = this.state.pub;
+    const v = {};
+    [1, 2, 3].forEach((k) => {
+      v['b' + k] = p[k] ? '#097B45' : '#DDD9CE';
+      v['x' + k] = p[k] ? 'translateX(18px)' : 'translateX(0)';
+      v['l' + k] = p[k] ? 'Published' : 'Private';
+      v['c' + k] = p[k] ? '#097B45' : '#8C877C';
+    });
+    return {
+      ...v,
+      nPub: Object.values(p).filter(Boolean).length,
+      toggle: (e) => {
+        const k = e.currentTarget.dataset.k;
+        this.setState((s) => ({ pub: { ...s.pub, [k]: !s.pub[k] } }));
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

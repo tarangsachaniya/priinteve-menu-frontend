@@ -4,6 +4,10 @@ import "./globals.css";
 // @import to the top of the bundle, which would let :root win over the
 // [data-resto-theme] scope overrides. Mirrors the card product's app/layout.tsx.
 import "./resto-theme.css";
+// Same scoping story as resto-theme.css: everything inside is behind
+// [data-marketing], so importing it globally costs one stylesheet and changes
+// nothing until the marketing wrapper opts in.
+import "./marketing-theme.css";
 import { restaurantFontVariables } from "@/lib/restaurant/fonts";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";

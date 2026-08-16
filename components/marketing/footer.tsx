@@ -6,17 +6,26 @@ import { Separator } from "@/components/ui/separator";
 
 const CARDS_APP_URL = process.env.NEXT_PUBLIC_CARDS_APP_URL ?? "http://localhost:3000";
 
+/**
+ * The crescendo. Green is rationed everywhere above — a dot, a chip, an icon
+ * — so that it can take a full-bleed band exactly once, at the point where the
+ * only thing left to do is log in.
+ */
 export function ClosingCta() {
   return (
-    <section className="border-t border-border px-6 py-20 sm:px-8 sm:py-24">
-      <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 rounded-3xl bg-ink px-8 py-14 text-center text-white">
-        <h2 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+    <section className="bg-primary px-6 py-24 sm:px-10 sm:py-28">
+      <div className="mx-auto flex max-w-[720px] flex-col items-center gap-6 text-center">
+        <h2 className="text-4xl font-semibold tracking-[-0.02em] text-balance text-primary-foreground sm:text-5xl">
           Ready to take your first QR order?
         </h2>
-        <p className="max-w-md text-white/70">
+        <p className="max-w-md font-serif text-xl text-primary-foreground/75 italic">
           Log in to your restaurant console, or ask us to set your restaurant up.
         </p>
-        <Button size="xl" variant="secondary" render={<Link href="/r/login" />} className="mt-1">
+        <Button
+          size="xl"
+          className="mt-2 h-14 bg-ink px-8 text-white hover:bg-ink hover:brightness-125"
+          render={<Link href="/r/login" />}
+        >
           Restaurant Login
           <ArrowRight />
         </Button>
@@ -27,34 +36,70 @@ export function ClosingCta() {
 
 export function Footer() {
   return (
-    <footer className="px-6 py-12 sm:px-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
-          <Link href="/" className="flex items-center gap-2 text-base font-bold tracking-tight">
-            <span className="flex size-7 items-center justify-center rounded-full bg-primary text-ink">
-              <UtensilsCrossed className="size-3.5" strokeWidth={2.5} />
-            </span>
-            Priinteve Menu
-          </Link>
+    <footer className="bg-ink px-6 py-16 text-white sm:px-10">
+      <div className="mx-auto max-w-[1200px]">
+        <div className="flex flex-col items-start justify-between gap-10 sm:flex-row sm:items-start">
+          <div className="flex max-w-xs flex-col gap-3">
+            <Link href="/" className="flex items-center gap-2.5 text-base font-semibold tracking-tight">
+              <span className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <UtensilsCrossed className="size-3.5" strokeWidth={2.5} />
+              </span>
+              Priinteve Menu
+            </Link>
+            <p className="text-sm leading-relaxed text-white/55">
+              Table-side QR ordering, a live kitchen board, and GST-ready invoices.
+            </p>
+          </div>
 
-          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <a href="#how-it-works" className="hover:text-foreground">How it works</a>
-            <a href="#features" className="hover:text-foreground">Features</a>
-            <a href="#pricing" className="hover:text-foreground">Pricing</a>
-            <Link href="/r/login" className="hover:text-foreground">Restaurant Login</Link>
-            <Link href="/admin/login" className="hover:text-foreground">Admin</Link>
-          </nav>
+          <div className="grid grid-cols-2 gap-x-14 gap-y-8 sm:grid-cols-3">
+            <FooterColumn
+              heading="Product"
+              links={[
+                { href: "#how-it-works", label: "How it works" },
+                { href: "#features", label: "Features" },
+                { href: "#pricing", label: "Pricing" },
+                { href: "#faq", label: "FAQ" },
+              ]}
+            />
+            <FooterColumn
+              heading="Access"
+              links={[
+                { href: "/r/login", label: "Restaurant Login" },
+                { href: "/admin/login", label: "Admin" },
+              ]}
+            />
+            <FooterColumn
+              heading="Company"
+              links={[{ href: CARDS_APP_URL, label: "Digital business cards" }]}
+            />
+          </div>
         </div>
 
-        <Separator className="my-6" />
+        <Separator className="my-10 bg-white/10" />
 
-        <div className="flex flex-col items-start justify-between gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
-          <p>© {new Date().getFullYear()} Priinteve. All rights reserved.</p>
-          <a href={CARDS_APP_URL} className="hover:text-foreground">
-            Also from Priinteve → Digital business cards
-          </a>
-        </div>
+        <p className="text-xs text-white/45">© {new Date().getFullYear()} Priinteve. All rights reserved.</p>
       </div>
     </footer>
+  );
+}
+
+function FooterColumn({
+  heading,
+  links,
+}: {
+  heading: string;
+  links: { href: string; label: string }[];
+}) {
+  return (
+    <div className="flex flex-col gap-3.5">
+      <p className="text-[0.6875rem] font-semibold tracking-[0.14em] text-white/40 uppercase">{heading}</p>
+      <nav className="flex flex-col gap-2.5">
+        {links.map((link) => (
+          <Link key={link.label} href={link.href} className="text-sm text-white/70 transition-colors hover:text-white">
+            {link.label}
+          </Link>
+        ))}
+      </nav>
+    </div>
   );
 }

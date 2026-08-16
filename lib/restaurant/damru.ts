@@ -86,6 +86,18 @@ export type Damru = {
    * Armed is a one-way latch: recovering from suspension is play()'s job.
    */
   isUnlocked: () => boolean;
+  /**
+   * True once play() has tried and failed to make the context audible again
+   * — the browser refused resume() outright, or resumed into a state that
+   * still isn't "running". isUnlocked() alone can't report this: it is a
+   * one-way latch on purpose (see its own doc comment), so a caller that
+   * only checks isUnlocked() would treat a drum stuck like this as fine and
+   * keep silently calling play() forever with nothing coming out of it —
+   * which is exactly the "rings for a while, then goes quiet with no sign
+   * why" failure this exists to catch. A fresh unlock() (a real tap) is the
+   * only way out, same as the very first arm.
+   */
+  needsReArm: () => boolean;
 };
 
 type AudioContextConstructor = typeof AudioContext;
@@ -157,6 +169,7 @@ function strike(ctx: AudioContext, destination: GainNode, at: number, pitch: num
 export function createDamru(): Damru {
   let ctx: AudioContext | null = null;
   let unlocked = false;
+  let needsReArm = false;
 
   /**
    * Master nodes for phrases that are still sounding, so stopAll() has
@@ -234,6 +247,7 @@ export function createDamru(): Damru {
 
   return {
     isUnlocked: () => unlocked,
+    needsReArm: () => needsReArm,
 
     stopAll: () => {
       const audio = ctx;
@@ -289,7 +303,13 @@ export function createDamru(): Damru {
       // happens to be suspended must not disarm a drum that has already been
       // armed once — that would hand the background-tab case straight back to
       // the bug this pair of flags exists to fix.
-      if (audio.state === "running") unlocked = true;
+      if (audio.state === "running") {
+        unlocked = true;
+        // A real tap always clears this: whatever made resume() fail before
+        // (expired sticky activation, most likely), a fresh gesture is the
+        // one thing guaranteed to get past it.
+        needsReArm = false;
+      }
     },
 
     /**
@@ -312,6 +332,7 @@ export function createDamru(): Damru {
       if (!audio || !unlocked) return;
 
       if (audio.state === "running") {
+        needsReArm = false;
         schedule(audio);
         return;
       }
@@ -321,10 +342,20 @@ export function createDamru(): Damru {
       void audio
         .resume()
         .then(() => {
-          if (audio.state === "running") schedule(audio);
+          if (audio.state === "running") {
+            needsReArm = false;
+            schedule(audio);
+          } else {
+            // resume() resolved without an error but the context still isn't
+            // running — treat it the same as an outright refusal below.
+            needsReArm = true;
+          }
         })
         .catch(() => {
-          // Refused. The alert dialog and the OS notification still stand.
+          // Refused outright. The alert dialog and the OS notification still
+          // stand, and needsReArm() now tells the provider to show "tap to
+          // enable sound" again instead of silently retrying forever.
+          needsReArm = true;
         });
     },
   };

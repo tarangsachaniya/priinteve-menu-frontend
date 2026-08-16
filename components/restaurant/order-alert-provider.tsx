@@ -326,7 +326,13 @@ export function OrderAlertProvider({
       if (!soundEnabled()) return;
 
       const drum = damru.current;
-      if (drum?.isUnlocked()) {
+      // needsReArm() catches the case isUnlocked() can't: a drum that was
+      // armed once but has since lost the ability to resume its AudioContext
+      // (an expired sticky activation, most likely, after the tab sat
+      // background long enough). Without this check the drum would keep
+      // "successfully" calling play() every tick with nothing audible coming
+      // out of it, and no path back to the affordance that fixes it.
+      if (drum?.isUnlocked() && !drum.needsReArm()) {
         drum.play();
         setNeedsSoundUnlock(false);
       } else {
@@ -364,21 +370,21 @@ export function OrderAlertProvider({
   // An AudioContext can only be resumed inside a user gesture, so the first
   // click or keypress anywhere in the console arms the drum for the session.
   //
-  // NOT { once: true }: unlock() can fail — on iOS the context can still be
-  // suspended when it returns — and a listener that removed itself on that first
-  // failed attempt would leave the console permanently silent. With a drum that
-  // now rings until someone acts, that is a support call rather than one missed
-  // ping. So these unhook themselves only once the drum is actually armed.
+  // NEVER removed, on purpose — not even after the drum is armed. unlock()
+  // is cheap once already armed (an early-returning resume check plus a
+  // silent buffer), and every later click is a free chance to clear
+  // needsReArm() if a long-backgrounded tab has let the AudioContext's
+  // resume ability lapse. A listener that unhooked itself after the first
+  // success is exactly what let that later failure go unrecoverable without
+  // someone noticing and tapping the specific "Enable sound" affordance —
+  // with this, staff clicking anywhere for any reason silently fixes it.
   useEffect(() => {
     const drum = damru.current;
     if (!drum) return;
 
     const unlock = () => {
       void drum.unlock().then(() => {
-        if (!drum.isUnlocked()) return;
-        setNeedsSoundUnlock(false);
-        window.removeEventListener("pointerdown", unlock);
-        window.removeEventListener("keydown", unlock);
+        if (drum.isUnlocked()) setNeedsSoundUnlock(false);
       });
     };
 

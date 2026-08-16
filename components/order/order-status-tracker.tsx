@@ -18,7 +18,7 @@ import type { RestoOrderStatus, RestoPaymentStatus } from "@/lib/api/enums";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { estimateOrderMinutes } from "@/lib/restaurant/menu-display";
-import { announceReady, type AnnounceLanguage } from "@/lib/restaurant/announce";
+import type { AnnounceLanguage } from "@/lib/restaurant/announce";
 import { createChime, type Chime } from "@/lib/restaurant/chime";
 import { enableOrderReadyPush } from "@/lib/order-push-client";
 import {
@@ -197,15 +197,13 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         setHasReview(data.order.hasReview);
         announceLanguages.current = data.order.announceLanguages;
 
-        // Same chime + speech the pickup board uses, in every language the
-        // restaurant enabled — this device is the guest's own, so unlike the
-        // board (which speaks every enabled language for a room of strangers),
-        // it still speaks all of them: whichever the guest actually reads.
+        // Chime only, deliberately — the spoken announcement is a pickup-board
+        // feature (a room of strangers who need their number called out), not
+        // this device's own. The guest is already looking at their own screen.
         if (nextStatus === "READY" && !hasAnnouncedReady.current) {
           hasAnnouncedReady.current = true;
           if (window.localStorage.getItem(SOUND_KEY) !== "off") {
             chime.current?.play();
-            announceReady([{ orderNumber: initialOrder.orderNumber }], announceLanguages.current);
           }
         }
       } catch {

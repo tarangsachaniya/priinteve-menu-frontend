@@ -87,7 +87,7 @@ export default function RestaurantLoginPage() {
           </ul>
         </div>
 
-        <p className="text-xs text-ink-muted">Powered by PrintEve</p>
+        <p className="text-xs text-ink-muted">Powered by Priinteve Innovations</p>
       </div>
 
       <div className="flex flex-col items-center justify-center bg-background px-6 py-16">

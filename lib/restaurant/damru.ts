@@ -27,11 +27,17 @@
  * the normal condition rather than the exception.
  */
 
-/** Strikes in one play(). Enough to read as a roll, short enough not to nag. */
-const STRIKE_COUNT = 7;
+/**
+ * Strikes in one play(). Was 7, "enough to read as a roll, short enough not
+ * to nag" — but an unaccepted order is exactly the moment nagging is the
+ * point, and the ring loop now calls play() back-to-back rather than pausing
+ * between phrases, so a longer, denser roll reads as more urgent instead of
+ * as noise.
+ */
+const STRIKE_COUNT = 8;
 
-/** Seconds between strikes. ~9.5 per second — a wrist twist, not a drum machine. */
-const STRIKE_GAP = 0.105;
+/** Seconds between strikes. Was 0.105 (~9.5/sec); tightened for urgency. */
+const STRIKE_GAP = 0.085;
 
 /**
  * The two heads. Tuned a minor third apart rather than in unison: identical
@@ -191,7 +197,9 @@ export function createDamru(): Damru {
    */
   function schedule(audio: AudioContext): void {
     const master = audio.createGain();
-    master.gain.setValueAtTime(1.3, audio.currentTime);
+    // Was 1.3; pushed further for urgency. Safe past 1.0 only because of the
+    // shared compressor below — it's what stands between this and clipping.
+    master.gain.setValueAtTime(1.6, audio.currentTime);
     // Through the shared compressor, not straight to destination — see
     // `compressor`'s doc comment above for why it has to be shared.
     master.connect(compressor ?? audio.destination);

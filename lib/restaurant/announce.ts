@@ -84,8 +84,13 @@ function getAudioElement(): HTMLAudioElement {
  * refusing autoplay. Never rejects: a missing clip must never surface as a
  * thrown error to announceReady's caller, same as the speechSynthesis code
  * this replaces never threw for a missing voice.
+ *
+ * `onStart`, when given, fires on the "playing" event — audible start, not
+ * just a resolved play() promise, which can land before the browser has
+ * actually produced sound. See announceReady's doc comment for why a caller
+ * wants this.
  */
-function playClip(lang: AnnounceLanguage, orderNumber: number, name?: string): Promise<void> {
+function playClip(lang: AnnounceLanguage, orderNumber: number, name?: string, onStart?: () => void): Promise<void> {
   const audio = getAudioElement();
   return new Promise<void>((resolve) => {
     let settled = false;
@@ -94,8 +99,11 @@ function playClip(lang: AnnounceLanguage, orderNumber: number, name?: string): P
       settled = true;
       audio.removeEventListener("ended", finish);
       audio.removeEventListener("error", finish);
+      audio.removeEventListener("playing", onPlaying);
       resolve();
     };
+    const onPlaying = () => onStart?.();
+    if (onStart) audio.addEventListener("playing", onPlaying);
     audio.addEventListener("ended", finish);
     audio.addEventListener("error", finish);
     audio.src = announceAudioPath(lang, orderNumber, name);
@@ -118,8 +126,22 @@ let queue: Promise<void> = Promise.resolve();
  * Fire-and-forget: this returns void and callers do not await it, exactly
  * matching the old speechSynthesis-based signature so neither call site
  * (pickup-display.tsx, order-status-tracker.tsx) needed to change.
+ *
+ * `onFirstClipStart`, when given, fires once — the moment the very first
+ * clip in this batch is actually audible. This exists so a caller that also
+ * plays a secondary, near-instant sound (pickup-display.tsx's chime, which
+ * is synthesized locally and needs no network round trip) can hold that
+ * sound back until the announcement itself has started, rather than the
+ * quick local sound winning the race against a clip that still has to be
+ * fetched. Never fires at all if every clip in the batch fails to play —
+ * callers that need a sound regardless should pair this with their own
+ * timeout as a fallback.
  */
-export function announceReady(orders: ReadyAnnouncement[], languages: AnnounceLanguage[]): void {
+export function announceReady(
+  orders: ReadyAnnouncement[],
+  languages: AnnounceLanguage[],
+  onFirstClipStart?: () => void,
+): void {
   if (orders.length === 0) return;
   if (typeof window === "undefined") return;
 
@@ -133,9 +155,11 @@ export function announceReady(orders: ReadyAnnouncement[], languages: AnnounceLa
   if (known.length === 0) return;
 
   queue = queue.then(async () => {
+    let firstClip = true;
     for (const order of orders) {
       for (const lang of known) {
-        await playClip(lang, order.orderNumber, order.name);
+        await playClip(lang, order.orderNumber, order.name, firstClip ? onFirstClipStart : undefined);
+        firstClip = false;
       }
     }
   });

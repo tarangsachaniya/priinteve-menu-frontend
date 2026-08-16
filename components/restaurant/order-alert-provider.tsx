@@ -64,16 +64,15 @@ import { ORDER_TYPE_LABEL } from "@/lib/restaurant/order-status";
  */
 
 /**
- * Gap between phrases, growing rather than fixed: 2s, 4s, 6s, 8s, then holding
- * at 10s for as long as the order sits unaccepted. Tight at the start, when the
- * alert is new and someone should glance over immediately; loosening it after
- * that is what keeps an order still ringing five minutes in from reading as
- * "background noise" the ear has already filed away, without also drumming
- * every two seconds for the entire five minutes.
+ * Gap between phrases while an order sits unaccepted. Used to grow from 2s up
+ * to a 10s hold, on the theory that a taper reads as less naggy — in practice
+ * that taper is what an owner hears as the drum going quiet, since a phrase is
+ * under a second and a 10s silence between them is most of the cycle. Fixed
+ * and short instead: back-to-back phrases with barely a breath between them,
+ * because an unaccepted order is exactly the moment this feature should be
+ * impossible to tune out, for as long as it takes someone to act.
  */
-const RING_INTERVAL_START_MS = 2000;
-const RING_INTERVAL_STEP_MS = 2000;
-const RING_INTERVAL_MAX_MS = 10_000;
+const RING_INTERVAL_MS = 900;
 
 /**
  * Poll cadence while something is ringing. Fast, because this is the only
@@ -338,20 +337,18 @@ export function OrderAlertProvider({
       }
     };
 
-    // Self-rescheduling rather than setInterval: the gap changes on every
-    // repeat, and a fresh setInterval call for each new gap would drift from
-    // the growing schedule instead of extending it.
+    // Self-rescheduling rather than setInterval: a tab returning from the
+    // background must not fire a coalesced burst of catch-up phrases, same
+    // reasoning as the poll loop above.
     let cancelled = false;
     let timer: number | undefined;
-    let gap = RING_INTERVAL_START_MS;
 
     const loop = () => {
       timer = window.setTimeout(() => {
         if (cancelled) return;
         fire();
-        gap = Math.min(gap + RING_INTERVAL_STEP_MS, RING_INTERVAL_MAX_MS);
         loop();
-      }, gap);
+      }, RING_INTERVAL_MS);
     };
 
     fire();

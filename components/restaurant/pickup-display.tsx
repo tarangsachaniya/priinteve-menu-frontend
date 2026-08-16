@@ -38,6 +38,15 @@ const STALE_AFTER_FAILURES = 3;
 /** Second guard on top of the API's six-hour window, so the Ready column cannot fill with yesterday. */
 const READY_LIMIT = 12;
 
+/**
+ * Longest the chime waits on the announcement before playing on its own.
+ * announceReady's onFirstClipStart normally fires this well before 1.5s
+ * (see tick() below) — this only matters when Sarvam is unconfigured, down,
+ * or the fetch is unusually slow, so a guest still gets a sound rather than
+ * the flash alone.
+ */
+const CHIME_FALLBACK_DELAY_MS = 1500;
+
 const SCALE_KEY = "pv:display:scale";
 const CHIME_KEY = "pv:display:chime";
 
@@ -167,14 +176,24 @@ export function PickupDisplay({
       setOrders(data.orders);
 
       if (fresh.length > 0) {
+        // The chime is synthesized locally and needs no network round trip, so
+        // it would otherwise win the race against the announcement — which has
+        // to fetch a clip from Sarvam first — and play a beat ahead of the
+        // words naming the order. Held back until the announcement is actually
+        // audible (or, failing that, until CHIME_FALLBACK_DELAY_MS has passed
+        // with nothing to hold for) so the spoken announcement always leads.
+        //
         // The chime is the only thing CHIME_KEY silences. Speech used to be
         // silenced along with it — dismissing an annoying beep also dropped
         // every Hindi/Gujarati announcement, which is a much bigger loss than
         // the beep itself. They're independent now: a muted board still
         // speaks.
-        if (window.localStorage.getItem(CHIME_KEY) !== "off") {
-          chime.current?.play();
-        }
+        let chimePlayed = false;
+        const playChime = () => {
+          if (chimePlayed) return;
+          chimePlayed = true;
+          if (window.localStorage.getItem(CHIME_KEY) !== "off") chime.current?.play();
+        };
 
         // One announcement per order however many flipped at once. Two orders
         // becoming ready in the same five-second window is one event to the
@@ -182,7 +201,9 @@ export function PickupDisplay({
         announceReady(
           freshOrders.map((order) => ({ orderNumber: order.orderNumber, name: order.customerName })),
           announceLanguages.current,
+          playChime,
         );
+        window.setTimeout(playChime, CHIME_FALLBACK_DELAY_MS);
 
         setFlashing(new Set(fresh));
         window.setTimeout(() => setFlashing(new Set()), 2800);

@@ -3,10 +3,12 @@
  * wall the moment their number moves column. The chime says "something is
  * ready"; this says which number, so nobody has to walk over and check.
  *
- * NO NAMES. The board does not receive one and this must never speak one — a
- * lobby speaker calling out who is waiting is a different thing from a screen
- * showing a number, and the number on the guest's receipt already identifies
- * them.
+ * Names the order when a first name is available (the pickup board's own API
+ * response — see PickupOrder.customerName in pickup-display.tsx) — the
+ * server only ever gives out a first name, never the full one, so that's the
+ * most this ever speaks. Omitted, the clip falls back to the plain "order N
+ * is ready" phrase. See PHRASE_FOR in priinteve-api's
+ * services/integrations/sarvam.ts for exactly which languages speak the name.
  *
  * Server-generated speech (Sarvam AI Bulbul v3), not the browser's
  * speechSynthesis — Windows ships no Hindi/Gujarati voice out of the box,
@@ -47,7 +49,7 @@ export const ANNOUNCE_LANGUAGES = [
 
 export type AnnounceLanguage = (typeof ANNOUNCE_LANGUAGES)[number]["code"];
 
-export type ReadyAnnouncement = { orderNumber: number };
+export type ReadyAnnouncement = { orderNumber: number; name?: string };
 
 function isKnownLanguage(lang: string): lang is AnnounceLanguage {
   return ANNOUNCE_LANGUAGES.some((l) => l.code === lang);
@@ -59,8 +61,9 @@ function isKnownLanguage(lang: string): lang is AnnounceLanguage {
  * app/api/[...path]/route.ts, same rule lib/restaurant/screen-paths.ts
  * follows for the mounted-screen endpoints.
  */
-function announceAudioPath(lang: AnnounceLanguage, orderNumber: number): string {
-  return `/api/order/announce-audio?lang=${lang}&orderNumber=${orderNumber}`;
+function announceAudioPath(lang: AnnounceLanguage, orderNumber: number, name?: string): string {
+  const base = `/api/order/announce-audio?lang=${lang}&orderNumber=${orderNumber}`;
+  return name ? `${base}&name=${encodeURIComponent(name)}` : base;
 }
 
 /**
@@ -82,7 +85,7 @@ function getAudioElement(): HTMLAudioElement {
  * thrown error to announceReady's caller, same as the speechSynthesis code
  * this replaces never threw for a missing voice.
  */
-function playClip(lang: AnnounceLanguage, orderNumber: number): Promise<void> {
+function playClip(lang: AnnounceLanguage, orderNumber: number, name?: string): Promise<void> {
   const audio = getAudioElement();
   return new Promise<void>((resolve) => {
     let settled = false;
@@ -95,7 +98,7 @@ function playClip(lang: AnnounceLanguage, orderNumber: number): Promise<void> {
     };
     audio.addEventListener("ended", finish);
     audio.addEventListener("error", finish);
-    audio.src = announceAudioPath(lang, orderNumber);
+    audio.src = announceAudioPath(lang, orderNumber, name);
     audio.play().catch(finish);
   });
 }
@@ -132,7 +135,7 @@ export function announceReady(orders: ReadyAnnouncement[], languages: AnnounceLa
   queue = queue.then(async () => {
     for (const order of orders) {
       for (const lang of known) {
-        await playClip(lang, order.orderNumber);
+        await playClip(lang, order.orderNumber, order.name);
       }
     }
   });

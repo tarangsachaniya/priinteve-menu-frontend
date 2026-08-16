@@ -209,7 +209,7 @@ export function KitchenDisplay({
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-3">
+      <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-1">
         {LANES.map((lane) => {
           const laneOrders = orders
             .filter((order) => lane.statuses.includes(order.status))
@@ -217,7 +217,7 @@ export function KitchenDisplay({
             .sort((a, b) => new Date(a.placedAt).getTime() - new Date(b.placedAt).getTime());
 
           return (
-            <section key={lane.key} className="flex min-w-0 flex-col gap-3">
+            <section key={lane.key} className="flex min-w-[300px] flex-1 basis-0 flex-col gap-3">
               <div className="flex items-baseline justify-between gap-2 border-b border-border pb-2">
                 <h2 className="text-lg font-semibold text-ink">
                   {lane.label}

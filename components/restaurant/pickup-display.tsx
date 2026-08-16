@@ -15,12 +15,12 @@ import { cn } from "@/lib/utils";
  * The customer pickup board — a TV or tablet on a wall, read from across a room
  * by people waiting for food.
  *
- * WHAT IS ON IT: order numbers, in two columns. Nothing else — no names, no
- * dishes, no totals, no mobile numbers. The number printed on the guest's
- * receipt is the whole identifier, and the API does not send anything more
- * (see the select in screen.routes.ts): a board a room full of strangers can
- * read, which also calls out over a speaker, is the wrong place to say who
- * anybody is.
+ * WHAT IS ON IT: order numbers and first names, in two columns. Nothing else —
+ * no full names, no dishes, no totals, no mobile numbers (see the select in
+ * screen.routes.ts, which only ever sends a first name via firstNameOnly()).
+ * The number stays the dominant visual element; the name is a smaller,
+ * secondary line so it helps a guest confirm their order without competing
+ * with the number a room full of strangers reads from across the room.
  *
  * The two columns are "Preparing" (ACCEPTED + PREPARING) and "Ready to collect"
  * (READY). A guest does not need to know the difference between accepted and
@@ -41,7 +41,7 @@ const READY_LIMIT = 12;
 const SCALE_KEY = "pv:display:scale";
 const CHIME_KEY = "pv:display:chime";
 
-export type PickupOrder = { orderNumber: number; status: RestoOrderStatus };
+export type PickupOrder = { orderNumber: number; status: RestoOrderStatus; customerName: string };
 
 /**
  * Sized off vmin, not vw. A portrait tablet and a 55" landscape TV produce
@@ -180,7 +180,7 @@ export function PickupDisplay({
         // becoming ready in the same five-second window is one event to the
         // room, and the announcement follows the same rule, naming each in turn.
         announceReady(
-          freshOrders.map((order) => ({ orderNumber: order.orderNumber })),
+          freshOrders.map((order) => ({ orderNumber: order.orderNumber, name: order.customerName })),
           announceLanguages.current,
         );
 
@@ -218,10 +218,10 @@ export function PickupDisplay({
 
   const preparing = orders
     .filter((order) => order.status === "ACCEPTED" || order.status === "PREPARING")
-    .map((order) => ({ orderNumber: order.orderNumber }));
+    .map((order) => ({ orderNumber: order.orderNumber, customerName: order.customerName }));
   const ready = orders
     .filter((order) => order.status === "READY")
-    .map((order) => ({ orderNumber: order.orderNumber }))
+    .map((order) => ({ orderNumber: order.orderNumber, customerName: order.customerName }))
     .slice(-READY_LIMIT);
 
   return (
@@ -307,7 +307,7 @@ export function PickupDisplay({
   );
 }
 
-type ColumnEntry = { orderNumber: number };
+type ColumnEntry = { orderNumber: number; customerName: string };
 
 function Column({
   title,
@@ -346,17 +346,29 @@ function Column({
         </p>
       ) : (
         <div className="flex flex-wrap content-start gap-3 lg:gap-4">
-          {entries.map(({ orderNumber }) => (
+          {entries.map(({ orderNumber, customerName }) => (
             <span
               key={orderNumber}
               className={cn(
-                "flex items-center justify-center rounded-2xl px-4 py-2 lg:px-6 lg:py-4",
+                "flex flex-col items-center justify-center gap-0.5 rounded-2xl px-4 py-2 lg:px-6 lg:py-4",
                 tone === "ready" ? "bg-emerald-500 text-white" : "bg-neutral-200 text-neutral-700",
                 // motion-safe, so a guest who asked their device for less motion
                 // still gets the colour change without the pulse.
                 flashing.has(orderNumber) && "motion-safe:animate-ready-flash",
               )}
             >
+              {/* Secondary to the number on purpose — capped width so one long
+                  name can't widen the chip past what the number needs. */}
+              {customerName && (
+                <span
+                  className={cn(
+                    "max-w-[12ch] truncate text-xs font-medium uppercase tracking-wide lg:text-sm",
+                    tone === "ready" ? "text-white/80" : "text-neutral-500",
+                  )}
+                >
+                  {customerName}
+                </span>
+              )}
               <span className={cn("font-bold tabular-nums leading-none", SCALES[scale])}>{orderNumber}</span>
             </span>
           ))}

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet"></helmet>
+<div style="height:100%;min-height:780px;box-sizing:border-box;padding:60px 0 30px;background:#171512;font-family:Poppins,system-ui,sans-serif;color:#fff;display:flex;flex-direction:column;overflow:hidden">
+
+  <div style="padding:6px 20px 0;display:flex;align-items:flex-start;justify-content:space-between">
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <div style="font-size:23px;font-weight:600;letter-spacing:-0.3px">Kitchen board</div>
+      <div style="font-size:12.5px;color:rgba(255,255,255,.55)">Tap a ticket to move it forward</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(95,196,140,.16);border-radius:999px;padding:7px 11px;font-size:11.5px;font-weight:500;color:#5FC48C">
+      <div style="width:6px;height:6px;border-radius:99px;background:#097B45"></div>Live
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;padding:16px 20px 0">
+    <div style="flex:1;background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px">
+      <div style="font-size:19px;font-weight:600">{{ nPlaced }}</div>
+      <div style="font-size:10.5px;color:rgba(255,255,255,.5)">Placed</div>
+    </div>
+    <div style="flex:1;background:rgba(228,163,59,.14);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px">
+      <div style="font-size:19px;font-weight:600;color:#F0BE72">{{ nPrep }}</div>
+      <div style="font-size:10.5px;color:rgba(240,190,114,.7)">Preparing</div>
+    </div>
+    <div style="flex:1;background:rgba(95,196,140,.14);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px">
+      <div style="font-size:19px;font-weight:600;color:#5FC48C">{{ nReady }}</div>
+      <div style="font-size:10.5px;color:rgba(95,196,140,.75)">Ready</div>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow:hidden;padding:16px 20px 0;display:flex;flex-direction:column;gap:10px">
+    <sc-for list="{{ orders }}" as="o" hint-placeholder-count="4">
+      <div data-i="{{ $index }}" onClick="{{ advance }}" style="cursor:pointer;background:#211E1A;border-radius:16px;padding:13px 14px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div style="display:flex;align-items:baseline;gap:8px;flex:none">
+            <div style="font-size:15px;font-weight:600;white-space:nowrap">{{ o.table }}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.4);font-family:ui-monospace,Menlo,monospace;white-space:nowrap">{{ o.id }}</div>
+          </div>
+          <div style="font-size:11.5px;font-weight:500;padding:5px 10px;border-radius:999px;background:{{ o.chipBg }};color:{{ o.chipFg }}">{{ o.stageName }}</div>
+        </div>
+        <div style="font-size:12.5px;color:rgba(255,255,255,.62);line-height:1.5">{{ o.items }}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:11px;color:rgba(255,255,255,.38);white-space:nowrap">{{ o.age }} ago · {{ o.count }} items</div>
+          <div style="font-size:11.5px;color:{{ o.chipFg }};font-weight:500">{{ o.nextLabel }}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:402,&quot;height&quot;:874}}">
+class Component extends DCLogic {
+  state = {
+    orders: [
+      { id: '#1428', table: 'Table 4', items: '2 × Paneer Tikka · 1 × Butter Naan · 1 × Jeera Rice', age: '1 min', count: 4, stage: 0 },
+      { id: '#1427', table: 'Table 9', items: '1 × Masala Dosa · 2 × Filter Coffee', age: '4 min', count: 3, stage: 1 },
+      { id: '#1426', table: 'Terrace 2', items: '1 × Veg Thali · 1 × Buttermilk', age: '7 min', count: 2, stage: 1 },
+      { id: '#1425', table: 'Table 2', items: '3 × Idli Sambar · 1 × Vada', age: '11 min', count: 4, stage: 2 },
+    ],
+  };
+  renderVals() {
+    const meta = [
+      { name: 'Placed', bg: 'rgba(255,255,255,.09)', fg: 'rgba(255,255,255,.75)', next: 'Start preparing →' },
+      { name: 'Preparing', bg: 'rgba(228,163,59,.18)', fg: '#F0BE72', next: 'Mark ready →' },
+      { name: 'Ready', bg: 'rgba(95,196,140,.18)', fg: '#5FC48C', next: 'Hand over →' },
+    ];
+    const orders = this.state.orders.map((o) => ({
+      ...o, stageName: meta[o.stage].name, chipBg: meta[o.stage].bg,
+      chipFg: meta[o.stage].fg, nextLabel: meta[o.stage].next,
+    }));
+    return {
+      orders,
+      nPlaced: orders.filter((o) => o.stage === 0).length,
+      nPrep: orders.filter((o) => o.stage === 1).length,
+      nReady: orders.filter((o) => o.stage === 2).length,
+      advance: (e) => {
+        const i = +e.currentTarget.dataset.i;
+        this.setState((s) => ({ orders: s.orders.map((o, j) => (j === i ? { ...o, stage: Math.min(2, o.stage + 1) } : o)) }));
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

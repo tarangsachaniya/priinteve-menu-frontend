@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><meta name="design_doc_mode" content="canvas"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"><script src="./image-slot.js"></script><style>body{margin:0;background:#EDEBE4;font-family:Poppins,system-ui,sans-serif}a{color:#C4552F}a:hover{color:#171512}.dv-turn{padding:44px 48px 36px;border-bottom:1px solid rgba(23,21,18,.09)}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 22px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#171512;color:#fff;border-radius:4px;text-decoration:none}.dv-tname{font:500 13px/1.2 Poppins,system-ui;color:#171512}.dv-opts{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:11px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(23,21,18,.09);color:#171512;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11.5px/1.3 Poppins,system-ui;color:rgba(23,21,18,.55)}.dv-card{background:#FBFAF6;border:1px solid rgba(23,21,18,.09);border-radius:14px;box-shadow:0 1px 3px rgba(23,21,18,.06);padding:30px}.dv-opt:target .dv-oid{background:#C4552F;color:#fff}.dv-next{margin:24px 0 0;font:12px/1.6 Poppins,system-ui;color:rgba(23,21,18,.5)}.sl{font:500 11px/1 Poppins,system-ui;letter-spacing:.4px;color:#171512;text-transform:uppercase}.sd{font:400 11.5px/1.5 Poppins,system-ui;color:#8C877C}</style></helmet>
+
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Six mockups for “Everything included” — board, Android pass, and pitch sections</span></div>
+
+  <div class="dv-card" style="width:980px;margin:0 0 32px;padding:26px 30px;display:flex;flex-direction:column;gap:12px">
+    <div style="font:400 24px/1.25 'Instrument Serif',Georgia,serif;color:#171512">What I assumed, so you can correct me</div>
+    <div style="font:400 13px/1.7 Poppins,system-ui;color:#4A453C;max-width:78ch;text-wrap:pretty">All six screens sit in one <strong style="font-weight:500">owner/manager app</strong>, using your card copy verbatim as the section headlines. Sample restaurant is “Ruchi Kitchen”, prices in ₹, GSTIN and FSSAI numbers are dummy. Visual language is taken from your screenshot: cream ground, white cards, lime chips, near-black text — the kitchen board inverts to dark because it is read across a hot pass at arm's length.</div>
+    <div style="font:400 13px/1.7 Poppins,system-ui;color:#4A453C;max-width:78ch;text-wrap:pretty">The six large images in the pitch sections are <strong style="font-weight:500">drop targets</strong> — drag a photo onto one (or click to browse) and it stays. The small dish thumbnails inside the screens are plain placeholders; say the word and I'll enlarge those rows so they take real photos too. I cannot generate photographs, so every image here is yours to supply.</div>
+    <div style="font:400 13px/1.7 Poppins,system-ui;color:#4A453C;max-width:78ch">Live bits to try: tap a kitchen ticket to advance it, tap an invoice to open the tax breakdown, tap a table to swap its QR, and flip any toggle.</div>
+  </div>
+
+  <div class="dv-opts">
+
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>The board — six screens, iPhone</div>
+      <div class="dv-card" style="width:1420px">
+        <div style="display:grid;grid-template-columns:repeat({{ cols }},1fr);gap:34px 30px;justify-items:center">
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenQRTables" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+            <div style="text-align:center;display:flex;flex-direction:column;gap:4px;max-width:360px"><div class="sl">01 · A QR code per table</div><div class="sd">Every table is a tile; the sheet prints one code or all twelve.</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenKitchenBoard" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+            <div style="text-align:center;display:flex;flex-direction:column;gap:4px;max-width:360px"><div class="sl">02 · Live kitchen board</div><div class="sd">Tap a ticket: placed → preparing → ready, counts move with it.</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenInvoices" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+            <div style="text-align:center;display:flex;flex-direction:column;gap:4px;max-width:360px"><div class="sl">03 · GST-ready invoices</div><div class="sd">Tap any invoice for GSTIN, FSSAI, HSN and the CGST/SGST split.</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenReviews" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+            <div style="text-align:center;display:flex;flex-direction:column;gap:4px;max-width:360px"><div class="sl">04 · Guest reviews</div><div class="sd">One switch decides public or private, per review.</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenPeakHour" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+            <div style="text-align:center;display:flex;flex-direction:column;gap:4px;max-width:360px"><div class="sl">05 · Peak-hour smart menu</div><div class="sd">Rush window on top, slowest dishes below, demote in one tap.</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenMenuControl" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+            <div style="text-align:center;display:flex;flex-direction:column;gap:4px;max-width:360px"><div class="sl">06 · A menu you control</div><div class="sd">Stock switches grey the dish out and the change is live.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Android pass — same screens, Material chrome</div>
+      <div class="dv-card" style="width:1420px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:34px 30px;justify-items:center">
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="412px,892px"><dc-import name="ScreenQRTables" hint-size="412px,892px" style="height:100%"></dc-import></x-import>
+            <div class="sl">01 · A QR code per table</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="412px,892px"><dc-import name="ScreenKitchenBoard" hint-size="412px,892px" style="height:100%"></dc-import></x-import>
+            <div class="sl">02 · Live kitchen board</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="412px,892px"><dc-import name="ScreenInvoices" hint-size="412px,892px" style="height:100%"></dc-import></x-import>
+            <div class="sl">03 · GST-ready invoices</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="412px,892px"><dc-import name="ScreenReviews" hint-size="412px,892px" style="height:100%"></dc-import></x-import>
+            <div class="sl">04 · Guest reviews</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="412px,892px"><dc-import name="ScreenPeakHour" hint-size="412px,892px" style="height:100%"></dc-import></x-import>
+            <div class="sl">05 · Peak-hour smart menu</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+            <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="412px,892px"><dc-import name="ScreenMenuControl" hint-size="412px,892px" style="height:100%"></dc-import></x-import>
+            <div class="sl">06 · A menu you control</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Pitch sections — one per card, photo slots included</div>
+      <div class="dv-card" style="width:1240px;padding:0;overflow:hidden;background:#FBFAF6">
+
+        <div style="padding:66px 70px 44px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center">
+          <div style="font:500 11px/1 Poppins,system-ui;letter-spacing:1.4px;color:{{ accent }};text-transform:uppercase">Everything included</div>
+          <div style="font:400 46px/1.12 'Instrument Serif',Georgia,serif;color:#171512;max-width:20ch">Built for how a real kitchen runs</div>
+          <div style="font:400 15px/1.65 Poppins,system-ui;color:#736E64;max-width:56ch;text-wrap:pretty">Not a generic ordering widget — every piece here is something a restaurant actually needed.</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 402px;gap:52px;align-items:center;padding:52px 70px;background:#F4F2EC">
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <div style="font:500 11px/1 Poppins,system-ui;letter-spacing:1.2px;color:{{ accent }}">01</div>
+            <div style="font:400 38px/1.15 'Instrument Serif',Georgia,serif;color:#171512">A QR code per table</div>
+            <div style="font:400 15px/1.7 Poppins,system-ui;color:#4A453C;max-width:44ch;text-wrap:pretty">Generate and print a code for every table in seconds — each one opens straight into that table's order.</div>
+            <div style="height:230px;border-radius:16px;overflow:hidden;margin-top:6px;display:{{ photos }}"><image-slot id="mk-qr" shape="rounded" radius="16" placeholder="Table tent with a printed QR code"></image-slot></div>
+          </div>
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenQRTables" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+        </div>
+
+        <div style="display:grid;grid-template-columns:402px 1fr;gap:52px;align-items:center;padding:52px 70px">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenKitchenBoard" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <div style="font:500 11px/1 Poppins,system-ui;letter-spacing:1.2px;color:{{ accent }}">02</div>
+            <div style="font:400 38px/1.15 'Instrument Serif',Georgia,serif;color:#171512">Live kitchen board</div>
+            <div style="font:400 15px/1.7 Poppins,system-ui;color:#4A453C;max-width:44ch;text-wrap:pretty">Every order lands on one screen the moment it's placed, moving from placed to preparing to ready as you work.</div>
+            <div style="height:230px;border-radius:16px;overflow:hidden;margin-top:6px;display:{{ photos }}"><image-slot id="mk-kitchen" shape="rounded" radius="16" placeholder="Chef at the pass, tablet mounted nearby"></image-slot></div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 402px;gap:52px;align-items:center;padding:52px 70px;background:#F4F2EC">
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <div style="font:500 11px/1 Poppins,system-ui;letter-spacing:1.2px;color:{{ accent }}">03</div>
+            <div style="font:400 38px/1.15 'Instrument Serif',Georgia,serif;color:#171512">GST-ready invoices</div>
+            <div style="font:400 15px/1.7 Poppins,system-ui;color:#4A453C;max-width:44ch;text-wrap:pretty">Every order generates a proper tax invoice automatically — GSTIN, FSSAI licence, and a clean line-item breakdown.</div>
+            <div style="height:230px;border-radius:16px;overflow:hidden;margin-top:6px;display:{{ photos }}"><image-slot id="mk-invoice" shape="rounded" radius="16" placeholder="Counter, printed bill and card machine"></image-slot></div>
+          </div>
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenInvoices" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+        </div>
+
+        <div style="display:grid;grid-template-columns:402px 1fr;gap:52px;align-items:center;padding:52px 70px">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenReviews" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <div style="font:500 11px/1 Poppins,system-ui;letter-spacing:1.2px;color:{{ accent }}">04</div>
+            <div style="font:400 38px/1.15 'Instrument Serif',Georgia,serif;color:#171512">Guest reviews</div>
+            <div style="font:400 15px/1.7 Poppins,system-ui;color:#4A453C;max-width:44ch;text-wrap:pretty">Diners rate their order after it's done. Publish the ones you want, keep the rest private.</div>
+            <div style="height:230px;border-radius:16px;overflow:hidden;margin-top:6px;display:{{ photos }}"><image-slot id="mk-reviews" shape="rounded" radius="16" placeholder="Guests at a table, phone in hand"></image-slot></div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 402px;gap:52px;align-items:center;padding:52px 70px;background:#F4F2EC">
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <div style="font:500 11px/1 Poppins,system-ui;letter-spacing:1.2px;color:{{ accent }}">05</div>
+            <div style="font:400 38px/1.15 'Instrument Serif',Georgia,serif;color:#171512">Peak-hour smart menu</div>
+            <div style="font:400 15px/1.7 Poppins,system-ui;color:#4A453C;max-width:44ch;text-wrap:pretty">Mark dishes to demote during your rush windows, so the kitchen isn't buried in the slowest items to make.</div>
+            <div style="height:230px;border-radius:16px;overflow:hidden;margin-top:6px;display:{{ photos }}"><image-slot id="mk-peak" shape="rounded" radius="16" placeholder="Full dining room during dinner rush"></image-slot></div>
+          </div>
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenPeakHour" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+        </div>
+
+        <div style="display:grid;grid-template-columns:402px 1fr;gap:52px;align-items:center;padding:52px 70px 66px">
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px"><dc-import name="ScreenMenuControl" hint-size="402px,874px" style="height:100%"></dc-import></x-import>
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <div style="font:500 11px/1 Poppins,system-ui;letter-spacing:1.2px;color:{{ accent }}">06</div>
+            <div style="font:400 38px/1.15 'Instrument Serif',Georgia,serif;color:#171512">A menu you control</div>
+            <div style="font:400 15px/1.7 Poppins,system-ui;color:#4A453C;max-width:44ch;text-wrap:pretty">Add categories and dishes, mark what's out of stock, and update prices — live the moment you save.</div>
+            <div style="height:230px;border-radius:16px;overflow:hidden;margin-top:6px;display:{{ photos }}"><image-slot id="mk-menu" shape="rounded" radius="16" placeholder="Owner updating the menu on a phone"></image-slot></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="dv-next">Try next: “give me two layout options for <a class="dv-oid" href="#1a">1a</a>'s kitchen board” · “make <a class="dv-oid" href="#1c">1c</a> sections light-on-dark” · “drop the Android pass and go deeper on the diner-side screens”</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;boardColumns&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:1,&quot;max&quot;:6,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Board&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#C4552F&quot;,&quot;options&quot;:[&quot;#C4552F&quot;,&quot;#8FA321&quot;,&quot;#171512&quot;,&quot;#B47B1E&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Pitch sections&quot;},&quot;showPhotoSlots&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Pitch sections&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      cols: this.props.boardColumns ?? 3,
+      accent: this.props.accent ?? '#C4552F',
+      photos: (this.props.showPhotoSlots ?? true) ? 'block' : 'none',
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { instrumentSerif } from "@/lib/marketing/fonts";
+import { cn } from "@/lib/utils";
 import { MarketingNavbar } from "@/components/marketing/marketing-navbar";
 import { Hero } from "@/components/marketing/hero";
 import { HowItWorks } from "@/components/marketing/how-it-works";
@@ -19,7 +21,13 @@ export const metadata: Metadata = {
 
 export default function MarketingHomePage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    // data-marketing switches the whole subtree to the green-on-cream palette
+    // in app/marketing-theme.css. It stops at this page — the console and the
+    // guest ordering surface never see it.
+    <div
+      data-marketing
+      className={cn("flex min-h-screen flex-col bg-background", instrumentSerif.variable)}
+    >
       <MarketingNavbar />
       <main className="flex-1">
         <Hero />

@@ -20,8 +20,8 @@ import {
 export const HOW_IT_WORKS: { step: string; title: string; description: string }[] = [
   {
     step: "01",
-    title: "Guest scans the table QR",
-    description: "No app to install. The QR on the table opens your live menu straight in their browser.",
+    title: "Guest taps or scans the table",
+    description: "No app to install. Tap the NFC tag or scan the QR — either opens your live menu straight in their browser.",
   },
   {
     step: "02",

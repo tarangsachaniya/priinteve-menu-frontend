@@ -1,4 +1,4 @@
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, SmartphoneNfc } from "lucide-react";
 
 import { HOW_IT_WORKS } from "@/lib/marketing/content";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -57,7 +57,7 @@ export function HowItWorks() {
 
 const PANEL = "rounded-2xl bg-card shadow-[0_18px_36px_-20px_rgb(23_21_18_/_0.28)]";
 
-/** 01 — a printed table tent inside a camera's focus brackets. */
+/** 01 — a printed table tent inside a camera's focus brackets, plus the NFC alternative. */
 function ScanVisual() {
   return (
     <div className="relative flex size-full items-center justify-center" aria-hidden>
@@ -79,6 +79,12 @@ function ScanVisual() {
       ].map((pos) => (
         <span key={pos} className={`pointer-events-none absolute size-6 border-primary/45 ${pos}`} />
       ))}
+
+      {/* Understated alternative to scanning — echoes the "Table 4" caption's scale. */}
+      <span className="absolute right-2 bottom-1 flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[8px] font-medium text-ink-muted shadow-sm">
+        <SmartphoneNfc className="size-3" />
+        or tap
+      </span>
     </div>
   );
 }

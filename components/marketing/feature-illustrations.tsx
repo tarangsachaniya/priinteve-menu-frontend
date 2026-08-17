@@ -127,8 +127,8 @@ export function PeakHourIllustration() {
 /* ── Guest reviews ──────────────────────────────────────────────────────── */
 
 const REVIEWS = [
-  { text: "Food was hot and fast.", stars: 5 },
-  { text: "Loved the paneer tikka.", stars: 4 },
+  { name: "Priya", text: "Food was hot and fast.", stars: 5 },
+  { name: "Arjun", text: "Loved the paneer tikka.", stars: 4 },
 ];
 
 export function ReviewsIllustration() {
@@ -151,11 +151,12 @@ export function ReviewsIllustration() {
       <div className="mt-3 flex flex-col gap-1.5">
         {REVIEWS.map((r, i) => (
           <div
-            key={r.text}
+            key={r.name}
             className="mk-review rounded-lg bg-card p-2"
             style={{ animationDelay: `${i * 0.5}s` }}
           >
             <div className="flex items-center gap-1">
+              <span className="text-[9px] font-medium text-ink">{r.name}</span>
               <div className="flex gap-0.5">
                 {Array.from({ length: r.stars }).map((_, s) => (
                   <Star key={s} className="size-2.5 fill-primary text-primary" />

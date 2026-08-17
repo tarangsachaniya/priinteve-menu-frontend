@@ -34,7 +34,7 @@ export default async function KitchenLayout({ children }: { children: React.Reac
         costs a tap from someone whose hands are full. The ringing pill and the
         sound-unlock affordance still render.
       */}
-      <OrderAlertProvider showDialog={false} />
+      <OrderAlertProvider showDialog={false} surface="kitchen" />
     </div>
   );
 }

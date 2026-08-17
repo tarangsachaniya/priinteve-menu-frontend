@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { Lock, Minus, Plus, Volume2, WifiOff, X } from "lucide-react";
 
 import type { RestoOrderStatus } from "@/lib/api/enums";
+import { createWaitingTrack } from "@/lib/restaurant/alert-sound";
 import { announceReady, type AnnounceLanguage } from "@/lib/restaurant/announce";
+import { resetAnnouncementQueue, setWaitingTrack } from "@/lib/restaurant/announce-queue";
 import { createChime, type Chime } from "@/lib/restaurant/chime";
+import { primeVoices } from "@/lib/restaurant/tts";
 import { screenLockPath, screenPickupPath } from "@/lib/restaurant/screen-paths";
 import { useWakeLock } from "@/lib/restaurant/wake-lock";
 import { cn } from "@/lib/utils";
@@ -37,15 +40,6 @@ const STALE_AFTER_FAILURES = 3;
 
 /** Second guard on top of the API's six-hour window, so the Ready column cannot fill with yesterday. */
 const READY_LIMIT = 12;
-
-/**
- * Longest the chime waits on the announcement before playing on its own.
- * announceReady's onFirstClipStart normally fires this well before 1.5s
- * (see tick() below) — this only matters when Sarvam is unconfigured, down,
- * or the fetch is unusually slow, so a guest still gets a sound rather than
- * the flash alone.
- */
-const CHIME_FALLBACK_DELAY_MS = 1500;
 
 const SCALE_KEY = "pv:display:scale";
 const CHIME_KEY = "pv:display:chime";
@@ -90,10 +84,20 @@ export function PickupDisplay({
   const announceLanguages = useRef(initialAnnounceLanguages);
   const [stale, setStale] = useState(false);
   const [scale, setScale] = useState<ScaleKey>("M");
-  const [needsChimeUnlock, setNeedsChimeUnlock] = useState(false);
+  /**
+   * Raised only after the chime has actually been refused, never on mount.
+   *
+   * A board that greeted every lobby with "tap anywhere to turn on ready
+   * alerts" was asking for a setup step on a screen mounted on a wall that
+   * nobody is meant to touch. The unlock listener below still arms the audio
+   * from any stray tap, and the PIN keypad that opened this screen in the first
+   * place already counted as one — so in practice this is rarely seen at all.
+   */
+  const [chimeBlocked, setChimeBlocked] = useState(false);
   const [flashing, setFlashing] = useState<Set<number>>(new Set());
 
   const chime = useRef<Chime | null>(null);
+  const waitingTrack = useRef<ReturnType<typeof createWaitingTrack> | null>(null);
   const failures = useRef(0);
   /**
    * Numbers already seen as READY.
@@ -114,13 +118,46 @@ export function PickupDisplay({
   useEffect(() => {
     const stored = window.localStorage.getItem(SCALE_KEY);
     if (stored === "S" || stored === "M" || stored === "L") setScale(stored);
-    if (window.localStorage.getItem(CHIME_KEY) !== "off") setNeedsChimeUnlock(true);
   }, []);
 
-  // Any tap anywhere arms the audio — the bar below only has to explain why one
-  // is needed. Unhooked only once the chime is genuinely armed, because unlock()
-  // can fail on iOS and a listener that gave up on that first failure would
-  // leave the board permanently silent.
+  /**
+   * Arms the board's audio the moment it opens, and asks nobody.
+   *
+   * This screen is unlocked with a PIN keypad (screen-lock.tsx), which is a
+   * real user gesture — so by the time this runs the browser has almost always
+   * already granted the sticky activation these need. Where it has not, the
+   * listener below catches the next tap. Either way nothing is shown about it.
+   *
+   * primeVoices() is here for the same reason: the installed-voice list loads
+   * asynchronously in Chrome, and the first announcement should not be the one
+   * that waits for it.
+   */
+  useEffect(() => {
+    primeVoices();
+    void chime.current?.unlock();
+  }, []);
+
+  /**
+   * Registers the bed that loops while an announcement is being prepared.
+   *
+   * Fetched from the screen's own poll payload rather than the restaurant
+   * settings API, because a mounted board has a screen session, not a staff
+   * one — see screen.routes.ts. Null (no track configured) leaves the queue
+   * silent during the gap, which is exactly how it behaved before.
+   */
+  useEffect(() => {
+    const track = createWaitingTrack();
+    setWaitingTrack(track);
+    waitingTrack.current = track;
+    return () => {
+      setWaitingTrack(null);
+      resetAnnouncementQueue();
+    };
+  }, []);
+
+  // Any tap anywhere arms the audio, silently. Unhooked only once the chime is
+  // genuinely armed, because unlock() can fail on iOS and a listener that gave
+  // up on that first failure would leave the board permanently silent.
   useEffect(() => {
     const sound = chime.current;
     if (!sound) return;
@@ -128,7 +165,7 @@ export function PickupDisplay({
     const unlock = () => {
       void sound.unlock().then(() => {
         if (!sound.isUnlocked()) return;
-        setNeedsChimeUnlock(false);
+        setChimeBlocked(false);
         window.removeEventListener("pointerdown", unlock);
         window.removeEventListener("keydown", unlock);
       });
@@ -154,10 +191,17 @@ export function PickupDisplay({
       }
       if (!res.ok) throw new Error("bad status");
 
-      const data = (await res.json()) as { orders: PickupOrder[]; announceLanguages: AnnounceLanguage[] };
+      const data = (await res.json()) as {
+        orders: PickupOrder[];
+        announceLanguages: AnnounceLanguage[];
+        waitingTrackAudioUrl?: string | null;
+      };
       failures.current = 0;
       setStale(false);
       announceLanguages.current = data.announceLanguages;
+      // Read fresh out of every poll, same as the languages above: a restaurant
+      // uploading a waiting track should not need this tablet reloaded.
+      waitingTrack.current?.setSource(data.waitingTrackAudioUrl ?? null);
 
       const nowReady = data.orders.filter((order) => order.status === "READY");
       const freshOrders = nowReady.filter((order) => !announced.current.has(order.orderNumber));
@@ -176,34 +220,48 @@ export function PickupDisplay({
       setOrders(data.orders);
 
       if (fresh.length > 0) {
-        // The chime is synthesized locally and needs no network round trip, so
-        // it would otherwise win the race against the announcement — which has
-        // to fetch a clip from Sarvam first — and play a beat ahead of the
-        // words naming the order. Held back until the announcement is actually
-        // audible (or, failing that, until CHIME_FALLBACK_DELAY_MS has passed
-        // with nothing to hold for) so the spoken announcement always leads.
-        //
-        // The chime is the only thing CHIME_KEY silences. Speech used to be
-        // silenced along with it — dismissing an annoying beep also dropped
-        // every Hindi/Gujarati announcement, which is a much bigger loss than
-        // the beep itself. They're independent now: a muted board still
-        // speaks.
-        let chimePlayed = false;
-        const playChime = () => {
-          if (chimePlayed) return;
-          chimePlayed = true;
-          if (window.localStorage.getItem(CHIME_KEY) !== "off") chime.current?.play();
-        };
+        /**
+         * The chime fires immediately now, rather than waiting on the
+         * announcement.
+         *
+         * It used to be held back until the first clip was audible, because the
+         * locally-synthesized chime would otherwise beat a clip that still had
+         * to be fetched from Sarvam and play a beat ahead of the words naming
+         * the order — with a 1.5s timeout as the fallback for when no clip ever
+         * came. Neither is needed any more: the announcement queue starts its
+         * own waiting track the instant an item is queued, so the gap is
+         * covered by design and there is nothing left to race.
+         *
+         * The chime is the only thing CHIME_KEY silences. Speech used to be
+         * silenced along with it — dismissing an annoying beep also dropped
+         * every Hindi/Gujarati announcement, which is a much bigger loss than
+         * the beep itself. They're independent: a muted board still speaks.
+         */
+        if (window.localStorage.getItem(CHIME_KEY) !== "off") {
+          const sound = chime.current;
+          if (sound?.isUnlocked()) {
+            sound.play();
+            setChimeBlocked(false);
+          } else {
+            // Only now — an alert that should have been audible was not.
+            setChimeBlocked(true);
+          }
+        }
 
         // One announcement per order however many flipped at once. Two orders
         // becoming ready in the same five-second window is one event to the
         // room, and the announcement follows the same rule, naming each in turn.
+        // The queue is what guarantees they do not talk over each other.
         announceReady(
-          freshOrders.map((order) => ({ orderNumber: order.orderNumber, name: order.customerName })),
+          freshOrders.map((order) => ({
+            // Order numbers reset daily per restaurant, and the queue's dedupe
+            // window is minutes — so the number alone identifies this event.
+            id: `pickup:${order.orderNumber}`,
+            orderNumber: order.orderNumber,
+            name: order.customerName,
+          })),
           announceLanguages.current,
-          playChime,
         );
-        window.setTimeout(playChime, CHIME_FALLBACK_DELAY_MS);
 
         setFlashing(new Set(fresh));
         window.setTimeout(() => setFlashing(new Set()), 2800);
@@ -229,7 +287,7 @@ export function PickupDisplay({
 
   function dismissChimeBar() {
     window.localStorage.setItem(CHIME_KEY, "off");
-    setNeedsChimeUnlock(false);
+    setChimeBlocked(false);
   }
 
   async function lock() {
@@ -308,11 +366,18 @@ export function PickupDisplay({
         />
       </div>
 
-      {needsChimeUnlock && (
+      {/*
+        Shown only after the browser has actually refused a chime — never on
+        mount. This board hangs on a wall and is unlocked with a PIN keypad,
+        which already counts as the gesture browsers ask for, so in practice
+        this stays hidden. When it does appear it is a real fault worth naming,
+        not a setup step.
+      */}
+      {chimeBlocked && (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
           <span className="flex items-center gap-2">
             <Volume2 className="size-4 shrink-0" />
-            Tap anywhere on this screen to turn on ready alerts.
+            This browser blocked the ready alert — tap the screen once to allow it.
           </span>
           <button
             type="button"

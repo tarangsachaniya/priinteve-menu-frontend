@@ -103,7 +103,17 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
    */
   const announceLanguages = useRef(initialOrder.announceLanguages);
   const chime = useRef<Chime | null>(null);
-  const [needsSoundUnlock, setNeedsSoundUnlock] = useState(false);
+  /**
+   * Raised only after the chime has actually been refused — never on mount.
+   *
+   * This used to be set the moment the page loaded, so every guest was greeted
+   * with "tap anywhere to hear when your order is ready" before anything had
+   * tried to make a sound. In practice a guest who just tapped through checkout
+   * has already satisfied the browser, so the bar was asking for something
+   * that had usually already happened. Now it appears only if the READY chime
+   * is genuinely blocked, which is the one moment it is worth reading.
+   */
+  const [soundBlocked, setSoundBlocked] = useState(false);
   const [soundMuted, setSoundMuted] = useState(false);
   /**
    * Seeded true when the order is already at or past READY on first load, so
@@ -123,11 +133,19 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.localStorage.getItem(SOUND_KEY) === "off") {
-      setSoundMuted(true);
-    } else {
-      setNeedsSoundUnlock(true);
-    }
+    if (window.localStorage.getItem(SOUND_KEY) === "off") setSoundMuted(true);
+  }, []);
+
+  /**
+   * Arms the chime as soon as the page opens, silently.
+   *
+   * A guest arriving here has almost always just tapped through checkout on
+   * this same origin, so the browser already allows audio and this succeeds
+   * with nothing shown. Where it does not, the tap-anywhere listener below
+   * catches the next interaction.
+   */
+  useEffect(() => {
+    void chime.current?.unlock();
   }, []);
 
   // Same tap-anywhere unlock as the pickup board (see chime.ts) — a guest who
@@ -150,7 +168,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
     const unlock = () => {
       void sound.unlock().then(() => {
         if (!sound.isUnlocked()) return;
-        setNeedsSoundUnlock(false);
+        setSoundBlocked(false);
         window.removeEventListener("pointerdown", unlock);
         window.removeEventListener("keydown", unlock);
       });
@@ -203,7 +221,14 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         if (nextStatus === "READY" && !hasAnnouncedReady.current) {
           hasAnnouncedReady.current = true;
           if (window.localStorage.getItem(SOUND_KEY) !== "off") {
-            chime.current?.play();
+            const sound = chime.current;
+            if (sound?.isUnlocked()) {
+              sound.play();
+            } else {
+              // The one moment worth telling the guest: their order is ready and
+              // the sound that was meant to say so did not come out.
+              setSoundBlocked(true);
+            }
           }
         }
       } catch {
@@ -218,7 +243,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
     setSoundMuted((prev) => {
       const next = !prev;
       window.localStorage.setItem(SOUND_KEY, next ? "off" : "on");
-      if (next) setNeedsSoundUnlock(false);
+      if (next) setSoundBlocked(false);
       return next;
     });
   }
@@ -226,7 +251,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
   function dismissSoundBar() {
     window.localStorage.setItem(SOUND_KEY, "off");
     setSoundMuted(true);
-    setNeedsSoundUnlock(false);
+    setSoundBlocked(false);
   }
 
   const currentIndex = ORDER_STATUS_FLOW.indexOf(status);
@@ -269,7 +294,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         </p>
       </header>
 
-      {soundStillMatters && needsSoundUnlock && !soundMuted && (
+      {soundStillMatters && soundBlocked && !soundMuted && (
         <div
           className="flex items-center justify-between gap-3 border px-4 py-3 text-sm"
           style={{
@@ -281,7 +306,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         >
           <span className="flex items-center gap-2">
             <Volume2 className="size-4 shrink-0" aria-hidden />
-            Tap anywhere to hear when your order is ready.
+            Your browser blocked the alert — tap anywhere to hear it.
           </span>
           <button
             type="button"

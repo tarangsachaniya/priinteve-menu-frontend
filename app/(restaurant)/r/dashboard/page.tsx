@@ -181,7 +181,7 @@ export default async function RestaurantDashboardPage({
               Your ordering link
             </CardTitle>
             <CardDescription>
-              Share this for take-away and delivery. Dine-in guests scan the QR Menu Card on their
+              Share this for take-away and delivery. Dine-in guests tap the QR Menu Card on their
               table.
             </CardDescription>
           </CardHeader>

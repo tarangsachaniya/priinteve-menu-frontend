@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getRestaurantSession } from "@/lib/api/server";
 import { OrderAlertProvider } from "@/components/restaurant/order-alert-provider";
 import { RestaurantSidebar } from "@/components/restaurant/restaurant-sidebar";
+import { SessionKeepalive } from "@/components/restaurant/session-keepalive";
 
 /**
  * The guard for the whole restaurant console.
@@ -25,7 +26,10 @@ export default async function RestaurantLayout({ children }: { children: React.R
       <div className="min-w-0 flex-1">{children}</div>
       {/* Mounted here rather than on /r/orders so an owner editing their menu
           still hears the order arrive. It renders nothing until one does. */}
-      <OrderAlertProvider />
+      <OrderAlertProvider surface="restaurant" />
+      {/* Renders nothing; exists so the 24h session actually slides forward.
+          See the component for why an RSC guard cannot do this itself. */}
+      <SessionKeepalive />
     </div>
   );
 }

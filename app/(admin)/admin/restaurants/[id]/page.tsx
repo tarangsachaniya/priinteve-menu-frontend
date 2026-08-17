@@ -5,6 +5,8 @@ import { serverFetch } from "@/lib/api/server";
 import { getRestaurantOrderUrl } from "@/lib/restaurant/qr-url";
 import { PageHeader } from "@/components/shared/page-header";
 import { RestaurantDetailPanel } from "@/components/restaurant/admin/restaurant-detail-panel";
+import { AudioSettingsForm, type AudioSettings } from "@/components/restaurant/audio-settings-form";
+import { PaymentSettingsForm, type PaymentSettings } from "@/components/restaurant/payment-settings-form";
 import {
   QrMenuCardsPanel,
   type AdminTableRow,
@@ -33,8 +35,10 @@ type AdminTablesDTO = {
 };
 
 export default async function AdminRestaurantDetailPage({ params }: { params: { id: string } }) {
-  // Two independent reads, so the page costs one round trip rather than two.
-  const [data, tableData] = await Promise.all([
+  // Independent reads, so the page costs one round trip rather than four.
+  // Payment and audio tolerate failure — a still-deploying API missing either
+  // route should not take the whole provisioning screen down with it.
+  const [data, tableData, payment, audio] = await Promise.all([
     serverFetch<{ restaurant: RestaurantDetailDTO }>(`/api/admin/restaurants/${params.id}`, {
       cache: "no-store",
       allow404: true,
@@ -43,6 +47,12 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
       cache: "no-store",
       allow404: true,
     }),
+    serverFetch<PaymentSettings>(`/api/admin/restaurants/${params.id}/payment`, {
+      cache: "no-store",
+    }).catch(() => null),
+    serverFetch<AudioSettings>(`/api/admin/restaurants/${params.id}/audio`, {
+      cache: "no-store",
+    }).catch(() => null),
   ]);
 
   if (!data) {
@@ -75,6 +85,29 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
           orderUrl: getRestaurantOrderUrl(restaurant.slug),
         }}
       />
+
+      {/* The same two components the restaurant sees in its own console, not
+          admin-only copies — so there is exactly one definition of which fields
+          are secret and how an omitted secret is treated. Support can help an
+          owner who is stuck on their Razorpay keys without either screen
+          drifting from the other. */}
+      {payment && (
+        <div className="mt-6">
+          <PaymentSettingsForm
+            endpoint={`/api/admin/restaurants/${restaurant.id}/payment`}
+            initial={payment}
+          />
+        </div>
+      )}
+
+      {audio && (
+        <div className="mt-6">
+          <AudioSettingsForm
+            endpoint={`/api/admin/restaurants/${restaurant.id}/audio`}
+            initial={audio}
+          />
+        </div>
+      )}
 
       <div className="mt-6">
         <QrMenuCardsPanel

@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { CancelOrderDialog, type CancellableOrder } from "@/components/restaurant/cancel-order-dialog";
 import { formatCurrency } from "@/lib/format";
-import { createDamru, type Damru } from "@/lib/restaurant/damru";
+import { createAlertSound, type AlertSound } from "@/lib/restaurant/alert-sound";
+import { createDamru } from "@/lib/restaurant/damru";
 import { CONSOLE_ORDERS_PATH } from "@/lib/restaurant/live-order";
 import { patchOrderStatus } from "@/lib/restaurant/order-actions";
 import { subscribeOrderAck } from "@/lib/restaurant/order-ack";
@@ -87,6 +88,17 @@ const IDLE_POLL_MS = 20_000;
 /** Per-device, deliberately: one till may want silence while another does not. */
 const SOUND_PREF_KEY = "pv:resto:alert-sound";
 
+/**
+ * Remembers that this browser has previously let audio through.
+ *
+ * Not a permission and not a substitute for one — the AudioContext still has to
+ * be armed by a gesture on every fresh page. What it buys is silence about it:
+ * a device that has demonstrably managed to play before does not get told
+ * "sound is off, tap here" during the seconds between load and the first click
+ * that arms it anyway. See the auto-init effect below.
+ */
+const AUDIO_ARMED_KEY = "pv:resto:audio-armed";
+
 type RingOrder = {
   orderId: string;
   orderNumber: number;
@@ -100,6 +112,15 @@ type RingOrder = {
 };
 
 type LiveOrderResponse = {
+  /**
+   * Present on the console path only. Undefined on the mounted-kitchen path,
+   * which sends the kitchen key instead — the two are separate fields so that
+   * one surface reading the wrong one is a type error rather than a silently
+   * crossed sound.
+   */
+  restaurantOrderAudioUrl?: string | null;
+  /** Present on the mounted-kitchen path only. */
+  kitchenOrderAudioUrl?: string | null;
   orders: {
     id: string;
     orderNumber: number;
@@ -145,16 +166,41 @@ export function OrderAlertProvider({
    * screen has neither, so it polls only.
    */
   enablePush = true,
+  /**
+   * Which room this instance is alerting.
+   *
+   * Explicit rather than inferred from showDialog or ordersBasePath, because
+   * this is what picks between two INDEPENDENTLY CONFIGURED sounds — the pass
+   * and the till can be set to different files, and the entire point of the
+   * feature is that they never accidentally share one. Deriving it from an
+   * unrelated prop is how they would eventually get crossed.
+   */
+  surface = "restaurant",
 }: {
   showDialog?: boolean;
   ordersBasePath?: string;
   enablePush?: boolean;
+  surface?: "kitchen" | "restaurant";
 } = {}) {
   const router = useRouter();
 
   const [ringing, setRinging] = useState<RingOrder[]>([]);
   const [hidden, setHidden] = useState(false);
-  const [needsSoundUnlock, setNeedsSoundUnlock] = useState(false);
+  /**
+   * Set ONLY after a playback attempt has actually been refused — never on
+   * mount, and never speculatively.
+   *
+   * This used to be raised the moment the component decided the drum was not
+   * armed yet, which on a fresh page is always. The result was a permanent
+   * "tap to enable sound" banner on every console, every kitchen screen and
+   * every guest status page, shown before anything had tried to make a sound
+   * and long before anything needed to. Staff read it as a registration step
+   * the product required of them.
+   *
+   * Now it only appears once a real alert has genuinely been blocked, which is
+   * the only moment the user can act on it usefully.
+   */
+  const [soundBlocked, setSoundBlocked] = useState(false);
   const [pendingReject, setPendingReject] = useState<CancellableOrder | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -166,7 +212,7 @@ export function OrderAlertProvider({
   const acked = useRef<Set<string>>(new Set());
   /** Mirror of `ringing`'s ids, so effects can diff without depending on state. */
   const ringingIds = useRef<Set<string>>(new Set());
-  const damru = useRef<Damru | null>(null);
+  const damru = useRef<AlertSound | null>(null);
   const pushActive = useRef(false);
   /** Whether one round trip has completed — gates the push stand-down only. */
   const seeded = useRef(false);
@@ -174,10 +220,34 @@ export function OrderAlertProvider({
   const baseTitle = useRef<string>("");
 
   if (damru.current === null && typeof window !== "undefined") {
-    damru.current = createDamru();
+    // Wrapped so a restaurant's uploaded file, if it has one, replaces the
+    // synthesized drum without this component knowing which it got.
+    damru.current = createAlertSound(createDamru());
   }
 
   const isRinging = ringing.length > 0;
+
+  /**
+   * Arms the audio system as soon as the dashboard opens, without asking.
+   *
+   * Chrome remembers per-origin "media engagement": a site whose sound the user
+   * has let play before is allowed to start audio without a fresh gesture, so on
+   * any device that has been used for a shift this resume() simply succeeds and
+   * the restaurant never sees a prompt at all. Where the browser does refuse,
+   * this costs nothing — the always-on gesture listener below arms it on the
+   * first click anyone makes for any other reason.
+   *
+   * What is deliberately NOT here: telling the user about any of it. Nothing is
+   * shown unless a real alert is later refused.
+   */
+  useEffect(() => {
+    const drum = damru.current;
+    if (!drum) return;
+
+    void drum.unlock().then(() => {
+      if (drum.isUnlocked()) window.localStorage.setItem(AUDIO_ARMED_KEY, "yes");
+    });
+  }, []);
 
   /** Removes an order from the ring. The one place the drum is allowed to stop. */
   const clearFromRing = useCallback((orderId: string) => {
@@ -224,6 +294,21 @@ export function OrderAlertProvider({
       if (!res.ok) return;
 
       const data = (await res.json()) as LiveOrderResponse;
+
+      /**
+       * The configured sound rides on this poll rather than a request of its
+       * own — the console path carries restaurantOrderAudioUrl, the mounted
+       * kitchen path carries kitchenOrderAudioUrl, and a screen session cannot
+       * reach the settings API at all so it has no other way to learn it.
+       *
+       * Reading only the key for THIS surface is what guarantees the pass and
+       * the till can never end up on each other's sound. setSource is a no-op
+       * when the value has not changed, so doing this every poll is free and an
+       * owner's change lands within one tick.
+       */
+      damru.current?.setSource(
+        (surface === "kitchen" ? data.kitchenOrderAudioUrl : data.restaurantOrderAudioUrl) ?? null,
+      );
 
       const placedIds = new Set<string>();
       const placed: RingOrder[] = [];
@@ -273,7 +358,7 @@ export function OrderAlertProvider({
       // clear the ring: a console that fell silent because its network hiccuped
       // is a console that loses orders.
     }
-  }, [ordersBasePath]);
+  }, [ordersBasePath, surface]);
 
   /**
    * NOTE ON SEEDING: the old provider recorded every already-open order on its
@@ -334,12 +419,19 @@ export function OrderAlertProvider({
       // out of it, and no path back to the affordance that fixes it.
       if (drum?.isUnlocked() && !drum.needsReArm()) {
         drum.play();
-        setNeedsSoundUnlock(false);
+        setSoundBlocked(false);
       } else {
-        // Re-asserted on every tick rather than latched once. Silence with no
-        // explanation is the worst failure this feature has, and a one-shot
-        // flag would let the affordance scroll away and never come back.
-        setNeedsSoundUnlock(true);
+        /**
+         * Reached only when an alert that SHOULD be audible is not — a browser
+         * that has refused, or a drum whose context has lapsed and cannot
+         * resume. That is a real, actionable state and worth one line on screen.
+         *
+         * Re-asserted on every tick rather than latched once: silence with no
+         * explanation is the worst failure this feature has, and a one-shot flag
+         * would let the affordance scroll away and never come back. It clears
+         * itself the instant a sound gets out, above.
+         */
+        setSoundBlocked(true);
       }
     };
 
@@ -384,7 +476,9 @@ export function OrderAlertProvider({
 
     const unlock = () => {
       void drum.unlock().then(() => {
-        if (drum.isUnlocked()) setNeedsSoundUnlock(false);
+        if (!drum.isUnlocked()) return;
+        setSoundBlocked(false);
+        window.localStorage.setItem(AUDIO_ARMED_KEY, "yes");
       });
     };
 
@@ -460,7 +554,8 @@ export function OrderAlertProvider({
     if (!drum) return;
     await drum.unlock();
     if (drum.isUnlocked()) {
-      setNeedsSoundUnlock(false);
+      setSoundBlocked(false);
+      window.localStorage.setItem(AUDIO_ARMED_KEY, "yes");
       drum.play();
     }
   }
@@ -554,7 +649,7 @@ export function OrderAlertProvider({
                 </span>
               </div>
 
-              {needsSoundUnlock && <EnableSoundButton onClick={enableSound} />}
+              {soundBlocked && <EnableSoundButton onClick={enableSound} />}
             </div>
 
             <DialogFooter className="sm:justify-between">
@@ -619,7 +714,7 @@ export function OrderAlertProvider({
               </Button>
             )}
           </div>
-          {needsSoundUnlock && <EnableSoundButton onClick={enableSound} />}
+          {soundBlocked && <EnableSoundButton onClick={enableSound} />}
         </div>
       )}
 
@@ -636,6 +731,16 @@ export function OrderAlertProvider({
   );
 }
 
+/**
+ * The last-resort affordance, shown only when an alert has genuinely been
+ * refused by the browser — never on mount, and never as a setup step.
+ *
+ * Autoplay policy is a browser rule, not something to work around: where a
+ * gesture really is required, this is the smallest possible way to collect one,
+ * and it disappears the moment a sound gets out. It appears alongside an alert
+ * that is already ringing, so the tap it asks for is one the user was about to
+ * make anyway.
+ */
 function EnableSoundButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -644,7 +749,7 @@ function EnableSoundButton({ onClick }: { onClick: () => void }) {
       className="flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-left text-xs font-medium text-amber-800 transition-colors hover:bg-amber-500/20"
     >
       <Volume2 className="size-4 shrink-0" />
-      Sound is off until you tap once — tap here to turn the damru on.
+      Your browser blocked the alert sound — tap to allow it.
     </button>
   );
 }

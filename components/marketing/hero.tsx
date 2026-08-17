@@ -37,7 +37,7 @@ export function Hero() {
           </h1>
 
           <p className="max-w-xl text-lg leading-relaxed text-muted-foreground text-pretty">
-            Guests scan a QR at their table, order straight from their phone, and pay however they like.
+            Guests tap a QR at their table, order straight from their phone, and pay however they like.
             Every order lands on your kitchen board the moment it&apos;s placed.
           </p>
 

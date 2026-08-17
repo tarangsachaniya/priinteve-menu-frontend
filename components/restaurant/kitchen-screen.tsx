@@ -53,7 +53,12 @@ export function KitchenScreen({
         onLock={() => void lock()}
         onSessionLost={relock}
       />
-      <OrderAlertProvider showDialog={false} enablePush={false} ordersBasePath={ordersBasePath} />
+      <OrderAlertProvider
+        showDialog={false}
+        enablePush={false}
+        ordersBasePath={ordersBasePath}
+        surface="kitchen"
+      />
     </>
   );
 }

@@ -1,3 +1,5 @@
+import { enqueueAnnouncement } from "@/lib/restaurant/announce-queue";
+
 /**
  * Speaks a ready order's number aloud, for a guest who is not looking at the
  * wall the moment their number moves column. The chime says "something is
@@ -6,21 +8,28 @@
  * Names the order when a first name is available (the pickup board's own API
  * response — see PickupOrder.customerName in pickup-display.tsx) — the
  * server only ever gives out a first name, never the full one, so that's the
- * most this ever speaks. Omitted, the clip falls back to the plain "order N
- * is ready" phrase. See PHRASE_FOR in priinteve-api's
- * services/integrations/sarvam.ts for exactly which languages speak the name.
+ * most this ever speaks.
  *
- * Server-generated speech (Sarvam AI Bulbul v3), not the browser's
- * speechSynthesis — Windows ships no Hindi/Gujarati voice out of the box,
- * which used to leave boards on PCs silently speaking English only, with no
- * way to fix it short of installing an OS voice pack. See priinteve-api's
- * services/integrations/sarvam.ts for the phrase text and the Sarvam call;
- * this file only fetches and plays the resulting clip.
+ * ─── Where the work actually happens ────────────────────────────────────────
  *
- * NO FALLBACK, by design. If /api/order/announce-audio is unconfigured or a
- * request fails, that one announcement is simply skipped — same best-effort
- * philosophy as the chime in chime.ts. The visual flash and the chime are
- * both independent of speech and keep working regardless.
+ * This file is now only the vocabulary: the language list, and the one function
+ * the two call sites use. Two things moved out of it:
+ *
+ *   lib/restaurant/tts/          which provider speaks — the device's own voice
+ *                                where one is installed, Sarvam where it isn't.
+ *                                English never reaches Sarvam.
+ *   lib/restaurant/announce-queue.ts
+ *                                ordering, deduplication, the cap, timeouts,
+ *                                and the waiting track that covers the gap
+ *                                while speech is being prepared.
+ *
+ * Both were previously a single chained promise and a hardcoded Sarvam fetch
+ * living here. Splitting them is what made "add a provider" and "don't announce
+ * the same order twice" separate, small changes rather than one tangled one.
+ *
+ * BEST EFFORT, by design. A provider outage, an unconfigured key or a device
+ * with no voice means that one announcement is skipped — the visual flash and
+ * the chime are independent of speech and keep working regardless.
  */
 
 /**
@@ -32,6 +41,10 @@
  * every language Sarvam's Bulbul v3 voice can actually speak — see
  * services/integrations/sarvam.ts over there for why "any language" still
  * stops at eleven.
+ *
+ * A device with its own installed voice for one of these speaks it locally and
+ * never touches Sarvam, but the LIST is still bounded by what Sarvam can cover,
+ * because that is the fallback every device must be able to reach.
  */
 export const ANNOUNCE_LANGUAGES = [
   { code: "en", label: "English" },
@@ -49,118 +62,49 @@ export const ANNOUNCE_LANGUAGES = [
 
 export type AnnounceLanguage = (typeof ANNOUNCE_LANGUAGES)[number]["code"];
 
-export type ReadyAnnouncement = { orderNumber: number; name?: string };
+export type ReadyAnnouncement = {
+  /**
+   * Stable identity for THIS ready event, used by the queue to reject a repeat
+   * of it. The pickup board has no order id in its payload — deliberately, it
+   * is a public wall display — so it passes the order number, which is unique
+   * within the day the queue's dedupe window covers.
+   */
+  id: string;
+  orderNumber: number;
+  name?: string;
+};
 
 function isKnownLanguage(lang: string): lang is AnnounceLanguage {
   return ANNOUNCE_LANGUAGES.some((l) => l.code === lang);
 }
 
 /**
- * Relative path only, never an absolute URL to the API host — every
- * browser-originated request in this app goes through the Next proxy at
- * app/api/[...path]/route.ts, same rule lib/restaurant/screen-paths.ts
- * follows for the mounted-screen endpoints.
- */
-function announceAudioPath(lang: AnnounceLanguage, orderNumber: number, name?: string): string {
-  const base = `/api/order/announce-audio?lang=${lang}&orderNumber=${orderNumber}`;
-  return name ? `${base}&name=${encodeURIComponent(name)}` : base;
-}
-
-/**
- * One <audio> element, reused for every clip rather than created per-play.
- * Module-scoped so the sequential queue below and the element itself always
- * agree on what is currently playing.
- */
-let sharedAudio: HTMLAudioElement | null = null;
-
-function getAudioElement(): HTMLAudioElement {
-  if (!sharedAudio) sharedAudio = new Audio();
-  return sharedAudio;
-}
-
-/**
- * Plays exactly one clip to completion, or resolves immediately on any
- * failure — a non-2xx from the endpoint, a network error, or the browser
- * refusing autoplay. Never rejects: a missing clip must never surface as a
- * thrown error to announceReady's caller, same as the speechSynthesis code
- * this replaces never threw for a missing voice.
+ * Queues each newly-ready order to be spoken once per enabled language, in the
+ * order the restaurant configured (see screen-settings.tsx's reorder controls).
  *
- * `onStart`, when given, fires on the "playing" event — audible start, not
- * just a resolved play() promise, which can land before the browser has
- * actually produced sound. See announceReady's doc comment for why a caller
- * wants this.
- */
-function playClip(lang: AnnounceLanguage, orderNumber: number, name?: string, onStart?: () => void): Promise<void> {
-  const audio = getAudioElement();
-  return new Promise<void>((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      audio.removeEventListener("ended", finish);
-      audio.removeEventListener("error", finish);
-      audio.removeEventListener("playing", onPlaying);
-      resolve();
-    };
-    const onPlaying = () => onStart?.();
-    if (onStart) audio.addEventListener("playing", onPlaying);
-    audio.addEventListener("ended", finish);
-    audio.addEventListener("error", finish);
-    audio.src = announceAudioPath(lang, orderNumber, name);
-    audio.play().catch(finish);
-  });
-}
-
-/**
- * Serializes every announceReady() call — across separate invocations, not
- * just within one — onto a single queue, so two poll ticks landing close
- * together chain their clips on the one shared <audio> element instead of
- * talking over each other.
- */
-let queue: Promise<void> = Promise.resolve();
-
-/**
- * Speaks each newly-ready order once per enabled language, in the order the
- * restaurant configured (see screen-settings.tsx's reorder controls).
+ * Fire-and-forget: returns void and callers do not await it.
  *
- * Fire-and-forget: this returns void and callers do not await it, exactly
- * matching the old speechSynthesis-based signature so neither call site
- * (pickup-display.tsx, order-status-tracker.tsx) needed to change.
- *
- * `onFirstClipStart`, when given, fires once — the moment the very first
- * clip in this batch is actually audible. This exists so a caller that also
- * plays a secondary, near-instant sound (pickup-display.tsx's chime, which
- * is synthesized locally and needs no network round trip) can hold that
- * sound back until the announcement itself has started, rather than the
- * quick local sound winning the race against a clip that still has to be
- * fetched. Never fires at all if every clip in the batch fails to play —
- * callers that need a sound regardless should pair this with their own
- * timeout as a fallback.
+ * Announcements never overlap and never run in parallel — the queue plays one
+ * to completion before starting the next, whichever provider speaks it.
  */
-export function announceReady(
-  orders: ReadyAnnouncement[],
-  languages: AnnounceLanguage[],
-  onFirstClipStart?: () => void,
-): void {
+export function announceReady(orders: ReadyAnnouncement[], languages: AnnounceLanguage[]): void {
   if (orders.length === 0) return;
-  if (typeof window === "undefined") return;
 
   /**
-   * A language code this board doesn't know would make announceAudioPath
-   * build a nonsensical URL. The caller polls inside a try/catch that counts
-   * throws as failed polls, so a bad row in the database must not turn into
-   * one — skip it instead, same reasoning the old code had for this filter.
+   * A language code this board doesn't know would make the announcement URLs
+   * nonsensical. The caller polls inside a try/catch that counts throws as
+   * failed polls, so a bad row in the database must not turn into one — skip it
+   * instead, same reasoning the original code had for this filter.
    */
   const known = languages.filter(isKnownLanguage);
   if (known.length === 0) return;
 
-  queue = queue.then(async () => {
-    let firstClip = true;
-    for (const order of orders) {
-      for (const lang of known) {
-        await playClip(lang, order.orderNumber, order.name, firstClip ? onFirstClipStart : undefined);
-        firstClip = false;
-      }
-    }
-  });
+  for (const order of orders) {
+    enqueueAnnouncement({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      name: order.name,
+      languages: known,
+    });
+  }
 }

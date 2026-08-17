@@ -6,6 +6,8 @@ import type { AnnounceLanguage } from "@/lib/restaurant/announce";
 import { normalizeRestoMode } from "@/lib/restaurant/theme";
 import { PageHeader } from "@/components/shared/page-header";
 import { AlertSettings } from "@/components/restaurant/alert-settings";
+import { AudioSettingsForm, type AudioSettings } from "@/components/restaurant/audio-settings-form";
+import { PaymentSettingsForm, type PaymentSettings } from "@/components/restaurant/payment-settings-form";
 import { HoursForm } from "@/components/restaurant/hours-form";
 import { InvoiceSectionsForm, type InvoiceSection } from "@/components/restaurant/invoice-sections-form";
 import { PeakHoursForm } from "@/components/restaurant/peak-hours-form";
@@ -77,8 +79,27 @@ export default async function RestaurantSettingsPage() {
   const sessionData = await getRestaurantSession();
   if (!sessionData) redirect("/r/login");
 
-  const { restaurant, razorpayConfigured, upiQrAvailable, publishedReviews, demotedDishCount } =
-    await serverFetch<SettingsResponse>("/api/restaurant/settings", { cache: "no-store" });
+  /**
+   * Three reads in parallel rather than in series — payment credentials and
+   * alert sounds live on their own endpoints (they have their own write paths
+   * and, in payment's case, their own secret-stripping rules), so folding them
+   * into the big settings response would have meant one endpoint owning two
+   * very different security contracts.
+   *
+   * Both tolerate failure: a still-deploying API missing either route must
+   * leave the rest of Settings usable rather than 500 the page, which is the
+   * same reasoning the invoiceSections fallback below already carries.
+   */
+  const [{ restaurant, razorpayConfigured, upiQrAvailable, publishedReviews, demotedDishCount }, payment, audio] =
+    await Promise.all([
+      serverFetch<SettingsResponse>("/api/restaurant/settings", { cache: "no-store" }),
+      serverFetch<PaymentSettings>("/api/restaurant/settings/payment", { cache: "no-store" }).catch(
+        () => null,
+      ),
+      serverFetch<AudioSettings>("/api/restaurant/settings/audio", { cache: "no-store" }).catch(
+        () => null,
+      ),
+    ]);
 
   return (
     <main className="mx-auto max-w-3xl p-6 sm:p-8 lg:p-10">
@@ -128,6 +149,20 @@ export default async function RestaurantSettingsPage() {
           minOrderValue: restaurant.minOrderValue,
         }}
       />
+
+      {payment && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-lg font-semibold tracking-tight">Payments</h2>
+          <PaymentSettingsForm endpoint="/api/restaurant/settings/payment" initial={payment} />
+        </section>
+      )}
+
+      {audio && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-lg font-semibold tracking-tight">Sounds</h2>
+          <AudioSettingsForm endpoint="/api/restaurant/settings/audio" initial={audio} />
+        </section>
+      )}
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold tracking-tight">Invoice sections</h2>

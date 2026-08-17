@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Delete, Lock, LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { armScreenAudio } from "@/lib/restaurant/screen-audio";
 import { screenUnlockPath } from "@/lib/restaurant/screen-paths";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +57,20 @@ export function ScreenLock({
         });
 
         if (res.ok) {
+          /**
+           * The one guaranteed user gesture this screen will ever receive.
+           *
+           * A kitchen tablet and a lobby TV are mounted on a wall and then not
+           * touched again — which is a real problem, because browsers only let
+           * audio start from a user interaction, and these are precisely the
+           * screens whose whole job is making a noise. Asking for a tap later
+           * means a banner on a wall nobody walks up to.
+           *
+           * Typing the PIN is an interaction, so the audio is armed here and
+           * lasts as long as the page does. This is why neither screen has to
+           * show an "enable sound" step of its own.
+           */
+          armScreenAudio();
           onUnlocked();
           return true;
         }

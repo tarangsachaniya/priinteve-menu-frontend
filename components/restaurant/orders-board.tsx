@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyLane, EmptyState } from "@/components/shared/empty-state";
 import { CancelOrderDialog } from "@/components/restaurant/cancel-order-dialog";
 import { formatCurrency } from "@/lib/format";
 import type { LiveOrder } from "@/lib/restaurant/live-order";
@@ -491,21 +492,15 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
       )}
 
       {visibleOrders.length === 0 ? (
-        <Card className="border-dashed border-border">
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-ink">
-              <Store className="size-6" />
-            </span>
-            <p className="font-medium">
-              {tableFilter === "all" ? "No live orders" : `Nothing open on ${tableFilter}`}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {tableFilter === "all"
-                ? "New orders appear here the moment a customer places one."
-                : "Switch back to All to see the rest of the board."}
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Store}
+          title={tableFilter === "all" ? "No live orders" : `Nothing open on ${tableFilter}`}
+          description={
+            tableFilter === "all"
+              ? "New orders appear here the moment a customer places one."
+              : "Switch back to All to see the rest of the board."
+          }
+        />
       ) : (
         // Three columns, not four: four left each card near 300px on a desktop
         // screen, which is what forced the truncation this layout now avoids.
@@ -530,9 +525,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
                 </div>
 
                 {columnOrders.length === 0 ? (
-                  <p className="rounded-2xl border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
-                    {column.hint}
-                  </p>
+                  <EmptyLane>{column.hint}</EmptyLane>
                 ) : (
                   columnOrders.map((order) => (
                     <OrderCard

@@ -121,7 +121,16 @@ export const restaurantLoginSchema = z.object({
 
 // ─── Restaurant: settings ──────────────────────────────────────────────────
 
-export const restaurantSettingsSchema = z
+/**
+ * The field map on its own, without the cross-field rules below.
+ *
+ * Split out because `.partial()` is a method on ZodObject and the refined
+ * schema is a ZodEffects, which has none — so a PATCH payload has nothing to
+ * validate against unless the bare object is reachable. Deliberately NOT
+ * exported: anything that parsed with this alone would skip every invariant in
+ * settingsInvariantIssue(), which is the whole point of the split.
+ */
+const restaurantSettingsFields = z
   .object({
     name: z.string().trim().min(2).max(80),
     branch: z.string().trim().max(60).optional().or(z.literal("")),
@@ -147,6 +156,10 @@ export const restaurantSettingsSchema = z
     ).optional(),
     fssaiLicence: optionalText(20),
     taxPercent: z.coerce.number().int().min(0).max(50),
+    // Defaults false — see Restaurant.taxInclusive's schema comment. Every
+    // restaurant that never touches this field keeps computeOrderTotals()'s
+    // current exclusive behaviour.
+    taxInclusive: z.coerce.boolean().default(false),
     deliveryFee: z.coerce.number().int().min(0).max(10000),
     minOrderValue: z.coerce.number().int().min(0).max(100000),
 
@@ -164,39 +177,109 @@ export const restaurantSettingsSchema = z
     ratingValue: optionalDisplayRatingRaw,
     ratingCount: optionalInt(10000000),
     themeMode: z.enum(RESTO_MODE_IDS),
-  })
-  .refine((v) => v.dineInEnabled || v.takeAwayEnabled || v.deliveryEnabled, {
-    message: "Enable at least one order type, or customers can't order at all",
-    path: ["dineInEnabled"],
-  })
-  .refine((v) => v.onlinePaymentEnabled || v.counterPaymentEnabled || v.upiQrEnabled, {
-    message: "Enable at least one payment mode",
-    path: ["onlinePaymentEnabled"],
-  })
+  });
+
+/** Just the fields the cross-field rules below actually read. */
+export type SettingsInvariantInput = {
+  dineInEnabled: boolean;
+  takeAwayEnabled: boolean;
+  deliveryEnabled: boolean;
+  onlinePaymentEnabled: boolean;
+  counterPaymentEnabled: boolean;
+  upiQrEnabled: boolean;
+  upiVpa?: string | null;
+  gstin?: string | null;
+  prepTimeMinMins?: number | null;
+  prepTimeMaxMins?: number | null;
+  ratingValue?: number | null;
+  ratingCount?: number | null;
+};
+
+/**
+ * Everything about this form that cannot be decided one field at a time.
+ *
+ * A plain function rather than a chain of .refine() calls, because it has TWO
+ * callers that must never drift apart: restaurantSettingsSchema below, and the
+ * PATCH route, which merges an incoming partial onto the STORED row and checks
+ * the result.
+ *
+ * That second caller is why this exists at all. Settings is now saved section
+ * by section, so a request can legitimately carry `upiQrEnabled: true` and
+ * nothing else. Checked against the payload alone, every rule here passes
+ * vacuously — a QR code with no UPI ID behind it, a restaurant with every order
+ * type switched off, a rating with no review count. Each of those fails at the
+ * guest, long after the owner has been told the save succeeded.
+ *
+ * Returns the FIRST problem only, matching how both callers consume it: the
+ * route reports issues[0] and the form highlights one field at a time.
+ */
+export function settingsInvariantIssue(
+  v: SettingsInvariantInput,
+): { path: string; message: string } | null {
+  if (!(v.dineInEnabled || v.takeAwayEnabled || v.deliveryEnabled)) {
+    return {
+      path: "dineInEnabled",
+      message: "Enable at least one order type, or customers can't order at all",
+    };
+  }
+
+  if (!(v.onlinePaymentEnabled || v.counterPaymentEnabled || v.upiQrEnabled)) {
+    return { path: "onlinePaymentEnabled", message: "Enable at least one payment mode" };
+  }
+
   // A UPI QR with no VPA would render a code that opens an error screen in the
   // guest's app — worse than not offering it, because it fails after they have
   // committed to paying that way.
-  .refine((v) => !v.upiQrEnabled || (v.upiVpa != null && isValidVpa(v.upiVpa)), {
-    message: "Enter a valid UPI ID, like kitchen@okhdfcbank",
-    path: ["upiVpa"],
-  })
+  if (v.upiQrEnabled && !(v.upiVpa != null && isValidVpa(v.upiVpa))) {
+    return { path: "upiVpa", message: "Enter a valid UPI ID, like kitchen@okhdfcbank" };
+  }
+
   // Checked only when one was entered. A malformed GSTIN on a tax invoice is
   // worse than none at all: it turns a plain invoice into a document that
   // claims a registration the restaurant can't back up.
-  .refine((v) => v.gstin == null || isValidGstin(v.gstin), {
-    message: "A GSTIN is 15 characters, like 27AAACR1234R1ZQ",
-    path: ["gstin"],
-  })
-  .refine(
-    (v) => v.prepTimeMinMins == null || v.prepTimeMaxMins == null || v.prepTimeMinMins <= v.prepTimeMaxMins,
-    { message: "The shortest prep time can't be longer than the longest", path: ["prepTimeMinMins"] }
-  )
+  if (v.gstin != null && !isValidGstin(v.gstin)) {
+    return { path: "gstin", message: "A GSTIN is 15 characters, like 27AAACR1234R1ZQ" };
+  }
+
+  if (
+    v.prepTimeMinMins != null &&
+    v.prepTimeMaxMins != null &&
+    v.prepTimeMinMins > v.prepTimeMaxMins
+  ) {
+    return {
+      path: "prepTimeMinMins",
+      message: "The shortest prep time can't be longer than the longest",
+    };
+  }
+
   // A rating with no review count reads as invented, and a count with no
   // rating has nothing to qualify. Both or neither.
-  .refine((v) => (v.ratingValue == null) === (v.ratingCount == null), {
-    message: "Give both a rating and how many reviews it's based on, or leave both blank",
-    path: ["ratingValue"],
-  });
+  if ((v.ratingValue == null) !== (v.ratingCount == null)) {
+    return {
+      path: "ratingValue",
+      message: "Give both a rating and how many reviews it's based on, or leave both blank",
+    };
+  }
+
+  return null;
+}
+
+/** The whole form at once — what the client validates before sending. */
+export const restaurantSettingsSchema = restaurantSettingsFields.superRefine((v, ctx) => {
+  const issue = settingsInvariantIssue(v);
+  if (!issue) return;
+  ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message, path: [issue.path] });
+});
+
+/**
+ * One settings section's worth of fields.
+ *
+ * Shape only — it deliberately runs NO cross-field rules, because a partial
+ * payload does not carry enough to judge them. The route merges this onto the
+ * stored row and calls settingsInvariantIssue() on the result; skipping that
+ * step is how every invariant above quietly stops being enforced.
+ */
+export const restaurantSettingsPatchSchema = restaurantSettingsFields.partial();
 
 // ─── Restaurant: menu ──────────────────────────────────────────────────────
 

@@ -374,7 +374,16 @@ export function PickupDisplay({
         not a setup step.
       */}
       {chimeBlocked && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
+        // Amber, not neutral: the kitchen display and the console's own sound
+        // prompts (SoundEnableButton) both use this shade for "something about
+        // sound needs your attention" — a gray bar here made the same message
+        // read as three different levels of urgency depending which screen you
+        // were looking at. Kept as a bar with its own dismiss rather than a
+        // SoundEnableButton, though: this board is unlocked with a PIN keypad,
+        // which already counts as the gesture, so tapping THIS element isn't
+        // what arms the chime — any tap anywhere does — and offering a dismiss
+        // is what a passive notice needs that a call-to-action button doesn't.
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span className="flex items-center gap-2">
             <Volume2 className="size-4 shrink-0" />
             This browser blocked the ready alert — tap the screen once to allow it.
@@ -383,7 +392,7 @@ export function PickupDisplay({
             type="button"
             onClick={dismissChimeBar}
             aria-label="Keep this screen silent"
-            className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-neutral-600"
+            className="rounded-lg p-1.5 text-amber-400 transition-colors hover:bg-amber-100 hover:text-amber-700"
           >
             <X className="size-4" />
           </button>

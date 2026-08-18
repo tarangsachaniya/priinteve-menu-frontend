@@ -18,6 +18,20 @@ export type PricedLine = {
 
 export type PricingRules = {
   taxPercent: number;
+  /**
+   * False (the default, and every existing restaurant's behaviour): taxPercent
+   * is added on top of `subtotal` — a ₹200 dish costs ₹210 at 5%.
+   *
+   * True: the menu price already has GST folded into it, so the guest pays
+   * exactly `subtotal` and `taxAmount` is derived back OUT of it instead of
+   * added — the figure printed on the invoice, not a charge on top of it.
+   *
+   * MUST stay identical to priinteve-api's copy of this file — the cart here
+   * shows a preview total and the API computes the charged total separately,
+   * and a mismatch between the two is a guest paying a different number than
+   * the one they were shown.
+   */
+  taxInclusive: boolean;
   deliveryFee: number;
 };
 
@@ -38,15 +52,25 @@ export function computeOrderTotals({
   orderType: RestoOrderType;
 }): OrderTotals {
   const subtotal = items.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
-  const taxAmount = Math.round((subtotal * rules.taxPercent) / 100);
   const deliveryFee = orderType === "DELIVERY" ? rules.deliveryFee : 0;
 
-  return {
-    subtotal,
-    taxAmount,
-    deliveryFee,
-    total: subtotal + taxAmount + deliveryFee,
-  };
+  /**
+   * `taxAmount` always means the same thing — the GST figure that belongs on
+   * the invoice's CGST/SGST lines (see splitTax in gst.ts). Only whether it is
+   * ADDED to what the guest pays changes between the two branches.
+   *
+   * Inclusive: back-computed as subtotal minus its own pre-tax base, so a ₹200
+   * dish at 5% reports ₹9.52 of GST already inside that ₹200 — never added to
+   * `total`. Delivery is never taxed in either mode: it is a separate line
+   * item on the invoice, not part of the priced menu.
+   */
+  const taxAmount = rules.taxInclusive
+    ? subtotal - Math.round((subtotal * 100) / (100 + rules.taxPercent))
+    : Math.round((subtotal * rules.taxPercent) / 100);
+
+  const total = rules.taxInclusive ? subtotal + deliveryFee : subtotal + taxAmount + deliveryFee;
+
+  return { subtotal, taxAmount, deliveryFee, total };
 }
 
 export function lineTotal(line: PricedLine): number {

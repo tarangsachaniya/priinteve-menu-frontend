@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyLane, EmptyState } from "@/components/shared/empty-state";
 import { formatCurrency } from "@/lib/format";
 import { formatServeTime } from "@/lib/restaurant/menu-display";
 import { categoryCreateSchema } from "@/lib/validations/restaurant";
@@ -218,17 +219,11 @@ export function MenuManager({
 
   if (categories.length === 0) {
     return (
-      <Card className="border-dashed border-border">
-        <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-ink">
-            <UtensilsCrossed className="size-6" />
-          </span>
-          <div>
-            <p className="font-medium">Your menu is empty</p>
-            <p className="text-sm text-muted-foreground">
-              Start with a category like Starters or Main Course.
-            </p>
-          </div>
+      <EmptyState
+        icon={UtensilsCrossed}
+        title="Your menu is empty"
+        description="Start with a category like Starters or Main Course."
+        action={
           <div className="flex flex-wrap justify-center gap-2">
             <CategoryForm
               onCreated={(category) => setCategories([category])}
@@ -240,8 +235,8 @@ export function MenuManager({
             />
             <MenuBulkImport onImported={handleImported} />
           </div>
-        </CardContent>
-      </Card>
+        }
+      />
     );
   }
 
@@ -308,9 +303,7 @@ export function MenuManager({
             </div>
 
             {categoryItems.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-                No items in this category yet.
-              </p>
+              <EmptyLane>No items in this category yet.</EmptyLane>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {categoryItems.map((item) => (

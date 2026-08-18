@@ -7,6 +7,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { uploadDirect } from "@/lib/upload";
 
 /**
@@ -41,16 +48,50 @@ export type AudioSettings = {
   kitchenOrderAudioUrl: string | null;
   restaurantOrderAudioUrl: string | null;
   waitingTrackAudioUrl: string | null;
+  /** Already resolved against the default by the API — never null here. */
+  kitchenOrderRingSeconds: number;
   overrides: {
     kitchenOrderAudioUrl: string | null;
     restaurantOrderAudioUrl: string | null;
     waitingTrackAudioUrl: string | null;
+    kitchenOrderRingSeconds: number | null;
   };
 };
 
+/**
+ * How long the pass keeps ringing, offered as a short list rather than a number
+ * field.
+ *
+ * A free-form input invites "5" from an owner who has never stood in a kitchen
+ * during a rush, and 5 seconds is indistinguishable from the single phrase this
+ * setting exists to replace. Zero is kept as an explicit option because it is a
+ * real editorial choice — some rooms would rather miss a ticket than run an
+ * alarm — but it has to be picked on purpose, not typed by accident.
+ */
+const RING_OPTIONS: { value: string; label: string }[] = [
+  { value: "0", label: "Ring once" },
+  { value: "10", label: "10 seconds" },
+  { value: "15", label: "15 seconds" },
+  { value: "30", label: "30 seconds (default)" },
+  { value: "45", label: "45 seconds" },
+  { value: "60", label: "1 minute" },
+];
+
+/**
+ * The override keys that hold a URL.
+ *
+ * Named explicitly rather than `keyof overrides`, which now also covers
+ * kitchenOrderRingSeconds — a number, and not something AudioBlock can upload,
+ * preview or reset.
+ */
+type AudioUrlField =
+  | "kitchenOrderAudioUrl"
+  | "restaurantOrderAudioUrl"
+  | "waitingTrackAudioUrl";
+
 const BLOCKS: {
   kind: AudioKind;
-  field: keyof AudioSettings["overrides"];
+  field: AudioUrlField;
   title: string;
   description: string;
 }[] = [
@@ -111,7 +152,20 @@ export function AudioSettingsForm({
             /** What is actually heard today, which may be a platform default. */
             effectiveUrl={settings[block.field]}
             onChanged={setSettings}
-          />
+          >
+            {/* Inside the kitchen block rather than as a control of its own,
+                because it configures THIS sound and nothing else. Hoisting it
+                to the card level would put a "how long does it ring" setting
+                next to three sounds when it only governs one — the same
+                crossed-wires mistake the header comment above warns about. */}
+            {block.kind === "KITCHEN_ORDER" && (
+              <RingDurationField
+                endpoint={endpoint}
+                seconds={settings.kitchenOrderRingSeconds}
+                onChanged={setSettings}
+              />
+            )}
+          </AudioBlock>
         ))}
       </CardContent>
     </Card>
@@ -126,6 +180,7 @@ function AudioBlock({
   currentUrl,
   effectiveUrl,
   onChanged,
+  children,
 }: {
   endpoint: string;
   kind: AudioKind;
@@ -134,6 +189,8 @@ function AudioBlock({
   currentUrl: string | null;
   effectiveUrl: string | null;
   onChanged: (next: AudioSettings) => void;
+  /** Per-kind settings that are not the file itself. Only the kitchen has any. */
+  children?: React.ReactNode;
 }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -251,6 +308,86 @@ function AudioBlock({
       </div>
 
       <p className="text-xs text-muted-foreground">MP3, WAV, OGG, M4A or AAC · up to 5MB</p>
+
+      {children}
+    </div>
+  );
+}
+
+/**
+ * How long the kitchen display keeps ringing once an order reaches the pass.
+ *
+ * Saves on change rather than behind a Save button. It is one value with six
+ * options and an instant, audible consequence — a form around it would be more
+ * chrome than setting, and the rest of this card already saves on action.
+ */
+function RingDurationField({
+  endpoint,
+  seconds,
+  onChanged,
+}: {
+  endpoint: string;
+  seconds: number;
+  onChanged: (next: AudioSettings) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  /**
+   * A restaurant set to a value this list doesn't offer — an older setting, or
+   * one an admin typed through the API — must not have it silently rewritten to
+   * whatever the Select happens to land on. Its actual value is shown instead.
+   */
+  const options = RING_OPTIONS.some((option) => option.value === String(seconds))
+    ? RING_OPTIONS
+    : [...RING_OPTIONS, { value: String(seconds), label: `${seconds} seconds` }].sort(
+        (a, b) => Number(a.value) - Number(b.value),
+      );
+
+  async function save(next: string) {
+    setBusy(true);
+    try {
+      const res = await fetch(`${endpoint}/timing`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kitchenOrderRingSeconds: Number(next) }),
+      });
+      if (!res.ok) {
+        toast.error("Could not save how long the kitchen rings");
+        return;
+      }
+      onChanged((await res.json()) as AudioSettings);
+      toast.success("Kitchen ring length updated");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 flex flex-col gap-1.5 border-t border-border/70 pt-3">
+      <Label htmlFor="kitchen-ring-seconds" className="text-sm font-medium">
+        Keep ringing for
+      </Label>
+      <Select
+        value={String(seconds)}
+        onValueChange={(v) => v && void save(v)}
+        disabled={busy}
+        items={options}
+      >
+        <SelectTrigger id="kitchen-ring-seconds" className="max-w-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">
+        The pass keeps ringing this long, or until someone taps a ticket — whichever comes first. A
+        single beep is easy to miss from across a kitchen.
+      </p>
     </div>
   );
 }

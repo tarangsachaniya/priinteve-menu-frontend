@@ -3,7 +3,7 @@ import { UtensilsCrossed } from "lucide-react";
 
 import { serverFetch } from "@/lib/api/server";
 import { getRestaurantOrderUrl } from "@/lib/restaurant/qr-url";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { RestaurantDetailPanel } from "@/components/restaurant/admin/restaurant-detail-panel";
 import { AudioSettingsForm, type AudioSettings } from "@/components/restaurant/audio-settings-form";
 import { PaymentSettingsForm, type PaymentSettings } from "@/components/restaurant/payment-settings-form";
@@ -63,13 +63,11 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
   const owner = restaurant.users.find((u) => u.role === "OWNER");
 
   return (
-    <main className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
-      <PageHeader
-        icon={UtensilsCrossed}
-        title={restaurant.branch ? `${restaurant.name} — ${restaurant.branch}` : restaurant.name}
-        description={`${restaurant._count.menuItems} menu items · ${restaurant._count.tables} tables · ${restaurant._count.orders} orders`}
-      />
-
+    <PageShell
+      icon={UtensilsCrossed}
+      title={restaurant.branch ? `${restaurant.name} — ${restaurant.branch}` : restaurant.name}
+      description={`${restaurant._count.menuItems} menu items · ${restaurant._count.tables} tables · ${restaurant._count.orders} orders`}
+    >
       <RestaurantDetailPanel
         restaurant={{
           id: restaurant.id,
@@ -117,6 +115,6 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
           tables={tableData?.tables ?? []}
         />
       </div>
-    </main>
+    </PageShell>
   );
 }

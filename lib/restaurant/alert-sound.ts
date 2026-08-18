@@ -29,6 +29,18 @@ import type { Damru } from "@/lib/restaurant/damru";
 export type AlertSound = {
   unlock: () => Promise<void>;
   play: () => void;
+  /**
+   * Keeps sounding for `durationMs`, then stops itself.
+   *
+   * For the kitchen display, where a single phrase under a second long is one
+   * chance to be noticed by someone across the room with their hands full.
+   * stopAll() ends the window early, which is how "a cook touched a ticket"
+   * silences it.
+   *
+   * Zero or less degrades to a plain play(), so "ring once" is expressible
+   * without the caller branching.
+   */
+  playFor: (durationMs: number) => void;
   stopAll: () => void;
   isUnlocked: () => boolean;
   needsReArm: () => boolean;
@@ -45,6 +57,21 @@ export type AlertSound = {
    */
   isSubstituting: () => boolean;
 };
+
+/**
+ * How often the synthesized drum is re-struck while filling a ring window.
+ *
+ * A damru phrase is eight strikes at 85ms plus a tail — a shade under a second
+ * — and it has no loop of its own, so a 30-second window has to re-trigger it.
+ * Matches RING_INTERVAL_MS in order-alert-provider.tsx deliberately: the two
+ * are the same sound at the same urgency, and a kitchen hearing a different
+ * cadence from the till would read them as two different alerts.
+ *
+ * An uploaded FILE is never driven by this — it loops natively instead, so a
+ * twenty-second track plays as a twenty-second track rather than being
+ * restarted nine-tenths of a second in.
+ */
+const DRUM_REPEAT_MS = 900;
 
 export function createAlertSound(fallback: Damru): AlertSound {
   let element: HTMLAudioElement | null = null;
@@ -93,6 +120,17 @@ export function createAlertSound(fallback: Damru): AlertSound {
    * mattered most. See the takeover branch in primeElement().
    */
   let playRequests = 0;
+
+  /**
+   * The open ring window, if playFor() has one running.
+   *
+   * `repeat` re-strikes the drum; `deadline` closes the window. Held together
+   * because they are always started and always cancelled as a pair — a repeat
+   * left running past its deadline is an alert that never stops, which is the
+   * one failure mode worse than an alert nobody hears.
+   */
+  let repeatTimer: number | undefined;
+  let deadlineTimer: number | undefined;
 
   function audio(): HTMLAudioElement | null {
     if (typeof window === "undefined") return null;
@@ -177,6 +215,167 @@ export function createAlertSound(fallback: Damru): AlertSound {
     }
   }
 
+  /**
+   * True when a file IS configured but the drum is what the room actually
+   * hears. Hoisted out of the returned object so the ring loop below can ask
+   * the same question the caller can — see playFor().
+   */
+  function isSubstituting(): boolean {
+    return source !== null && (elementBlocked || sourceBroken);
+  }
+
+  /**
+   * Tears down an open ring window WITHOUT silencing anything.
+   *
+   * Split from stopAll() because the two are needed apart: playFor() calls this
+   * to replace a window with a fresh one (a second order arriving mid-ring
+   * should restart the clock, not stack a second set of timers), while stopAll()
+   * calls it and then goes on to cut the sound.
+   *
+   * Clearing `loop` here rather than in stopAll() is what stops a later plain
+   * play() inheriting a looping element and ringing forever.
+   */
+  function clearRing(): void {
+    if (repeatTimer !== undefined) window.clearInterval(repeatTimer);
+    if (deadlineTimer !== undefined) window.clearTimeout(deadlineTimer);
+    repeatTimer = undefined;
+    deadlineTimer = undefined;
+    if (element) element.loop = false;
+  }
+
+  function play(): void {
+    if (!source) {
+      fallback.play();
+      return;
+    }
+
+    const el = audio();
+    if (!el) return;
+
+    // A file that will not load can never ring; go straight to the drum
+    // rather than waiting on a play() that resolves silently.
+    if (sourceBroken) {
+      fallback.play();
+      return;
+    }
+
+    playRequests += 1;
+    // Rewound rather than resumed: two orders arriving four seconds apart
+    // must each get the whole sound from the start, not the tail of the last.
+    // Still true when playFor() has set `loop` — a second arrival opens a new
+    // window and the restaurant's track has to start over for it, not be
+    // inherited half-played from the order before.
+    el.currentTime = 0;
+    // Asserted rather than assumed: a prime racing this in the same tick has
+    // already set muted, and an alert nobody can hear is the same failure as
+    // no alert at all.
+    el.muted = false;
+    // Captured before the attempt: anything that bumps this while play() is
+    // in flight is us stopping our own sound, not the browser or the file
+    // refusing it. See `interruptions` at the top of the factory.
+    const attemptedAt = interruptions;
+    el.play().then(
+      () => {
+        elementUnlocked = true;
+        elementBlocked = false;
+      },
+      (err: unknown) => {
+        /**
+         * We cut it short ourselves — an Accept that called stopAll(), or a
+         * prime that raced in. Nothing has been learned about the file or the
+         * browser's willingness to play it, so nothing may be recorded, and
+         * the drum must NOT ring: silence is the whole point of stopAll().
+         */
+        if (interruptions !== attemptedAt) return;
+
+        elementBlocked = true;
+        /**
+         * The reason used to be discarded, which is precisely why "I uploaded
+         * a track and hear the drum" could not be diagnosed from a report.
+         * NotAllowedError means the browser refused an unprompted sound and a
+         * tap fixes it; NotSupportedError means this browser cannot play the
+         * file at all and no amount of tapping will help.
+         *
+         * Anything else is left recoverable on purpose. Marking the source
+         * broken is a one-way latch for the life of the page, so it is spent
+         * only on the one error that genuinely means "never going to work" —
+         * the `error` listener in audio() above covers the load failures.
+         */
+        const name = err instanceof Error ? err.name : "unknown";
+        if (name === "NotSupportedError") sourceBroken = true;
+        console.warn(
+          `[alert-sound] uploaded track refused (${name}), falling back to the drum:`,
+          source,
+        );
+        // The synthesized drum shares the AudioContext unlock, which may well
+        // be armed even when the element is not — so a blocked file still
+        // rings rather than leaving the kitchen silent.
+        fallback.play();
+      },
+    );
+  }
+
+  function stopAll(): void {
+    // First, so a repeat cannot fire between silencing the drum and the timers
+    // being cancelled — that stray strike would land after the alert was
+    // supposed to be over, which reads as the stop button not working.
+    clearRing();
+
+    fallback.stopAll();
+    if (element && source) {
+      // Bumped BEFORE the pause: a play() still in flight is about to reject
+      // with AbortError, and this is what tells its handler the abort was
+      // ours. Without it, accepting an order mid-phrase used to convict the
+      // uploaded file and hand the rest of the shift to the drum.
+      interruptions += 1;
+      element.pause();
+      element.currentTime = 0;
+    }
+  }
+
+  /**
+   * Rings for a fixed window rather than once.
+   *
+   * TWO MECHANISMS, because the two sounds are not the same kind of thing:
+   *
+   *   uploaded file  loops natively. A restaurant's twenty-second track plays
+   *                  as a twenty-second track; re-triggering it on a timer
+   *                  would restart it nine-tenths of a second in and the room
+   *                  would never hear past the first word.
+   *   damru          has no loop, so it is re-struck on DRUM_REPEAT_MS.
+   *
+   * The repeat is guarded on isSubstituting() rather than started blindly:
+   * play() falls back to the drum on its own when the element is refused, and
+   * without the guard a working uploaded file would have the drum banging over
+   * the top of it for the whole window.
+   *
+   * The deadline calls stopAll(), which bumps `interruptions` before pausing —
+   * so the AbortError that pause produces is correctly read as self-inflicted
+   * and does NOT latch sourceBroken. That latch is the "I uploaded a track and
+   * still hear the damru" bug; see the note on `interruptions` above.
+   */
+  function playFor(durationMs: number): void {
+    // Replaces any window already open. A second order arriving mid-ring
+    // restarts the clock rather than stacking a second set of timers.
+    clearRing();
+
+    if (durationMs <= 0) {
+      play();
+      return;
+    }
+
+    const el = source && !sourceBroken ? audio() : null;
+    if (el) el.loop = true;
+
+    play();
+
+    repeatTimer = window.setInterval(() => {
+      if (!source || isSubstituting()) fallback.play();
+    }, DRUM_REPEAT_MS);
+
+    deadlineTimer = window.setTimeout(stopAll, durationMs);
+  }
+
   return {
     setSource: (url) => {
       if (url === source) return; // Called from a poll; reassigning src would restart it.
@@ -237,91 +436,15 @@ export function createAlertSound(fallback: Damru): AlertSound {
       await primeElement(el);
     },
 
-    play: () => {
-      if (!source) {
-        fallback.play();
-        return;
-      }
+    play,
 
-      const el = audio();
-      if (!el) return;
+    playFor,
 
-      // A file that will not load can never ring; go straight to the drum
-      // rather than waiting on a play() that resolves silently.
-      if (sourceBroken) {
-        fallback.play();
-        return;
-      }
-
-      playRequests += 1;
-      // Rewound rather than resumed: two orders arriving four seconds apart
-      // must each get the whole sound from the start, not the tail of the last.
-      el.currentTime = 0;
-      // Asserted rather than assumed: a prime racing this in the same tick has
-      // already set muted, and an alert nobody can hear is the same failure as
-      // no alert at all.
-      el.muted = false;
-      // Captured before the attempt: anything that bumps this while play() is
-      // in flight is us stopping our own sound, not the browser or the file
-      // refusing it. See `interruptions` at the top of the factory.
-      const attemptedAt = interruptions;
-      el.play().then(
-        () => {
-          elementUnlocked = true;
-          elementBlocked = false;
-        },
-        (err: unknown) => {
-          /**
-           * We cut it short ourselves — an Accept that called stopAll(), or a
-           * prime that raced in. Nothing has been learned about the file or the
-           * browser's willingness to play it, so nothing may be recorded, and
-           * the drum must NOT ring: silence is the whole point of stopAll().
-           */
-          if (interruptions !== attemptedAt) return;
-
-          elementBlocked = true;
-          /**
-           * The reason used to be discarded, which is precisely why "I uploaded
-           * a track and hear the drum" could not be diagnosed from a report.
-           * NotAllowedError means the browser refused an unprompted sound and a
-           * tap fixes it; NotSupportedError means this browser cannot play the
-           * file at all and no amount of tapping will help.
-           *
-           * Anything else is left recoverable on purpose. Marking the source
-           * broken is a one-way latch for the life of the page, so it is spent
-           * only on the one error that genuinely means "never going to work" —
-           * the `error` listener in audio() above covers the load failures.
-           */
-          const name = err instanceof Error ? err.name : "unknown";
-          if (name === "NotSupportedError") sourceBroken = true;
-          console.warn(
-            `[alert-sound] uploaded track refused (${name}), falling back to the drum:`,
-            source,
-          );
-          // The synthesized drum shares the AudioContext unlock, which may well
-          // be armed even when the element is not — so a blocked file still
-          // rings rather than leaving the kitchen silent.
-          fallback.play();
-        },
-      );
-    },
-
-    stopAll: () => {
-      fallback.stopAll();
-      if (element && source) {
-        // Bumped BEFORE the pause: a play() still in flight is about to reject
-        // with AbortError, and this is what tells its handler the abort was
-        // ours. Without it, accepting an order mid-phrase used to convict the
-        // uploaded file and hand the rest of the shift to the drum.
-        interruptions += 1;
-        element.pause();
-        element.currentTime = 0;
-      }
-    },
+    stopAll,
 
     // Only meaningful when a file is configured: with no source the drum is the
     // intended sound, not a substitute for anything.
-    isSubstituting: () => source !== null && (elementBlocked || sourceBroken),
+    isSubstituting,
 
     // Either path being armed counts: play() falls back to the drum when the
     // element is blocked, so the caller's question — "will a sound come out?" —

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Bike, Check, EyeOff, ShoppingBag, Store, Volume2, X } from "lucide-react";
+import { Bell, Bike, Check, EyeOff, ShoppingBag, Store, X } from "lucide-react";
 import { toast } from "sonner";
 
 import type { RestoOrderType } from "@/lib/api/enums";
@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CancelOrderDialog, type CancellableOrder } from "@/components/restaurant/cancel-order-dialog";
+import { SoundEnableButton } from "@/components/shared/sound-enable-button";
 import { formatCurrency } from "@/lib/format";
 import { createAlertSound, type AlertSound } from "@/lib/restaurant/alert-sound";
 import { createDamru } from "@/lib/restaurant/damru";
@@ -648,48 +649,81 @@ export function OrderAlertProvider({
     <>
       {current && (
         <Dialog open={dialogOpen} onOpenChange={(open) => !open && setHidden(true)}>
+          {/*
+            Hierarchy, deliberately in this order: the order NUMBER is what a
+            till glances at to match a printed ticket, and the TOTAL is what
+            decides whether it's worth a second look before accepting — both
+            used to be smaller than the coloured order-type pill beneath them,
+            which is the least decision-relevant fact on the card. Now the
+            number and the total are the two loudest things here, the type/
+            table/items are one quiet supporting line, and Accept is the only
+            button with fill — Reject, Hide and View orders all step down in
+            weight so a hurried tap lands on Accept by default rather than by
+            luck.
+          */}
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-2xl">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-ink">
-                  <Bell className="size-5" />
-                </span>
-                New order #{current.orderNumber}
-              </DialogTitle>
-              <DialogDescription>
-                {waiting > 0
-                  ? `+${waiting} more order${waiting > 1 ? "s" : ""} waiting behind this one.`
-                  : "The damru keeps ringing until this is accepted or cancelled."}
-              </DialogDescription>
+              {/* Accessible name only — the number/total row below carries the
+                  same information at the size it actually deserves. */}
+              <DialogTitle className="sr-only">New order #{current.orderNumber}</DialogTitle>
+
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-9 shrink-0 animate-pulse items-center justify-center rounded-full bg-primary/15 text-ink">
+                    <Bell className="size-5" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                      New order
+                    </p>
+                    <p className="text-3xl leading-none font-bold tabular-nums text-ink">
+                      #{current.orderNumber}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-3xl leading-none font-bold tabular-nums text-ink">
+                  {formatCurrency(current.total)}
+                </p>
+              </div>
             </DialogHeader>
 
             <div className="flex flex-col gap-2.5">
-              <p className="flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2.5 text-lg font-semibold text-ink">
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 {(() => {
                   const TypeIcon = TYPE_ICON[current.orderType];
-                  return <TypeIcon className="size-5 shrink-0" />;
+                  return <TypeIcon className="size-4 shrink-0" />;
                 })()}
-                {current.tableLabel ?? ORDER_TYPE_LABEL[current.orderType]}
+                <span className="font-medium text-foreground">
+                  {current.tableLabel ?? ORDER_TYPE_LABEL[current.orderType]}
+                </span>
+                <span>·</span>
+                <span>{current.itemCount === 1 ? "1 item" : `${current.itemCount} items`}</span>
+                {current.customerName && <span>· {current.customerName}</span>}
               </p>
 
-              <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="text-muted-foreground">
-                  {current.itemCount === 1 ? "1 item" : `${current.itemCount} items`}
-                  {current.customerName ? ` · ${current.customerName}` : ""}
-                </span>
-                <span className="text-lg font-semibold tabular-nums">
-                  {formatCurrency(current.total)}
-                </span>
-              </div>
+              <DialogDescription className="text-xs">
+                {waiting > 0
+                  ? `+${waiting} more order${waiting > 1 ? "s" : ""} waiting behind this one.`
+                  : "Keeps ringing until this is accepted or cancelled."}
+              </DialogDescription>
 
               {soundBlocked && <EnableSoundButton onClick={enableSound} />}
             </div>
 
-            <DialogFooter className="sm:justify-between">
-              <div className="flex gap-2">
-                <Button
+            <DialogFooter className="flex-col gap-3 sm:flex-col">
+              <Button
+                type="button"
+                size="lg"
+                className="w-full"
+                onClick={() => void accept(current)}
+                disabled={busy}
+              >
+                <Check data-icon="inline-start" />
+                Accept
+              </Button>
+              <div className="flex w-full items-center justify-between gap-2">
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() =>
                     setPendingReject({
                       id: current.orderId,
@@ -698,23 +732,30 @@ export function OrderAlertProvider({
                     })
                   }
                   disabled={busy}
+                  className="flex items-center gap-1.5 text-sm font-medium text-destructive underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50"
                 >
-                  <X data-icon="inline-start" />
+                  <X className="size-4" />
                   Reject
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setHidden(true)} disabled={busy}>
-                  <EyeOff data-icon="inline-start" />
-                  Hide
-                </Button>
-              </div>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={viewOrders} disabled={busy}>
-                  View orders
-                </Button>
-                <Button type="button" onClick={() => void accept(current)} disabled={busy}>
-                  <Check data-icon="inline-start" />
-                  Accept
-                </Button>
+                </button>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={viewOrders}
+                    disabled={busy}
+                    className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    View orders
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHidden(true)}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <EyeOff className="size-4" />
+                    Hide
+                  </button>
+                </div>
               </div>
             </DialogFooter>
           </DialogContent>
@@ -773,16 +814,17 @@ export function OrderAlertProvider({
  * and it disappears the moment a sound gets out. It appears alongside an alert
  * that is already ringing, so the tap it asks for is one the user was about to
  * make anyway.
+ *
+ * Same visual treatment as KitchenDisplay's own sound prompt (see
+ * SoundEnableButton) at the smaller of its two sizes — this one lives inside a
+ * dialog and a pill, not a page header.
  */
 function EnableSoundButton({ onClick }: { onClick: () => void }) {
   return (
-    <button
-      type="button"
+    <SoundEnableButton
+      size="sm"
       onClick={onClick}
-      className="flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-left text-xs font-medium text-amber-800 transition-colors hover:bg-amber-500/20"
-    >
-      <Volume2 className="size-4 shrink-0" />
-      Your browser blocked the alert sound — tap to allow it.
-    </button>
+      label="Your browser blocked the alert sound — tap to allow it."
+    />
   );
 }

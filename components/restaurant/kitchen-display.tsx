@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChefHat, Lock, Maximize, Minimize, MonitorOff, StickyNote, Timer, Volume2 } from "lucide-react";
+import { ChefHat, Lock, Maximize, Minimize, MonitorOff, StickyNote, Timer } from "lucide-react";
 import { toast } from "sonner";
 
 import type { RestoOrderStatus } from "@/lib/api/enums";
 import { Button } from "@/components/ui/button";
 import { CancelOrderDialog } from "@/components/restaurant/cancel-order-dialog";
+import { EmptyLane } from "@/components/shared/empty-state";
+import { SoundEnableButton } from "@/components/shared/sound-enable-button";
 import { createAlertSound, type AlertSound } from "@/lib/restaurant/alert-sound";
 import { createDamru } from "@/lib/restaurant/damru";
 import { elapsedSince, minutesWaiting } from "@/lib/restaurant/elapsed";
@@ -71,6 +73,17 @@ const ADVANCE_LABEL: Partial<Record<RestoOrderStatus, string>> = {
  */
 const KITCHEN_STATUSES: readonly RestoOrderStatus[] = ["ACCEPTED", "PREPARING"];
 
+/**
+ * How long the arrival sound rings before the API has said otherwise.
+ *
+ * Only ever used for the handful of seconds between this screen mounting and
+ * its first poll landing — every response carries the restaurant's real
+ * setting, already resolved server-side. Matches DEFAULT_KITCHEN_RING_SECONDS
+ * in the API's audio-settings.ts; if they ever disagree the server wins, which
+ * is why this is a fallback rather than a source of truth.
+ */
+const DEFAULT_RING_SECONDS = 30;
+
 /** Minutes waited before a ticket starts shouting. */
 const WARN_AFTER_MINUTES = 10;
 const LATE_AFTER_MINUTES = 20;
@@ -133,6 +146,15 @@ export function KitchenDisplay({
   );
 
   /**
+   * How long to ring, refreshed on every poll.
+   *
+   * A ref rather than state on purpose: nothing on screen depends on it, and
+   * making it state would re-render every ticket on the board each time a poll
+   * confirmed the same number.
+   */
+  const ringSeconds = useRef(DEFAULT_RING_SECONDS);
+
+  /**
    * Orders THIS screen advanced onto the pass itself, held until the server
    * confirms them.
    *
@@ -166,6 +188,7 @@ export function KitchenDisplay({
       const data = (await res.json()) as {
         orders: KitchenOrder[];
         kitchenOrderAudioUrl?: string | null;
+        kitchenOrderRingSeconds?: number | null;
       };
 
       /**
@@ -175,6 +198,10 @@ export function KitchenDisplay({
        * the built-in drum rings instead of an uploaded file.
        */
       arrivalSound.current?.setSource(data.kitchenOrderAudioUrl ?? null);
+
+      // ?? not ||: zero is the restaurant choosing "ring once" and must not be
+      // read as a missing field and replaced with thirty seconds.
+      ringSeconds.current = data.kitchenOrderRingSeconds ?? DEFAULT_RING_SECONDS;
 
       const cooking = data.orders.filter((o) => KITCHEN_STATUSES.includes(o.status));
       const arrived = cooking.some(
@@ -196,7 +223,11 @@ export function KitchenDisplay({
       });
       claimed.current = stillClaimed;
 
-      if (arrived) arrivalSound.current?.play();
+      // Rings for a window rather than once. A single damru phrase is under a
+      // second, which a cook facing a stove with their hands full simply does
+      // not hear — and unlike the till, nothing else on this screen will tell
+      // them again. Ends early the moment anyone touches a ticket; see advance().
+      if (arrived) arrivalSound.current?.playFor(ringSeconds.current * 1000);
 
       knownIds.current = new Set(data.orders.map((order) => order.id));
       setOrders(data.orders);
@@ -334,6 +365,18 @@ export function KitchenDisplay({
     const next = nextStatus(order.status);
     if (!next) return;
 
+    /**
+     * Someone is at the board with a finger on a ticket, so the alert has done
+     * its whole job and any further ringing is just noise at a room that has
+     * already responded.
+     *
+     * Any ticket, not only the one that rang: the sound says "there is new work
+     * on the pass", and a cook touching the screen at all has seen the pass.
+     * Deliberately not wired to subscribeOrderAck — that fires for another tab
+     * in the same browser, which is no evidence anyone in the kitchen looked up.
+     */
+    arrivalSound.current?.stopAll();
+
     setBusyId(order.id);
     const result = await patchOrderStatus(order.id, next, undefined, ordersBasePath);
     setBusyId(null);
@@ -360,6 +403,10 @@ export function KitchenDisplay({
     const order = pendingCancel;
     setPendingCancel(null);
     if (!order) return;
+
+    // Same rule as advance(): a cook who has opened a dialog and confirmed a
+    // cancellation is unambiguously at the board.
+    arrivalSound.current?.stopAll();
 
     setBusyId(order.id);
     const result = await patchOrderStatus(order.id, "CANCELLED", reason || undefined, ordersBasePath);
@@ -390,16 +437,7 @@ export function KitchenDisplay({
               the first order rather than after one has been missed. Browsers
               refuse unprompted audio until the page has been touched once; this
               is that one touch, made obvious instead of left to be discovered. */}
-          {!soundArmed && (
-            <button
-              type="button"
-              onClick={() => void enableSound()}
-              className="flex items-center gap-2 rounded-xl bg-amber-500/15 px-3.5 py-2.5 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-500/25"
-            >
-              <Volume2 className="size-5 shrink-0" />
-              Tap to enable sound
-            </button>
-          )}
+          {!soundArmed && <SoundEnableButton label="Tap to enable sound" onClick={() => void enableSound()} />}
           {/* A wake lock that failed silently is a screen that dies at midnight
               with nobody knowing why, so it is said out loud rather than logged. */}
           {!wakeLock.active && (
@@ -443,11 +481,7 @@ export function KitchenDisplay({
               </div>
 
               <div className="flex flex-col gap-3">
-                {laneOrders.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                    Nothing here.
-                  </p>
-                )}
+                {laneOrders.length === 0 && <EmptyLane>Nothing here.</EmptyLane>}
                 {laneOrders.map((order) => (
                   <KitchenTicket
                     key={order.id}
@@ -552,10 +586,14 @@ function KitchenTicket({
       )}
 
       <div className="flex items-center gap-2 border-t border-border pt-3">
+        {/* h-14 to match the advance button beside it: a cook working with wet
+            or gloved hands is exactly who this screen is built for, and a 36px
+            default-size button next to a 56px one is a touch target that's easy
+            to miss under a screen's worth of adrenaline. */}
         <Button
           type="button"
           variant="ghost"
-          className="shrink-0"
+          className="h-14 shrink-0 px-5 text-base"
           disabled={isBusy}
           onClick={() => onCancel(order)}
         >

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { BookOpen } from "lucide-react";
 
 import { getRestaurantSession, serverFetch } from "@/lib/api/server";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { MenuManager } from "@/components/restaurant/menu-manager";
 
 export const dynamic = "force-dynamic";
@@ -36,14 +36,12 @@ export default async function RestaurantMenuPage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
-      <PageHeader
-        icon={BookOpen}
-        title="Menu"
-        description="Organise your dishes into categories and keep availability up to date."
-      />
-
+    <PageShell
+      icon={BookOpen}
+      title="Menu"
+      description="Organise your dishes into categories and keep availability up to date."
+    >
       <MenuManager initialCategories={categories} initialItems={items} />
-    </main>
+    </PageShell>
   );
 }

@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/shared/empty-state";
 
 /**
  * Tables, as a restaurant manages them.
@@ -278,17 +279,11 @@ export function TablesManager({ initialTables }: { initialTables: TableRow[] }) 
       </div>
 
       {tables.length === 0 ? (
-        <Card className="border-dashed border-border">
-          <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-ink">
-              <Table2 className="size-6" />
-            </span>
-            <div>
-              <p className="font-medium">No tables yet</p>
-              <p className="text-sm text-muted-foreground">
-                Add your tables and contact Priinteve Innovations for your printed QR Menu Cards.
-              </p>
-            </div>
+        <EmptyState
+          icon={Table2}
+          title="No tables yet"
+          description="Add your tables and contact Priinteve Innovations for your printed QR Menu Cards."
+          action={
             <AddTablesDialog
               onCreated={(created) => setTables(created)}
               trigger={
@@ -297,8 +292,8 @@ export function TablesManager({ initialTables }: { initialTables: TableRow[] }) 
                 </Button>
               }
             />
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {tables.map((table) => (

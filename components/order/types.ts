@@ -70,6 +70,9 @@ export type PublicRestaurant = {
   ratingValue: number | null;
   ratingCount: number | null;
   taxPercent: number;
+  /** False (the default) adds GST at checkout; true means it's already inside
+   *  the menu price. See PricingRules.taxInclusive in lib/restaurant/pricing.ts. */
+  taxInclusive: boolean;
   deliveryFee: number;
   minOrderValue: number;
   orderTypes: RestoOrderType[];

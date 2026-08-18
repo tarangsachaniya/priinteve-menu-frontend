@@ -14,7 +14,7 @@ import { getRestaurantSession, serverFetch } from "@/lib/api/server";
 import { getRestaurantOrderUrl } from "@/lib/restaurant/qr-url";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { RevenueChart, type RevenuePoint } from "@/components/restaurant/revenue-chart";
 
 export const dynamic = "force-dynamic";
@@ -92,19 +92,17 @@ export default async function RestaurantDashboardPage({
   ];
 
   return (
-    <main className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
-      <PageHeader
-        icon={LayoutDashboard}
-        title="Overview"
-        description={restaurant.branch ? `${restaurant.name} — ${restaurant.branch}` : restaurant.name}
-        action={
-          <Button size="sm" render={<Link href="/r/orders" />}>
-            <ReceiptText data-icon="inline-start" />
-            Open orders board
-          </Button>
-        }
-      />
-
+    <PageShell
+      icon={LayoutDashboard}
+      title="Overview"
+      description={restaurant.branch ? `${restaurant.name} — ${restaurant.branch}` : restaurant.name}
+      action={
+        <Button size="sm" render={<Link href="/r/orders" />}>
+          <ReceiptText data-icon="inline-start" />
+          Open orders board
+        </Button>
+      }
+    >
       <div className="flex flex-col gap-6">
         {needsSetup && (
           <Card className="border-primary/30 bg-primary/5">
@@ -200,6 +198,6 @@ export default async function RestaurantDashboardPage({
           </CardContent>
         </Card>
       </div>
-    </main>
+    </PageShell>
   );
 }

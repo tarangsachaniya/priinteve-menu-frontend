@@ -5,7 +5,8 @@ import { getRestaurantSession, serverFetch } from "@/lib/api/server";
 import { REVIEW_DISPLAY_THRESHOLD } from "@/lib/restaurant/reviews";
 import { formatRating } from "@/lib/restaurant/menu-display";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
+import { EmptyState } from "@/components/shared/empty-state";
 import { ReviewVisibilityToggle } from "@/components/restaurant/review-visibility-toggle";
 
 export const dynamic = "force-dynamic";
@@ -46,13 +47,12 @@ export default async function RestaurantReviewsPage() {
   });
 
   return (
-    <main className="mx-auto max-w-3xl p-6 sm:p-8 lg:p-10">
-      <PageHeader
-        icon={Star}
-        title="Reviews"
-        description="Guests are asked to rate their meal once they've paid."
-      />
-
+    <PageShell
+      width="reading"
+      icon={Star}
+      title="Reviews"
+      description="Guests are asked to rate their meal once they've paid."
+    >
       <Card className="mb-6">
         <CardContent className="flex flex-wrap items-center gap-6 p-5">
           <div>
@@ -76,15 +76,11 @@ export default async function RestaurantReviewsPage() {
       </Card>
 
       {all.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
-            <Star className="size-8 text-muted-foreground" />
-            <p className="font-medium">No reviews yet</p>
-            <p className="text-sm text-muted-foreground">
-              Guests see the rating prompt on their order page as soon as you mark their order paid.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Star}
+          title="No reviews yet"
+          description="Guests see the rating prompt on their order page as soon as you mark their order paid."
+        />
       ) : (
         <ul className="flex flex-col gap-3">
           {all.map((review) => (
@@ -119,6 +115,6 @@ export default async function RestaurantReviewsPage() {
           ))}
         </ul>
       )}
-    </main>
+    </PageShell>
   );
 }

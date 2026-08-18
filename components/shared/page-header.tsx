@@ -2,6 +2,13 @@ import type { LucideIcon } from "lucide-react";
 
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 
+/**
+ * The sticky bar's `-mx-6 sm:-mx-8` bleed only lines up with a container
+ * padded `p-6 sm:p-8`. Rather than trust every page to remember that, this
+ * component is rendered from exactly one place — PageShell, which owns both
+ * halves of the pair. Reach for PageShell in a page; import this directly
+ * only if you are building a shell that intentionally isn't PageShell.
+ */
 export function PageHeader({
   icon: Icon,
   title,

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Table2 } from "lucide-react";
 
 import { getRestaurantSession, serverFetch } from "@/lib/api/server";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { TablesManager, type TableRow } from "@/components/restaurant/tables-manager";
 
 export const dynamic = "force-dynamic";
@@ -23,14 +23,12 @@ export default async function RestaurantTablesPage() {
   });
 
   return (
-    <main className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
-      <PageHeader
-        icon={Table2}
-        title="Tables"
-        description="Add the tables in your restaurant. Priinteve Innovations prints a QR Menu Card for each one."
-      />
-
+    <PageShell
+      icon={Table2}
+      title="Tables"
+      description="Add the tables in your restaurant. Priinteve Innovations prints a QR Menu Card for each one."
+    >
       <TablesManager initialTables={tables} />
-    </main>
+    </PageShell>
   );
 }

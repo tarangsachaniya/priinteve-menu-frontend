@@ -2,7 +2,7 @@ import { UtensilsCrossed, CheckCircle2, CircleSlash, ReceiptText } from "lucide-
 
 import { serverFetch } from "@/lib/api/server";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { RestaurantsTable } from "@/components/restaurant/admin/restaurants-table";
 import type { AdminRestaurant } from "@/components/restaurant/admin/restaurant-form";
 
@@ -26,13 +26,11 @@ export default async function AdminRestaurantsPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
-      <PageHeader
-        icon={UtensilsCrossed}
-        title="Restaurants"
-        description="Create restaurants and manage their ordering accounts."
-      />
-
+    <PageShell
+      icon={UtensilsCrossed}
+      title="Restaurants"
+      description="Create restaurants and manage their ordering accounts."
+    >
       <div className="flex flex-col gap-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {statCards.map(({ key, label, value, icon: Icon, description }) => (
@@ -53,6 +51,6 @@ export default async function AdminRestaurantsPage() {
 
         <RestaurantsTable initialRestaurants={restaurants} />
       </div>
-    </main>
+    </PageShell>
   );
 }

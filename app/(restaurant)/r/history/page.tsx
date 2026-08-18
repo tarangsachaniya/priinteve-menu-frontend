@@ -4,7 +4,7 @@ import { History } from "lucide-react";
 import { getRestaurantSession, serverFetch } from "@/lib/api/server";
 import type { RestoOrderStatus, RestoOrderType, RestoPaymentStatus } from "@/lib/api/enums";
 import { historyQuery, parseHistoryFilters, type HistorySearchParams } from "@/lib/restaurant/order-history";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { OrderHistoryView } from "@/components/restaurant/order-history-view";
 
 export const dynamic = "force-dynamic";
@@ -61,9 +61,12 @@ export default async function RestaurantHistoryPage({
   const data = await serverFetch<HistoryResponse>(`/api/restaurant/orders/history?${qs}`, { cache: "no-store" });
 
   return (
-    <main className="mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
-      <PageHeader icon={History} title="Order history" description="Every past order, cancelled ones included." />
-
+    <PageShell
+      width="wide"
+      icon={History}
+      title="Order history"
+      description="Every past order, cancelled ones included."
+    >
       <OrderHistoryView
         filters={{
           preset: filters.preset,
@@ -85,6 +88,6 @@ export default async function RestaurantHistoryPage({
         page={filters.page}
         totalPages={data.totalPages}
       />
-    </main>
+    </PageShell>
   );
 }

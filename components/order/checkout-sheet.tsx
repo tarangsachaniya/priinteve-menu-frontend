@@ -81,7 +81,11 @@ export function CheckoutSheet({
   // will not agree with.
   const totals = computeOrderTotals({
     items: lines.map((line) => ({ unitPrice: line.unitPrice, quantity: line.quantity })),
-    rules: { taxPercent: restaurant.taxPercent, deliveryFee: restaurant.deliveryFee },
+    rules: {
+      taxPercent: restaurant.taxPercent,
+      taxInclusive: restaurant.taxInclusive,
+      deliveryFee: restaurant.deliveryFee,
+    },
     orderType,
   });
 
@@ -314,12 +318,21 @@ export function CheckoutSheet({
             <span className="text-muted-foreground">Subtotal</span>
             <span className="tabular-nums">{formatCurrency(totals.subtotal)}</span>
           </div>
-          {totals.taxAmount > 0 && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax ({restaurant.taxPercent}%)</span>
-              <span className="tabular-nums">{formatCurrency(totals.taxAmount)}</span>
-            </div>
-          )}
+          {totals.taxAmount > 0 &&
+            (restaurant.taxInclusive ? (
+              // Not a charge row: this line is INSIDE the subtotal above it, not
+              // added to it — totals.total already excludes it. Shown anyway so
+              // "why is there no tax line" doesn't read as tax being skipped.
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Includes GST ({restaurant.taxPercent}%)</span>
+                <span className="tabular-nums">{formatCurrency(totals.taxAmount)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax ({restaurant.taxPercent}%)</span>
+                <span className="tabular-nums">{formatCurrency(totals.taxAmount)}</span>
+              </div>
+            ))}
           {totals.deliveryFee > 0 && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Delivery</span>

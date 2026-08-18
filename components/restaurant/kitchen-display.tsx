@@ -32,7 +32,18 @@ import { cn } from "@/lib/utils";
  * screen would be a line of text competing with the dish names.
  */
 
-const POLL_INTERVAL_MS = 8000;
+/**
+ * How quickly an accept made anywhere else reaches this screen.
+ *
+ * Was 8s. This is the ONLY channel that carries a till on one device accepting
+ * to a tablet on another — order-ack is same-browser by design, and a mounted
+ * KDS holds no staff session so Web Push cannot reach it either. Eight seconds
+ * of a cook staring at a ticket the counter approved is the whole of "the
+ * kitchen doesn't get the order". The payload is a handful of live tickets, so
+ * three seconds costs very little and is the difference between "immediate" and
+ * "eventually".
+ */
+const POLL_INTERVAL_MS = 3000;
 
 /** How often the elapsed timers advance. One timer for the screen, not one per ticket. */
 const CLOCK_INTERVAL_MS = 1000;
@@ -121,7 +132,30 @@ export function KitchenDisplay({
     new Set(initialOrders.filter((o) => KITCHEN_STATUSES.includes(o.status)).map((o) => o.id)),
   );
 
-  const refresh = useCallback(async () => {
+  /**
+   * Orders THIS screen advanced onto the pass itself, held until the server
+   * confirms them.
+   *
+   * `inKitchen` alone cannot carry that. It is reassigned wholesale from every
+   * response — which is right, or it would grow all shift — and that wipes the
+   * claim advance() writes. A poll already in flight when a cook taps Accept
+   * answers with the order still PLACED, erases the claim, and the NEXT poll
+   * then sees the order arrive on the pass and rings at the cook who accepted
+   * it thirty seconds ago. Ringing at someone for their own action is precisely
+   * how a room learns to ignore the sound that matters.
+   *
+   * Self-pruning, so it can never become a permanent latch: a claim is dropped
+   * the moment the server agrees the order is cooking, or the moment the order
+   * stops being listed at all.
+   */
+  const claimed = useRef<Set<string>>(new Set());
+
+  /**
+   * The refetch currently in flight, if any. See `refresh` below.
+   */
+  const inFlight = useRef<Promise<void> | null>(null);
+
+  const fetchOrders = useCallback(async () => {
     try {
       const res = await fetch(ordersBasePath, { cache: "no-store" });
       if (res.status === 401 || res.status === 404) {
@@ -143,11 +177,25 @@ export function KitchenDisplay({
       arrivalSound.current?.setSource(data.kitchenOrderAudioUrl ?? null);
 
       const cooking = data.orders.filter((o) => KITCHEN_STATUSES.includes(o.status));
-      const arrived = cooking.some((o) => !inKitchen.current.has(o.id));
+      const arrived = cooking.some(
+        (o) => !inKitchen.current.has(o.id) && !claimed.current.has(o.id),
+      );
       // Reassigned wholesale rather than merged: an id the response no longer
       // carries has left the pass for good, and keeping it would grow this set
       // for the whole of a shift on a screen that never reloads.
       inKitchen.current = new Set(cooking.map((o) => o.id));
+
+      // A claim is spent once the server confirms the order is on the pass —
+      // inKitchen carries it from here — or once the order drops off the list
+      // entirely. Keeping only the still-unconfirmed ones is what stops this
+      // becoming a set that silences a genuine future arrival.
+      const listedIds = new Set(data.orders.map((o) => o.id));
+      const stillClaimed = new Set<string>();
+      claimed.current.forEach((id) => {
+        if (listedIds.has(id) && !inKitchen.current.has(id)) stillClaimed.add(id);
+      });
+      claimed.current = stillClaimed;
+
       if (arrived) arrivalSound.current?.play();
 
       knownIds.current = new Set(data.orders.map((order) => order.id));
@@ -156,6 +204,28 @@ export function KitchenDisplay({
       // Transient failure — the next tick retries.
     }
   }, [ordersBasePath, onSessionLost]);
+
+  /**
+   * Every refetch goes through here, and overlapping callers share one request.
+   *
+   * Four things now ask this board to refresh — the interval, the mount, a
+   * focus/visibility return, and an ack from the same browser — and switching
+   * back to the tab fires two of them in the same instant. Two overlapping
+   * fetches would each compare their response against an `inKitchen` set that
+   * neither had updated yet, so both would count the same order as newly
+   * arrived and the pass would hear one ticket announced twice. Handing the
+   * later caller the promise already running is what makes a single order
+   * transition produce a single sound, no matter how many things noticed it.
+   */
+  const refresh = useCallback((): Promise<void> => {
+    if (inFlight.current) return inFlight.current;
+
+    const run = fetchOrders().finally(() => {
+      inFlight.current = null;
+    });
+    inFlight.current = run;
+    return run;
+  }, [fetchOrders]);
 
   /**
    * Arms the audio ahead of the first order, silently — same approach as the
@@ -196,8 +266,39 @@ export function KitchenDisplay({
   }
 
   useEffect(() => {
+    /**
+     * Immediately, not in POLL_INTERVAL_MS.
+     *
+     * The tickets are already on screen from the server render, so this looks
+     * redundant — it is not. kitchenOrderAudioUrl rides on this response and on
+     * nothing else, so until the first poll lands `source` is null and any
+     * arrival rings the synthesized drum instead of the restaurant's own track.
+     * That window used to be eight seconds wide and covered exactly the first
+     * order after anyone opened the screen.
+     */
+    void refresh();
+
     const timer = window.setInterval(refresh, POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  /**
+   * A backgrounded tab's timers are throttled to roughly once a minute, and a
+   * tablet that has been asleep comes back to a board that may be minutes
+   * stale. Catching up on the way in costs one request and is the difference
+   * between a cook trusting this screen and reaching for the refresh button.
+   */
+  useEffect(() => {
+    const catchUp = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+
+    document.addEventListener("visibilitychange", catchUp);
+    window.addEventListener("focus", catchUp);
+    return () => {
+      document.removeEventListener("visibilitychange", catchUp);
+      window.removeEventListener("focus", catchUp);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -244,8 +345,13 @@ export function KitchenDisplay({
     }
     // Claim it before the next poll sees it. A cook who accepted the ticket
     // themselves is already looking at the screen, and ringing at them would
-    // teach the room to ignore the sound that matters.
-    if (KITCHEN_STATUSES.includes(next)) inKitchen.current.add(order.id);
+    // teach the room to ignore the sound that matters. Both sets: `inKitchen`
+    // covers the common case, `claimed` survives the wholesale reassign that a
+    // poll already in flight is about to perform. See `claimed`'s declaration.
+    if (KITCHEN_STATUSES.includes(next)) {
+      inKitchen.current.add(order.id);
+      claimed.current.add(order.id);
+    }
 
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: next } : o)));
   }

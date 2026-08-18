@@ -55,6 +55,45 @@ export function createAlertSound(fallback: Damru): AlertSound {
   /** Set when the file itself is unusable — a 404/403, or a codec this browser won't take. */
   let sourceBroken = false;
 
+  /**
+   * ─── THE LATCH BUG THIS FLAG EXISTS TO PREVENT ─────────────────────────────
+   *
+   * Pausing a media element while its play() promise is still pending rejects
+   * that promise with AbortError ("The play() request was interrupted by a call
+   * to pause()"). This code pauses the element in two places of its own accord —
+   * stopAll(), and the muted prime — and BOTH are routinely called while a real
+   * alert is sounding:
+   *
+   *   stopAll()      fires the instant an order is accepted, which is very often
+   *                  mid-phrase.
+   *   primeElement() was wired to a non-`once` pointerdown listener, so any tap
+   *                  anywhere on the console or the kitchen screen ran it.
+   *
+   * The rejection handler in play() then read AbortError as "this file is
+   * broken", set sourceBroken, and — because sourceBroken is only ever cleared
+   * when the URL itself changes — every later alert on that page fell back to
+   * the synthesized drum, permanently. That is the whole of "I uploaded a track
+   * and still hear the damru": the track worked, and then one Accept or one tap
+   * turned it off for the life of the page.
+   *
+   * So an interruption WE caused is not evidence about the file. This counter is
+   * bumped before every such pause; play() captures it and discards any
+   * rejection that arrives after a bump.
+   */
+  let interruptions = 0;
+
+  /**
+   * Bumped by every real play() request, so the muted prime can tell that an
+   * actual alert took the element over while it was mid-flight.
+   *
+   * The case: the kitchen's poll calls setSource() and then play() in the same
+   * tick, the first time it ever learns the URL. setSource kicks off a prime
+   * that has already set `muted = true` by the time play() runs, and would then
+   * pause the very alert play() just started. Silence, for the one arrival that
+   * mattered most. See the takeover branch in primeElement().
+   */
+  let playRequests = 0;
+
   function audio(): HTMLAudioElement | null {
     if (typeof window === "undefined") return null;
     if (!element) {
@@ -86,12 +125,45 @@ export function createAlertSound(fallback: Damru): AlertSound {
    * no activation granted, which is the whole reason the uploaded track never
    * played — unlock() ran on mount, before the first poll had supplied a URL,
    * and nothing tried again afterwards.
+   *
+   * TWO GUARDS, and they are the point rather than an optimisation:
+   *
+   *   already armed   there is nothing left to prove, so a later tap must not
+   *                   touch the element at all.
+   *   already playing an alert is sounding RIGHT NOW. Muting and pausing it to
+   *                   prove the browser would allow a sound is self-defeating —
+   *                   it cuts the alert short and, before the `interruptions`
+   *                   counter existed, latched the file off for good.
    */
   async function primeElement(el: HTMLAudioElement): Promise<void> {
+    if (elementUnlocked) return;
+    if (!el.paused) {
+      // Audible playback is stronger proof than any prime could be.
+      elementUnlocked = true;
+      elementBlocked = false;
+      return;
+    }
+
     const wasMuted = el.muted;
+    const startedAt = playRequests;
     el.muted = true;
     try {
       await el.play();
+
+      // A real alert came through while this was in flight — it is playing now,
+      // and pausing it to finish proving a point would be the bug this whole
+      // guard exists for. Its own play() unmuted the element; the `finally`
+      // below restores the pre-prime state anyway.
+      if (playRequests !== startedAt) {
+        elementUnlocked = true;
+        elementBlocked = false;
+        return;
+      }
+
+      // Ending the prime is an interruption of our own making. Counted even
+      // though nothing real should be in flight here, because the pause below
+      // would otherwise reject a play() that raced in between.
+      interruptions += 1;
       el.pause();
       el.currentTime = 0;
       elementUnlocked = true;
@@ -115,6 +187,11 @@ export function createAlertSound(fallback: Damru): AlertSound {
       if (!el) return;
 
       if (url) {
+        // load() abandons whatever the element was doing, which rejects a
+        // play() in flight exactly as pause() does. Rare — the URL only changes
+        // when an owner uploads mid-shift — but it is the same self-inflicted
+        // abort, and it must not be read as the new file being bad.
+        interruptions += 1;
         el.src = url;
         el.load();
 
@@ -153,7 +230,9 @@ export function createAlertSound(fallback: Damru): AlertSound {
        * asked to tap again the first time an order actually arrived.
        *
        * setSource() primes too, for the case where the gesture happened before
-       * the URL existed.
+       * the URL existed. primeElement() no-ops once armed, so the always-on
+       * gesture listeners above this can call unlock() on every tap for the
+       * AudioContext's sake without ever disturbing the media element.
        */
       await primeElement(el);
     },
@@ -174,25 +253,47 @@ export function createAlertSound(fallback: Damru): AlertSound {
         return;
       }
 
+      playRequests += 1;
       // Rewound rather than resumed: two orders arriving four seconds apart
       // must each get the whole sound from the start, not the tail of the last.
       el.currentTime = 0;
+      // Asserted rather than assumed: a prime racing this in the same tick has
+      // already set muted, and an alert nobody can hear is the same failure as
+      // no alert at all.
+      el.muted = false;
+      // Captured before the attempt: anything that bumps this while play() is
+      // in flight is us stopping our own sound, not the browser or the file
+      // refusing it. See `interruptions` at the top of the factory.
+      const attemptedAt = interruptions;
       el.play().then(
         () => {
           elementUnlocked = true;
           elementBlocked = false;
         },
         (err: unknown) => {
+          /**
+           * We cut it short ourselves — an Accept that called stopAll(), or a
+           * prime that raced in. Nothing has been learned about the file or the
+           * browser's willingness to play it, so nothing may be recorded, and
+           * the drum must NOT ring: silence is the whole point of stopAll().
+           */
+          if (interruptions !== attemptedAt) return;
+
           elementBlocked = true;
           /**
            * The reason used to be discarded, which is precisely why "I uploaded
            * a track and hear the drum" could not be diagnosed from a report.
            * NotAllowedError means the browser refused an unprompted sound and a
-           * tap fixes it; anything else means the file is the problem and no
-           * amount of tapping will help.
+           * tap fixes it; NotSupportedError means this browser cannot play the
+           * file at all and no amount of tapping will help.
+           *
+           * Anything else is left recoverable on purpose. Marking the source
+           * broken is a one-way latch for the life of the page, so it is spent
+           * only on the one error that genuinely means "never going to work" —
+           * the `error` listener in audio() above covers the load failures.
            */
           const name = err instanceof Error ? err.name : "unknown";
-          if (name !== "NotAllowedError") sourceBroken = true;
+          if (name === "NotSupportedError") sourceBroken = true;
           console.warn(
             `[alert-sound] uploaded track refused (${name}), falling back to the drum:`,
             source,
@@ -208,6 +309,11 @@ export function createAlertSound(fallback: Damru): AlertSound {
     stopAll: () => {
       fallback.stopAll();
       if (element && source) {
+        // Bumped BEFORE the pause: a play() still in flight is about to reject
+        // with AbortError, and this is what tells its handler the abort was
+        // ours. Without it, accepting an order mid-phrase used to convict the
+        // uploaded file and hand the rest of the shift to the drum.
+        interruptions += 1;
         element.pause();
         element.currentTime = 0;
       }

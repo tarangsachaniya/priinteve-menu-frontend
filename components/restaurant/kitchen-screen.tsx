@@ -16,9 +16,10 @@ import { screenLockPath, screenOrdersPath } from "@/lib/restaurant/screen-paths"
  * /api/screen/<token>/orders, it can lock itself, and it stops trusting its own
  * state the moment the API says its credentials are no longer good.
  *
- * The alert provider is mounted here too, with the dialog off and push off — a
- * screen nobody is signed into cannot register for Web Push, and the damru is
- * the whole reason a kitchen notices an order at all.
+ * The alert provider is mounted here too, with the dialog off, push off — a
+ * screen nobody is signed into cannot register for Web Push — and the sound off,
+ * because KitchenDisplay rings for itself when an order reaches the pass. What
+ * the provider still contributes is the ringing pill and the tab badge.
  */
 export function KitchenScreen({
   token,
@@ -58,6 +59,7 @@ export function KitchenScreen({
         enablePush={false}
         ordersBasePath={ordersBasePath}
         surface="kitchen"
+        ring={false}
       />
     </>
   );

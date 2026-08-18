@@ -176,11 +176,29 @@ export function OrderAlertProvider({
    * unrelated prop is how they would eventually get crossed.
    */
   surface = "restaurant",
+  /**
+   * Whether this instance is allowed to make a noise.
+   *
+   * The kitchen surfaces set this false, and the reason is that they mount a
+   * SECOND alert system: KitchenDisplay rings once when an order enters the
+   * ACCEPTED/PREPARING lane, which is the pass's actual cue — the moment the
+   * counter commits to food the kitchen now has to cook. This provider rings for
+   * PLACED, which is the till's cue and happens BEFORE that. With both live, one
+   * order produced two different alerts in the same room: a drum repeating every
+   * 900ms from the moment the guest ordered, then a separate sound when it was
+   * approved. Two alerts for one order is how a kitchen learns to ignore both.
+   *
+   * Everything else this component does still applies on those screens — the
+   * ringing pill, the tab-title badge, and the push transport — so it stays
+   * mounted rather than being torn out. Only the sound goes.
+   */
+  ring = true,
 }: {
   showDialog?: boolean;
   ordersBasePath?: string;
   enablePush?: boolean;
   surface?: "kitchen" | "restaurant";
+  ring?: boolean;
 } = {}) {
   const router = useRouter();
 
@@ -219,7 +237,11 @@ export function OrderAlertProvider({
   /** Whatever the title was before an alert prefixed it. */
   const baseTitle = useRef<string>("");
 
-  if (damru.current === null && typeof window !== "undefined") {
+  // Left null when this instance is silent, which makes every `damru.current?.`
+  // below a no-op rather than something each call site has to remember to
+  // guard — and means a silent instance never creates an AudioContext or a
+  // media element it has no use for.
+  if (ring && damru.current === null && typeof window !== "undefined") {
     // Wrapped so a restaurant's uploaded file, if it has one, replaces the
     // synthesized drum without this component knowing which it got.
     damru.current = createAlertSound(createDamru());
@@ -406,6 +428,9 @@ export function OrderAlertProvider({
   // not restart the cadence mid-phrase.
   useEffect(() => {
     if (!isRinging) return;
+    // A silent instance still tracks the ring — the pill and the tab badge are
+    // driven by it — it just never sounds. See the `ring` prop.
+    if (!ring) return;
 
     const fire = () => {
       if (!soundEnabled()) return;
@@ -464,7 +489,7 @@ export function OrderAlertProvider({
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [isRinging]);
+  }, [isRinging, ring]);
 
   // ── sound unlock ──────────────────────────────────────────────────────────
   // An AudioContext can only be resumed inside a user gesture, so the first

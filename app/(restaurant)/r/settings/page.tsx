@@ -184,7 +184,10 @@ export default async function RestaurantSettingsPage() {
           Ring this device when an order comes in, so nobody has to watch the board. Set up each
           phone, tablet and till separately — they each need their own permission.
         </p>
-        <AlertSettings />
+        {/* The resolved restaurant-order sound, so the confirmation this switch
+            plays is the one an order will actually make. Never the kitchen's —
+            the two are configured separately and this is the console. */}
+        <AlertSettings orderSoundUrl={audio?.restaurantOrderAudioUrl ?? null} />
       </section>
 
       <section className="mt-10">

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { createAlertSound } from "@/lib/restaurant/alert-sound";
 import { createDamru } from "@/lib/restaurant/damru";
 import {
   disablePush,
@@ -63,7 +64,26 @@ const STATE_COPY: Record<PushState, { label: string; detail: string; tone: strin
   },
 };
 
-export function AlertSettings() {
+export function AlertSettings({
+  /**
+   * What this console will actually play — the restaurant's own upload, or the
+   * platform default, already resolved by the API. Null means no file is
+   * configured and the synthesized damru is the intended sound.
+   *
+   * Passed in rather than fetched: the Settings page already reads
+   * /api/restaurant/settings/audio for AudioSettingsForm, and a second request
+   * for the same three strings would be able to disagree with the first.
+   *
+   * It exists because the confirmation below used to play a hardcoded
+   * createDamru() — so an owner who had just uploaded a track, flipped this
+   * switch to check it, and heard the drum, had every reason to conclude the
+   * upload had not taken. The switch is the most natural place to test the
+   * sound, so it has to be the real one.
+   */
+  orderSoundUrl = null,
+}: {
+  orderSoundUrl?: string | null;
+} = {}) {
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
   const [sound, setSound] = useState(true);
@@ -123,10 +143,15 @@ export function AlertSettings() {
 
     // Play it on the way on, both as confirmation and because this click is a
     // user gesture — which is the only moment the browser will let an
-    // AudioContext start. See the autoplay note in lib/restaurant/damru.ts.
+    // AudioContext start, or a media element be marked user-activated. See the
+    // autoplay note in lib/restaurant/damru.ts.
     if (next) {
-      const drum = createDamru();
-      void drum.unlock().then(() => drum.play());
+      // Same wrapper the console and the kitchen use, so this preview is the
+      // restaurant's configured track when it has one and the synthesized drum
+      // only when it does not — never the drum in place of a track.
+      const sound = createAlertSound(createDamru());
+      sound.setSource(orderSoundUrl);
+      void sound.unlock().then(() => sound.play());
     }
   }
 
@@ -166,11 +191,13 @@ export function AlertSettings() {
           <div className="min-w-0">
             <Label htmlFor="alert-sound" className="flex items-center gap-1.5">
               <Volume2 className="size-4" />
-              Damru sound
+              Alert sound
             </Label>
             <p className="text-xs text-muted-foreground">
-              Repeats every few seconds until someone accepts or cancels the order. Turning this off
-              leaves the popup and the tab badge — only the drum goes quiet.
+              {orderSoundUrl
+                ? "Your uploaded track, under Sounds above. Repeats every few seconds until someone accepts or cancels the order."
+                : "Repeats every few seconds until someone accepts or cancels the order. Upload your own under Sounds above."}{" "}
+              Turning this off leaves the popup and the tab badge — only the sound goes quiet.
             </p>
           </div>
           <Switch id="alert-sound" checked={sound} onCheckedChange={toggleSound} />
@@ -184,8 +211,9 @@ export function AlertSettings() {
         */}
         <p className="rounded-xl bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
           With the browser fully closed you&apos;ll get your device&apos;s usual notification sound
-          rather than the damru — the drum needs a console window open, in any state, including
-          minimized. On Windows, Chrome must also be allowed to keep running in the background.
+          rather than your own — the alert sound needs a console window open, in any state,
+          including minimized. On Windows, Chrome must also be allowed to keep running in the
+          background.
         </p>
       </CardContent>
     </Card>

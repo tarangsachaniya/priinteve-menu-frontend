@@ -14,21 +14,21 @@ import { SettingsNav } from "@/components/restaurant/settings/settings-nav";
  * what it edited — see components/restaurant/settings/shared.tsx's
  * patchRestaurantSettings for the partial-PATCH half of that.
  *
- * The header and the section rail live here, once, rather than being repeated
- * by every sub-page — that repetition is exactly the kind of drift a shared
- * layout exists to prevent.
+ * The header and the section tab bar live here, once, rather than being
+ * repeated by every sub-page — that repetition is exactly the kind of drift
+ * a shared layout exists to prevent.
  */
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
     <PageShell
-      width="nav"
+      width="reading"
       icon={Settings}
       title="Settings"
       description="Order types, payment options and how your restaurant appears to customers."
     >
-      <div className="flex flex-col gap-6 md:flex-row md:gap-10">
+      <div className="flex flex-col gap-6">
         <SettingsNav />
-        <div className="min-w-0 flex-1">{children}</div>
+        {children}
       </div>
     </PageShell>
   );

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   Banknote,
   Clock,
@@ -27,16 +26,23 @@ export const SETTINGS_SECTIONS: { href: string; label: string; icon: LucideIcon 
 ];
 
 /**
- * The section rail for the settings layout — vertical on md+, a horizontal
- * scroller on mobile where there's no room for a second sidebar.
+ * The settings section switcher — a horizontal tab bar, one real route per
+ * tab rather than client-side panel state.
  *
- * NOT NavItemLink (components/dashboard/nav-item.tsx). That component's active
- * pill uses `layoutId="nav-active-pill"`, and framer-motion resolves a
- * `layoutId` against every mounted element sharing it — reusing it here would
- * put this rail's pill and RestaurantSidebar's pill in the same shared-layout
- * group, so navigating between settings sections would animate the sidebar's
- * pill flying in from wherever "Settings" sits in the main nav. A distinct
- * `layoutId` is what keeps the two animations independent.
+ * Styled after the pill-tab row RevenueChart's period switcher already uses
+ * on the dashboard (app/(restaurant)/r/dashboard/page.tsx) — a rounded-full
+ * `bg-muted` track with the active item lifted onto `bg-card shadow-sm` —
+ * rather than the base-ui `Tabs` primitive in components/ui/tabs.tsx. That
+ * primitive owns its own panel-switching state via `value`/`onValueChange`,
+ * built for content that lives in one mounted tree; each of these seven
+ * sections is its own page with its own data fetch, so navigation is real
+ * `<Link>`s and only the visual language is "tabs".
+ *
+ * Deliberately plain conditional classes rather than framer-motion's shared
+ * `layoutId` pill: that pill previously had to be kept in its own
+ * `layoutId` namespace to avoid colliding with RestaurantSidebar's — simpler
+ * to have no shared-layout animation here at all than to keep re-deriving
+ * that isolation correctly.
  */
 export function SettingsNav() {
   const pathname = usePathname();
@@ -44,7 +50,7 @@ export function SettingsNav() {
   return (
     <nav
       aria-label="Settings sections"
-      className="flex gap-1 overflow-x-auto pb-2 md:w-52 md:shrink-0 md:flex-col md:gap-0.5 md:overflow-visible md:pb-0"
+      className="flex w-full gap-1 overflow-x-auto rounded-full bg-muted p-1"
     >
       {SETTINGS_SECTIONS.map((section) => {
         const isActive = pathname === section.href;
@@ -54,19 +60,14 @@ export function SettingsNav() {
             key={section.href}
             href={section.href}
             className={cn(
-              "relative flex shrink-0 items-center gap-2.5 rounded-full px-3.5 py-2 text-sm font-medium whitespace-nowrap transition-colors md:shrink",
-              isActive ? "text-ink" : "text-muted-foreground hover:text-foreground",
+              "flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+              isActive
+                ? "bg-card text-ink shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {isActive && (
-              <motion.span
-                layoutId="settings-nav-active-pill"
-                className="absolute inset-0 rounded-full bg-primary"
-                transition={{ type: "spring", stiffness: 500, damping: 40 }}
-              />
-            )}
-            <Icon className="relative size-4 shrink-0" />
-            <span className="relative">{section.label}</span>
+            <Icon className="size-4 shrink-0" />
+            {section.label}
           </Link>
         );
       })}

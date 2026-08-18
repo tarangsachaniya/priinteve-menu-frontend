@@ -26,15 +26,11 @@ import { PageHeader } from "@/components/shared/page-header";
  *   reading  a form or a short read — settings sections, reviews.
  *   grid     card grids — dashboard, menu, tables.
  *   wide     dense tables and boards — orders, history.
- *   nav      reading width plus room for a side rail — currently only the
- *            settings section nav; add here if a second page needs the shape
- *            rather than picking an ad hoc value at the call site.
  */
 const WIDTH = {
   reading: "max-w-3xl",
   grid: "max-w-6xl",
   wide: "max-w-7xl",
-  nav: "max-w-5xl",
 } as const;
 
 export function PageShell({

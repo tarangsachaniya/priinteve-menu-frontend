@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import type { RestoOrderStatus } from "@/lib/api/enums";
 import { Button } from "@/components/ui/button";
 import { CancelOrderDialog } from "@/components/restaurant/cancel-order-dialog";
+import { createAlertSound, type AlertSound } from "@/lib/restaurant/alert-sound";
+import { createDamru } from "@/lib/restaurant/damru";
 import { elapsedSince, minutesWaiting } from "@/lib/restaurant/elapsed";
 import { CONSOLE_ORDERS_PATH, type KitchenOrder } from "@/lib/restaurant/live-order";
 import { patchOrderStatus } from "@/lib/restaurant/order-actions";
@@ -52,6 +54,12 @@ const ADVANCE_LABEL: Partial<Record<RestoOrderStatus, string>> = {
   READY: "Mark ready",
 };
 
+/**
+ * The statuses that mean "this is the kitchen's problem now". Entering this set
+ * is what rings the pass — see the sound effect below.
+ */
+const KITCHEN_STATUSES: readonly RestoOrderStatus[] = ["ACCEPTED", "PREPARING"];
+
 /** Minutes waited before a ticket starts shouting. */
 const WARN_AFTER_MINUTES = 10;
 const LATE_AFTER_MINUTES = 20;
@@ -90,6 +98,27 @@ export function KitchenDisplay({
   const knownIds = useRef(new Set(initialOrders.map((order) => order.id)));
   const wakeLock = useWakeLock();
 
+  /**
+   * Rings when an order lands in the kitchen's queue — the moment the counter
+   * approves it, not the moment the guest sends it.
+   *
+   * A cook is across the room with their hands full and never sees the tablet
+   * change. OrderAlertProvider rings for PLACED, which is the till's cue to
+   * approve; by the time it stops, the kitchen has heard nothing about the food
+   * it now has to cook. This is that missing cue.
+   *
+   * Seeded from the orders already on screen, so mounting the board — or a
+   * reconnect that re-lists a full pass — is silent. Only a genuine arrival
+   * makes noise.
+   */
+  const arrivalSound = useRef<AlertSound | null>(null);
+  if (arrivalSound.current === null && typeof window !== "undefined") {
+    arrivalSound.current = createAlertSound(createDamru());
+  }
+  const inKitchen = useRef(
+    new Set(initialOrders.filter((o) => KITCHEN_STATUSES.includes(o.status)).map((o) => o.id)),
+  );
+
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(ordersBasePath, { cache: "no-store" });
@@ -98,13 +127,51 @@ export function KitchenDisplay({
         return;
       }
       if (!res.ok) return;
-      const data = (await res.json()) as { orders: KitchenOrder[] };
+      const data = (await res.json()) as {
+        orders: KitchenOrder[];
+        kitchenOrderAudioUrl?: string | null;
+      };
+
+      /**
+       * Only this surface's key, never the till's. Keeping the pass and the
+       * counter on separate sounds is deliberate — see OrderAlertProvider. A
+       * console session is not served one at all, and null here simply means
+       * the built-in drum rings instead of an uploaded file.
+       */
+      arrivalSound.current?.setSource(data.kitchenOrderAudioUrl ?? null);
+
+      const cooking = data.orders.filter((o) => KITCHEN_STATUSES.includes(o.status));
+      const arrived = cooking.some((o) => !inKitchen.current.has(o.id));
+      // Reassigned wholesale rather than merged: an id the response no longer
+      // carries has left the pass for good, and keeping it would grow this set
+      // for the whole of a shift on a screen that never reloads.
+      inKitchen.current = new Set(cooking.map((o) => o.id));
+      if (arrived) arrivalSound.current?.play();
+
       knownIds.current = new Set(data.orders.map((order) => order.id));
       setOrders(data.orders);
     } catch {
       // Transient failure — the next tick retries.
     }
   }, [ordersBasePath, onSessionLost]);
+
+  /**
+   * Arms the audio ahead of the first order, silently — same approach as the
+   * console's alert provider. A wall tablet is usually a device that has played
+   * sound before, so this simply succeeds; where the browser refuses, the first
+   * touch anyone makes for any other reason arms it instead.
+   */
+  useEffect(() => {
+    const sound = arrivalSound.current;
+    if (!sound) return;
+
+    void sound.unlock();
+    if (sound.isUnlocked()) return;
+
+    const arm = () => void sound.unlock();
+    window.addEventListener("pointerdown", arm, { once: true });
+    return () => window.removeEventListener("pointerdown", arm);
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(refresh, POLL_INTERVAL_MS);
@@ -153,6 +220,11 @@ export function KitchenDisplay({
       if (result.conflict) void refresh();
       return;
     }
+    // Claim it before the next poll sees it. A cook who accepted the ticket
+    // themselves is already looking at the screen, and ringing at them would
+    // teach the room to ignore the sound that matters.
+    if (KITCHEN_STATUSES.includes(next)) inKitchen.current.add(order.id);
+
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: next } : o)));
   }
 

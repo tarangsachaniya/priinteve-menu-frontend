@@ -1,7 +1,6 @@
 import { Settings } from "lucide-react";
 
 import { PageShell } from "@/components/shared/page-shell";
-import { SettingsNav } from "@/components/restaurant/settings/settings-nav";
 
 /**
  * Shell for every settings sub-route (profile, ordering, payments, sounds,
@@ -14,9 +13,12 @@ import { SettingsNav } from "@/components/restaurant/settings/settings-nav";
  * what it edited — see components/restaurant/settings/shared.tsx's
  * patchRestaurantSettings for the partial-PATCH half of that.
  *
- * The header and the section tab bar live here, once, rather than being
- * repeated by every sub-page — that repetition is exactly the kind of drift
- * a shared layout exists to prevent.
+ * No section switcher rendered here any more — a horizontal tab row for
+ * seven labels clipped its last item and needed its own scrollbar at
+ * ordinary desktop widths. The switcher now lives in RestaurantSidebar
+ * itself, nested under the Settings link (see SettingsSubNav there and
+ * SETTINGS_NAV_ITEMS in lib/restaurant/nav-config.ts), which has a whole
+ * vertical column to grow into and no width limit to fight.
  */
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -26,10 +28,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       title="Settings"
       description="Order types, payment options and how your restaurant appears to customers."
     >
-      <div className="flex flex-col gap-6">
-        <SettingsNav />
-        {children}
-      </div>
+      {children}
     </PageShell>
   );
 }

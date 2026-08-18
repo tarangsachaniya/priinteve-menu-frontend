@@ -1,12 +1,18 @@
 import {
+  Banknote,
   LayoutDashboard,
   BookOpen,
   ChefHat,
+  Clock,
+  CreditCard,
   History,
+  Monitor,
   ReceiptText,
   Settings,
   Star,
+  Store,
   Table2,
+  Volume2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,4 +36,26 @@ export const RESTAURANT_NAV_ITEMS: RestaurantNavItem[] = [
   { href: "/r/tables", label: "Tables", icon: Table2 },
   { href: "/r/reviews", label: "Reviews", icon: Star },
   { href: "/r/settings", label: "Settings", icon: Settings },
+];
+
+/**
+ * The seven settings sections, nested under the Settings item in the
+ * sidebar itself rather than a separate tab bar in the content area.
+ *
+ * A horizontal tab row here used to clip its last item and scroll under its
+ * own weight at ordinary desktop widths — seven labels plus icons simply
+ * don't fit above ~1100px, and a scrollbar on a primary nav reads as broken
+ * rather than as "more items available". The sidebar has no such limit: it's
+ * a vertical list with room to grow, and it's already sitting right next to
+ * the content with nothing else competing for that space once "Settings" is
+ * the active section.
+ */
+export const SETTINGS_NAV_ITEMS: RestaurantNavItem[] = [
+  { href: "/r/settings/profile", label: "Profile", icon: Store },
+  { href: "/r/settings/ordering", label: "Ordering", icon: Banknote },
+  { href: "/r/settings/payments", label: "Payments", icon: CreditCard },
+  { href: "/r/settings/sounds", label: "Sounds", icon: Volume2 },
+  { href: "/r/settings/screens", label: "Screens", icon: Monitor },
+  { href: "/r/settings/hours", label: "Hours", icon: Clock },
+  { href: "/r/settings/invoice", label: "Invoice", icon: ReceiptText },
 ];

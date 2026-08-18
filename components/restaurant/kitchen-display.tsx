@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChefHat, Lock, Maximize, Minimize, MonitorOff, StickyNote, Timer } from "lucide-react";
+import { ChefHat, Lock, Maximize, Minimize, MonitorOff, StickyNote, Timer, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 
 import type { RestoOrderStatus } from "@/lib/api/enums";
@@ -94,6 +94,8 @@ export function KitchenDisplay({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pendingCancel, setPendingCancel] = useState<KitchenOrder | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  /** Starts false so the prompt shows until the browser has actually said yes. */
+  const [soundArmed, setSoundArmed] = useState(false);
 
   const knownIds = useRef(new Set(initialOrders.map((order) => order.id)));
   const wakeLock = useWakeLock();
@@ -160,18 +162,38 @@ export function KitchenDisplay({
    * console's alert provider. A wall tablet is usually a device that has played
    * sound before, so this simply succeeds; where the browser refuses, the first
    * touch anyone makes for any other reason arms it instead.
+   *
+   * The result is reflected on screen rather than left implicit. The alert
+   * provider only renders its enable-sound button while an order is ringing, so
+   * on this board the affordance would have appeared strictly AFTER a sound had
+   * already been missed — no use to a kitchen that needs the first one.
    */
   useEffect(() => {
     const sound = arrivalSound.current;
     if (!sound) return;
 
-    void sound.unlock();
-    if (sound.isUnlocked()) return;
+    // isUnlocked() alone is satisfied by the AudioContext, so a restaurant
+    // whose uploaded track is being refused would see the prompt disappear
+    // while only the drum ever rang. Substitution keeps the prompt up.
+    const sync = () =>
+      setSoundArmed(sound.isUnlocked() && !sound.needsReArm() && !sound.isSubstituting());
 
-    const arm = () => void sound.unlock();
-    window.addEventListener("pointerdown", arm, { once: true });
+    void sound.unlock().then(sync);
+    sync();
+
+    // Not `once` — an early tap can land before a source exists, and the
+    // element only becomes armed when one arrives, so keep re-checking.
+    const arm = () => void sound.unlock().then(sync);
+    window.addEventListener("pointerdown", arm);
     return () => window.removeEventListener("pointerdown", arm);
   }, []);
+
+  async function enableSound() {
+    const sound = arrivalSound.current;
+    if (!sound) return;
+    await sound.unlock();
+    setSoundArmed(sound.isUnlocked() && !sound.needsReArm() && !sound.isSubstituting());
+  }
 
   useEffect(() => {
     const timer = window.setInterval(refresh, POLL_INTERVAL_MS);
@@ -258,6 +280,20 @@ export function KitchenDisplay({
         </h1>
 
         <div className="flex items-center gap-3">
+          {/* Sized to be read and hit from across the kitchen, and shown BEFORE
+              the first order rather than after one has been missed. Browsers
+              refuse unprompted audio until the page has been touched once; this
+              is that one touch, made obvious instead of left to be discovered. */}
+          {!soundArmed && (
+            <button
+              type="button"
+              onClick={() => void enableSound()}
+              className="flex items-center gap-2 rounded-xl bg-amber-500/15 px-3.5 py-2.5 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-500/25"
+            >
+              <Volume2 className="size-5 shrink-0" />
+              Tap to enable sound
+            </button>
+          )}
           {/* A wake lock that failed silently is a screen that dies at midnight
               with nobody knowing why, so it is said out loud rather than logged. */}
           {!wakeLock.active && (

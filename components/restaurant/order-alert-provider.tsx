@@ -419,7 +419,15 @@ export function OrderAlertProvider({
       // out of it, and no path back to the affordance that fixes it.
       if (drum?.isUnlocked() && !drum.needsReArm()) {
         drum.play();
-        setSoundBlocked(false);
+        /**
+         * A sound came out, but not necessarily the one the restaurant chose.
+         * isUnlocked() is satisfied by the AudioContext alone, so an uploaded
+         * track that the browser refuses leaves the drum ringing while this
+         * reported everything as fine — which is exactly how "I uploaded a
+         * track and still hear the damru" went unexplained. Read it after
+         * play(), so the flag reflects the attempt just made.
+         */
+        setSoundBlocked(drum.isSubstituting());
       } else {
         /**
          * Reached only when an alert that SHOULD be audible is not — a browser

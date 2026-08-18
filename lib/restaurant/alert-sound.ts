@@ -34,6 +34,16 @@ export type AlertSound = {
   needsReArm: () => boolean;
   /** Null returns to the synthesized sound. Safe to call on every poll. */
   setSource: (url: string | null) => void;
+  /**
+   * True when a file IS configured but the synthesized drum is what the room
+   * actually hears — the element was refused, or the file will not load.
+   *
+   * Distinct from `isUnlocked()`, which answers "will any sound come out". Both
+   * can be true at once, and that combination is exactly the failure this
+   * exists to expose: a restaurant that uploaded a track, hears the drum, and
+   * is told everything is working.
+   */
+  isSubstituting: () => boolean;
 };
 
 export function createAlertSound(fallback: Damru): AlertSound {
@@ -42,17 +52,64 @@ export function createAlertSound(fallback: Damru): AlertSound {
   let elementUnlocked = false;
   /** True once the element has tried and failed to play, so the UI can say so. */
   let elementBlocked = false;
+  /** Set when the file itself is unusable — a 404/403, or a codec this browser won't take. */
+  let sourceBroken = false;
 
   function audio(): HTMLAudioElement | null {
     if (typeof window === "undefined") return null;
-    if (!element) element = new Audio();
+    if (!element) {
+      element = new Audio();
+      /**
+       * A load failure never reaches play()'s rejection handler — the element
+       * simply stays empty and every play() resolves without a sound. Without
+       * this listener a 403 on the uploaded file is indistinguishable from
+       * autoplay being blocked, which is what made this class of bug
+       * undiagnosable from a bug report.
+       */
+      element.addEventListener("error", () => {
+        if (!source) return;
+        sourceBroken = true;
+        console.warn(
+          `[alert-sound] uploaded track failed to load, falling back to the drum:`,
+          source,
+          element?.error?.message ?? "",
+        );
+      });
+    }
     return element;
+  }
+
+  /**
+   * Marks the element user-activated using a muted play/pause.
+   *
+   * Only meaningful once there is a src: priming an empty element rejects with
+   * no activation granted, which is the whole reason the uploaded track never
+   * played — unlock() ran on mount, before the first poll had supplied a URL,
+   * and nothing tried again afterwards.
+   */
+  async function primeElement(el: HTMLAudioElement): Promise<void> {
+    const wasMuted = el.muted;
+    el.muted = true;
+    try {
+      await el.play();
+      el.pause();
+      el.currentTime = 0;
+      elementUnlocked = true;
+      elementBlocked = false;
+    } catch {
+      // No source yet is the ordinary case and not a failure — the gesture
+      // still arms the element for later.
+      if (source) elementBlocked = true;
+    } finally {
+      el.muted = wasMuted;
+    }
   }
 
   return {
     setSource: (url) => {
       if (url === source) return; // Called from a poll; reassigning src would restart it.
       source = url;
+      sourceBroken = false;
 
       const el = audio();
       if (!el) return;
@@ -60,6 +117,23 @@ export function createAlertSound(fallback: Damru): AlertSound {
       if (url) {
         el.src = url;
         el.load();
+
+        /**
+         * THE FIX FOR "I UPLOADED A TRACK AND STILL HEAR THE DRUM".
+         *
+         * unlock() runs on mount, which is before this poll has ever supplied a
+         * URL — so it primed an element with no src, that play() rejected, and
+         * elementUnlocked stayed false forever. Every later ring was then a
+         * timer-initiated play() on an element the browser had never seen
+         * activated, so it was refused and the drum rang in its place.
+         *
+         * Priming again here, now that there IS something to prime with, is
+         * what closes that window. It relies on the sticky user activation an
+         * earlier gesture left on the document, so it succeeds whenever anyone
+         * has touched the page at all — and simply fails quietly when nobody
+         * has, leaving the existing gesture listeners to arm it.
+         */
+        if (!elementUnlocked) void primeElement(el);
       } else {
         el.removeAttribute("src");
       }
@@ -72,27 +146,16 @@ export function createAlertSound(fallback: Damru): AlertSound {
       if (!el) return;
 
       /**
-       * Priming trick: a muted play/pause inside the gesture marks the element
-       * as user-activated for the rest of the page's life, so a later
-       * unmuted play() from a timer is allowed. Without it the element is
-       * blocked the same way an un-resumed AudioContext is, and the restaurant
-       * would be asked to tap again the first time an order actually arrived.
+       * A muted play/pause inside the gesture marks the element as
+       * user-activated for the rest of the page's life, so a later unmuted
+       * play() from a timer is allowed. Without it the element is blocked the
+       * same way an un-resumed AudioContext is, and the restaurant would be
+       * asked to tap again the first time an order actually arrived.
+       *
+       * setSource() primes too, for the case where the gesture happened before
+       * the URL existed.
        */
-      const wasMuted = el.muted;
-      el.muted = true;
-      try {
-        await el.play();
-        el.pause();
-        el.currentTime = 0;
-        elementUnlocked = true;
-        elementBlocked = false;
-      } catch {
-        // No source yet is the ordinary case here and not a failure — the
-        // element is armed by the gesture regardless, so do not mark it blocked.
-        if (source) elementBlocked = true;
-      } finally {
-        el.muted = wasMuted;
-      }
+      await primeElement(el);
     },
 
     play: () => {
@@ -104,6 +167,13 @@ export function createAlertSound(fallback: Damru): AlertSound {
       const el = audio();
       if (!el) return;
 
+      // A file that will not load can never ring; go straight to the drum
+      // rather than waiting on a play() that resolves silently.
+      if (sourceBroken) {
+        fallback.play();
+        return;
+      }
+
       // Rewound rather than resumed: two orders arriving four seconds apart
       // must each get the whole sound from the start, not the tail of the last.
       el.currentTime = 0;
@@ -112,8 +182,21 @@ export function createAlertSound(fallback: Damru): AlertSound {
           elementUnlocked = true;
           elementBlocked = false;
         },
-        () => {
+        (err: unknown) => {
           elementBlocked = true;
+          /**
+           * The reason used to be discarded, which is precisely why "I uploaded
+           * a track and hear the drum" could not be diagnosed from a report.
+           * NotAllowedError means the browser refused an unprompted sound and a
+           * tap fixes it; anything else means the file is the problem and no
+           * amount of tapping will help.
+           */
+          const name = err instanceof Error ? err.name : "unknown";
+          if (name !== "NotAllowedError") sourceBroken = true;
+          console.warn(
+            `[alert-sound] uploaded track refused (${name}), falling back to the drum:`,
+            source,
+          );
           // The synthesized drum shares the AudioContext unlock, which may well
           // be armed even when the element is not — so a blocked file still
           // rings rather than leaving the kitchen silent.
@@ -129,6 +212,10 @@ export function createAlertSound(fallback: Damru): AlertSound {
         element.currentTime = 0;
       }
     },
+
+    // Only meaningful when a file is configured: with no source the drum is the
+    // intended sound, not a substitute for anything.
+    isSubstituting: () => source !== null && (elementBlocked || sourceBroken),
 
     // Either path being armed counts: play() falls back to the drum when the
     // element is blocked, so the caller's question — "will a sound come out?" —

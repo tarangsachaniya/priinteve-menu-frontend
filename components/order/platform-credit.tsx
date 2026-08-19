@@ -13,7 +13,7 @@ export function PlatformCredit() {
       className="py-6 text-center text-xs"
       style={{ color: "var(--resto-text-subtle)" }}
     >
-      Powered by{" "}
+      Made with{" "}
       <a
         href="/"
         target="_blank"

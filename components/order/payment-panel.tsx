@@ -1,23 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Script from "next/script";
-import { Banknote, Check, Loader2, QrCode, Smartphone } from "lucide-react";
+import { Banknote, Check, Loader2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
 import { formatCurrency } from "@/lib/format";
-
-type RazorpayHandlerResponse = {
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-};
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
-  }
-}
 
 /** Matches settleOrderSchema — the three methods the pay route accepts. */
 type PayMethod = "UPI" | "CASH" | "UPI_QR";
@@ -27,12 +14,11 @@ type UpiQrDetails = { uri: string; qrDataUrl: string; vpa: string; payeeName: st
 /**
  * How a guest settles their invoice, shown once the restaurant closes it.
  *
- * Three methods, two kinds. UPI goes through Razorpay Checkout, which offers
- * UPI alongside cards and netbanking — one integration, and the guest picks
- * their app inside it — and confirms itself. Cash and UPI QR only declare an
- * intention: both keep showing a waiting state until a staff member confirms
- * receipt, because a guest saying they will pay, or scanning a code that
- * reports nothing back, is not the same as having paid.
+ * Two kinds. UPI hands the guest a `upi://pay?...` deep link plus its QR
+ * encoding, with the amount pre-filled — no gateway involved. Cash and UPI
+ * both only declare an intention: both keep showing a waiting state until a
+ * staff member confirms receipt, because a guest saying they will pay, or
+ * tapping a link that reports nothing back, is not the same as having paid.
  *
  * Every option is gated on the restaurant's own settings, so a place that only
  * takes cash never shows a button that would fail.
@@ -40,9 +26,6 @@ type UpiQrDetails = { uri: string; qrDataUrl: string; vpa: string; payeeName: st
 export function PaymentPanel({
   orderId,
   total,
-  brandColor,
-  restaurantName,
-  canPayOnline,
   canPayCash,
   canPayUpiQr,
   paymentMode,
@@ -50,9 +33,6 @@ export function PaymentPanel({
 }: {
   orderId: string;
   total: number;
-  brandColor: string;
-  restaurantName: string;
-  canPayOnline: boolean;
   canPayCash: boolean;
   canPayUpiQr: boolean;
   /** Set once the guest has committed to a method; drives the waiting state. */
@@ -84,65 +64,15 @@ export function PaymentPanel({
         return;
       }
 
-      if (method === "UPI_QR") {
-        // Not onPaid(): the guest has not paid, they have been handed a code.
-        // The panel swaps to the QR and the order stays open until the
-        // restaurant confirms the credit.
-        setUpiQr(data.upi);
-        return;
-      }
-
-      openRazorpay(data.razorpay);
+      // UPI and UPI_QR both land here: the guest has not paid, they have
+      // been handed a deep link + code. The panel swaps to it and the order
+      // stays open until the restaurant confirms the credit.
+      setUpiQr(data.upi);
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {
       setBusy(null);
     }
-  }
-
-  function openRazorpay(razorpay: {
-    keyId: string;
-    orderId: string;
-    amount: number;
-    currency: string;
-    customerName: string;
-    customerMobile: string;
-  }) {
-    if (!window.Razorpay) {
-      toast.error("Payment could not start. Please try again or pay at the counter.");
-      return;
-    }
-
-    const checkout = new window.Razorpay({
-      key: razorpay.keyId,
-      amount: razorpay.amount,
-      currency: razorpay.currency,
-      name: restaurantName,
-      description: "Food order",
-      order_id: razorpay.orderId,
-      prefill: { name: razorpay.customerName, contact: razorpay.customerMobile },
-      theme: { color: brandColor },
-      handler: async (response: RazorpayHandlerResponse) => {
-        const verify = await fetch("/api/order/payment/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(response),
-        });
-        if (!verify.ok) {
-          // The webhook is the authoritative path and will land shortly, so
-          // this is a "wait", not a "failed".
-          toast.error("We couldn't confirm your payment yet. The restaurant will follow up.");
-        } else {
-          toast.success("Payment received. Thank you!");
-        }
-        onPaid();
-      },
-      modal: {
-        ondismiss: () => toast.info("Payment cancelled — you can still pay at the counter."),
-      },
-    });
-
-    checkout.open();
   }
 
   if (upiQr) {
@@ -151,7 +81,7 @@ export function PaymentPanel({
         details={upiQr}
         total={total}
         onBack={() => setUpiQr(null)}
-        canSwitch={canPayOnline || canPayCash}
+        canSwitch={canPayCash}
       />
     );
   }
@@ -181,7 +111,7 @@ export function PaymentPanel({
         <p className="text-sm" style={{ color: "var(--resto-text-muted)" }}>
           This screen updates automatically once the restaurant confirms your payment.
         </p>
-        {canPayOnline && (
+        {canPayUpiQr && (
           <button
             type="button"
             onClick={() => choose("UPI")}
@@ -198,10 +128,6 @@ export function PaymentPanel({
 
   return (
     <>
-      {canPayOnline && (
-        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-      )}
-
       <section
         className="flex flex-col gap-4 border p-5"
         style={{
@@ -222,13 +148,13 @@ export function PaymentPanel({
           </p>
         </div>
 
-        {!canPayOnline && !canPayCash && !canPayUpiQr ? (
+        {!canPayCash && !canPayUpiQr ? (
           <p className="text-center text-sm" style={{ color: "var(--resto-text-muted)" }}>
             Please settle with the restaurant directly.
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {canPayOnline && (
+            {canPayUpiQr && (
               <button
                 type="button"
                 onClick={() => choose("UPI")}
@@ -246,29 +172,6 @@ export function PaymentPanel({
                   <Smartphone className="size-4" aria-hidden />
                 )}
                 Pay by UPI
-              </button>
-            )}
-            {/* Outlined, not filled, even when it's the only digital option:
-                it needs a second step at the counter, and a primary button
-                would promise a payment that completes on its own. */}
-            {canPayUpiQr && (
-              <button
-                type="button"
-                onClick={() => choose("UPI_QR")}
-                disabled={busy !== null}
-                className="flex items-center justify-center gap-2 border py-3 text-sm font-semibold transition-colors disabled:opacity-60"
-                style={{
-                  borderColor: "var(--resto-brand-tint-border)",
-                  color: "var(--resto-brand-text)",
-                  borderRadius: "var(--resto-radius-full)",
-                }}
-              >
-                {busy === "UPI_QR" ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <QrCode className="size-4" aria-hidden />
-                )}
-                Pay by UPI QR
               </button>
             )}
             {canPayCash && (
@@ -299,13 +202,14 @@ export function PaymentPanel({
 }
 
 /**
- * The UPI QR, once the guest has asked for one.
+ * The UPI QR, once the guest has tapped "Pay by UPI".
  *
- * Two ways in, because the guest is in one of two situations and they need
- * opposite things. At a table with a friend's phone, or at a counter, the QR
- * is scanned by another device. Alone with their own phone — the common case,
- * since they are reading this menu on it — a QR is useless and the deep link
- * is the answer, so the button below hands them straight to their UPI app.
+ * Shows both a QR and a deep-link button, because the guest is in one of two
+ * situations and they need opposite things. At a table with a friend's
+ * phone, or at a counter, the QR is scanned by another device. Alone with
+ * their own phone — the common case, since they are reading this menu on it
+ * — a QR is useless and the deep link is the answer, so the button below
+ * hands them straight to their UPI app.
  *
  * The `upi://` link resolves to an app chooser on Android. iOS is less
  * dependable about it, which is why the QR is the thing on top and the link is

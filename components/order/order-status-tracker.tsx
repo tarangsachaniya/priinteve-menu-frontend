@@ -325,9 +325,6 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         <PaymentPanel
           orderId={initialOrder.id}
           total={initialOrder.total}
-          brandColor={initialOrder.brandColor}
-          restaurantName={initialOrder.restaurantName}
-          canPayOnline={initialOrder.canPayOnline}
           canPayCash={initialOrder.canPayCash}
           canPayUpiQr={initialOrder.canPayUpiQr}
           paymentMode={paymentMode}

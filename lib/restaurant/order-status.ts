@@ -70,9 +70,10 @@ export function canTransition(from: RestoOrderStatus, to: RestoOrderStatus): boo
 
 /**
  * Whether the invoice is actually settled. Kept separate from canTransition —
- * kitchen status and payment status are independent facts (see the request-
- * payment and pay routes), so this is checked at the point of use rather than
- * folded into the status transition map.
+ * kitchen status and payment status are independent facts (payment opens
+ * automatically on the ACCEPTED transition, see the pay routes), so this is
+ * checked at the point of use rather than folded into the status transition
+ * map.
  */
 export function isSettled(paymentStatus: RestoPaymentStatus): boolean {
   return paymentStatus === "PAID";
@@ -123,7 +124,7 @@ export const PAYMENT_STATUS_LABEL: Record<RestoPaymentStatus, string> = {
  * whether they are being asked for money yet.
  */
 export const PAYMENT_STATUS_CUSTOMER_LABEL: Record<RestoPaymentStatus, string> = {
-  PENDING: "Pay after your meal",
+  PENDING: "Payment opens once we accept your order",
   REQUESTED: "Ready to pay",
   PAID: "Paid",
   FAILED: "Payment failed — try again or pay at the counter",

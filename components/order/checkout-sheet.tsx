@@ -363,9 +363,7 @@ export function CheckoutSheet({
           }}
         >
           <Wallet className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          {orderType === "DINE_IN"
-            ? "No payment now. You'll be asked to pay by UPI or cash once the restaurant closes your invoice."
-            : "You'll pay by UPI or cash right after you place this order."}
+          No payment now. You&apos;ll be asked to pay by UPI or cash as soon as the restaurant accepts your order.
         </p>
 
         <div className="flex gap-2">

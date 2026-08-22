@@ -40,8 +40,9 @@ import { formatCurrency } from "@/lib/format";
  * with.
  *
  * Nothing is lost by the omissions. A PLACED order is always PENDING —
- * request-payment refuses to run before ACCEPTED (see orders.routes.ts) — so
- * the refund warning below can never apply to a caller that omits the field.
+ * payment only auto-opens on the ACCEPTED transition (see orders.routes.ts)
+ * — so the refund warning below can never apply to a caller that omits the
+ * field.
  */
 export type CancellableOrder = {
   id: string;

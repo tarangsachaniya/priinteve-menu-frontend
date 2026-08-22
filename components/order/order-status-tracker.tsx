@@ -520,7 +520,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
               color: "var(--resto-text-muted)",
             }}
           >
-            Pay after your meal — the restaurant will open your invoice here.
+            The restaurant will open payment here once they accept your order.
           </p>
         )}
 

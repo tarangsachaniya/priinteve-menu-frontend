@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bike,
   Clock,
-  IndianRupee,
   MapPin,
   Phone,
   Receipt,
@@ -104,24 +103,18 @@ function OrderCard({
   order,
   onAdvance,
   onCancel,
-  onRequestPayment,
   onMarkPaid,
   isBusy,
 }: {
   order: BoardOrder;
   onAdvance: (order: BoardOrder) => void;
   onCancel: (order: BoardOrder) => void;
-  onRequestPayment: (order: BoardOrder) => void;
   onMarkPaid: (order: BoardOrder) => void;
   isBusy: boolean;
 }) {
   const TypeIcon = TYPE_ICON[order.type];
   const advanceTo = nextStatus(order.status);
 
-  // The invoice can be closed once the kitchen has accepted; before that there
-  // is nothing to charge for yet.
-  const canRequestPayment =
-    order.paymentStatus === "PENDING" && order.status !== "PLACED";
   const canMarkPaid = order.paymentStatus === "REQUESTED" || order.paymentStatus === "FAILED";
   // Completing is gated on the money actually having arrived — cash included,
   // via "Mark paid" below — not just on the kitchen being done.
@@ -222,28 +215,14 @@ function OrderCard({
           </p>
         )}
 
-        {(canRequestPayment || canMarkPaid) && (
+        {canMarkPaid && (
           <div className="flex flex-wrap gap-1.5 border-t border-border pt-2">
-            {canRequestPayment && (
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                disabled={isBusy}
-                onClick={() => onRequestPayment(order)}
-              >
-                <IndianRupee data-icon="inline-start" />
-                Request payment
-              </Button>
-            )}
-            {canMarkPaid && (
-              <Button type="button" variant="outline" size="xs" disabled={isBusy} onClick={() => onMarkPaid(order)}>
-                {/* Names where to look before tapping. A UPI QR guest has
-                    already paid into the bank, not into the till, and a button
-                    that says "cash" would have staff checking the wrong one. */}
-                {order.paymentMode === "UPI_QR" ? "Mark paid (UPI received)" : "Mark paid (cash)"}
-              </Button>
-            )}
+            <Button type="button" variant="outline" size="xs" disabled={isBusy} onClick={() => onMarkPaid(order)}>
+              {/* Names where to look before tapping. A UPI QR guest has
+                  already paid into the bank, not into the till, and a button
+                  that says "cash" would have staff checking the wrong one. */}
+              {order.paymentMode === "UPI_QR" ? "Mark paid (UPI received)" : "Mark paid (cash)"}
+            </Button>
           </div>
         )}
 
@@ -420,25 +399,21 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
   }
 
   /**
-   * Closing the invoice and settling it are two separate endpoints because they
-   * are two separate decisions: the first opens the customer's payment screen,
-   * the second records that money actually arrived.
+   * The invoice closes itself as soon as staff accept an order (see the
+   * ACCEPTED transition in restaurant/orders.routes.ts) — this only records
+   * that money actually arrived.
    */
-  async function callPaymentAction(order: BoardOrder, action: "request-payment" | "mark-paid") {
+  async function markPaid(order: BoardOrder) {
     setBusyId(order.id);
     try {
-      const res = await fetch(`/api/restaurant/orders/${order.id}/${action}`, { method: "POST" });
+      const res = await fetch(`/api/restaurant/orders/${order.id}/mark-paid`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(typeof data.error === "string" ? data.error : "Could not update the payment");
         return;
       }
 
-      toast.success(
-        action === "request-payment"
-          ? `Payment screen opened for #${order.orderNumber}`
-          : `#${order.orderNumber} marked paid`
-      );
+      toast.success(`#${order.orderNumber} marked paid`);
       setOrders((prev) =>
         prev.map((o) =>
           o.id === order.id
@@ -533,8 +508,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
                       order={order}
                       onAdvance={advance}
                       onCancel={cancel}
-                      onRequestPayment={(o) => callPaymentAction(o, "request-payment")}
-                      onMarkPaid={(o) => callPaymentAction(o, "mark-paid")}
+                      onMarkPaid={markPaid}
                       isBusy={busyId === order.id}
                     />
                   ))

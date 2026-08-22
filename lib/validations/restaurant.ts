@@ -129,8 +129,23 @@ export const restaurantLoginSchema = z.object({
  * validate against unless the bare object is reachable. Deliberately NOT
  * exported: anything that parsed with this alone would skip every invariant in
  * settingsInvariantIssue(), which is the whole point of the split.
+ *
+ * NONE of these fields may carry `.default(...)`. `.partial()` only makes a
+ * key optional to send — in zod 4 it does NOT suppress `.default()`, so an
+ * omitted key still comes back with its default value rather than genuinely
+ * missing. restaurantSettingsPatchSchema below is `.partial()`'d straight off
+ * this object specifically so that "the client didn't send this field" and
+ * "the client explicitly reset it" stay distinguishable all the way into the
+ * PATCH route's `"key" in rest` / `rest.key ?? before.key` merge — that merge
+ * only works if an absent key is actually absent. (This bit the platform once
+ * already: upiQrEnabled/taxInclusive/cuisineTags used to default here, which
+ * meant every settings-section save silently reset whichever of the three it
+ * didn't itself show. See restaurantSettingsSchema below for where defaulting
+ * belongs instead — the whole-form path, which always sends every field. Kept
+ * in lockstep with priinteve-api/src/validations/restaurant.ts — see that
+ * file's copy of this comment for the same fix on the server side.)
  */
-const restaurantSettingsFields = z
+const restaurantSettingsBaseFields = z
   .object({
     name: z.string().trim().min(2).max(80),
     branch: z.string().trim().max(60).optional().or(z.literal("")),
@@ -143,7 +158,7 @@ const restaurantSettingsFields = z
     deliveryEnabled: z.boolean(),
     onlinePaymentEnabled: z.boolean(),
     counterPaymentEnabled: z.boolean(),
-    upiQrEnabled: z.boolean().default(false),
+    upiQrEnabled: z.boolean(),
     upiVpa: optionalText(80),
     upiPayeeName: optionalText(80),
 
@@ -156,10 +171,9 @@ const restaurantSettingsFields = z
     ).optional(),
     fssaiLicence: optionalText(20),
     taxPercent: z.coerce.number().int().min(0).max(50),
-    // Defaults false — see Restaurant.taxInclusive's schema comment. Every
-    // restaurant that never touches this field keeps computeOrderTotals()'s
-    // current exclusive behaviour.
-    taxInclusive: z.coerce.boolean().default(false),
+    // See Restaurant.taxInclusive's schema comment for what this controls.
+    // Defaulted only in restaurantSettingsSchema below, never here.
+    taxInclusive: z.coerce.boolean(),
     deliveryFee: z.coerce.number().int().min(0).max(10000),
     minOrderValue: z.coerce.number().int().min(0).max(100000),
 
@@ -170,7 +184,7 @@ const restaurantSettingsFields = z
     logoPublicId: optionalText(200),
     tagline: optionalText(120),
     description: optionalText(400),
-    cuisineTags: z.array(z.string().trim().min(1).max(24)).max(6).default([]),
+    cuisineTags: z.array(z.string().trim().min(1).max(24)).max(6),
     prepTimeMinMins: optionalInt(240),
     prepTimeMaxMins: optionalInt(240),
     costForTwo: optionalInt(100000),
@@ -264,12 +278,27 @@ export function settingsInvariantIssue(
   return null;
 }
 
-/** The whole form at once — what the client validates before sending. */
-export const restaurantSettingsSchema = restaurantSettingsFields.superRefine((v, ctx) => {
-  const issue = settingsInvariantIssue(v);
-  if (!issue) return;
-  ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message, path: [issue.path] });
-});
+/**
+ * The whole form at once — what the client validates before sending.
+ *
+ * Defaults for upiQrEnabled/taxInclusive/cuisineTags live HERE, via
+ * `.extend()`, rather than on restaurantSettingsBaseFields — this path always
+ * receives every field (a brand-new restaurant, or a full-form resend), so
+ * defaulting an omitted one is correct. restaurantSettingsPatchSchema below
+ * must never inherit these defaults; see restaurantSettingsBaseFields' own
+ * comment for why.
+ */
+export const restaurantSettingsSchema = restaurantSettingsBaseFields
+  .extend({
+    upiQrEnabled: z.boolean().default(false),
+    taxInclusive: z.coerce.boolean().default(false),
+    cuisineTags: z.array(z.string().trim().min(1).max(24)).max(6).default([]),
+  })
+  .superRefine((v, ctx) => {
+    const issue = settingsInvariantIssue(v);
+    if (!issue) return;
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message, path: [issue.path] });
+  });
 
 /**
  * One settings section's worth of fields.
@@ -278,8 +307,13 @@ export const restaurantSettingsSchema = restaurantSettingsFields.superRefine((v,
  * payload does not carry enough to judge them. The route merges this onto the
  * stored row and calls settingsInvariantIssue() on the result; skipping that
  * step is how every invariant above quietly stops being enforced.
+ *
+ * Built off restaurantSettingsBaseFields, NOT restaurantSettingsSchema — the
+ * base has no `.default(...)` anywhere, so `.partial()` here means an omitted
+ * key genuinely parses as `undefined`, which is what the PATCH route's merge
+ * logic (`"key" in rest`, `rest.key ?? before.key`) requires to work at all.
  */
-export const restaurantSettingsPatchSchema = restaurantSettingsFields.partial();
+export const restaurantSettingsPatchSchema = restaurantSettingsBaseFields.partial();
 
 // ─── Restaurant: menu ──────────────────────────────────────────────────────
 
@@ -335,13 +369,24 @@ const addOnFieldsSchema = z.object({
 const menuItemVariantInputSchema = variantFieldsSchema.extend({ id: z.string().optional() });
 const menuItemAddOnInputSchema = addOnFieldsSchema.extend({ id: z.string().optional() });
 
-export const menuItemCreateSchema = z.object({
+/**
+ * Shape shared by create and update — deliberately no `.default(...)`
+ * anywhere in this object. `.partial()` (in menuItemUpdateSchema below) does
+ * not suppress `.default()` in zod 4, so a defaulted field here would come
+ * back from a PATCH parse as its default value instead of genuinely absent —
+ * exactly the bug restaurantSettingsBaseFields' comment above describes, and
+ * the reason `variants`/`addOns` used to get silently wiped (reconciled to
+ * `[]`) on every partial edit that didn't resend them. Defaults are applied
+ * once, via `.extend()`, only on menuItemCreateSchema below — the path that
+ * always receives every field.
+ */
+const menuItemBaseFields = z.object({
   categoryId: z.string().min(1),
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(300).optional().or(z.literal("")),
   price: z.coerce.number().int().min(0).max(1000000),
-  isVeg: z.boolean().default(true),
-  isAvailable: z.boolean().default(true),
+  isVeg: z.boolean(),
+  isAvailable: z.boolean(),
   imageUrl: z.string().url().optional().or(z.literal("")),
   imagePublicId: z.string().optional().or(z.literal("")),
   badge: z.preprocess(emptyToNull, z.enum(["BESTSELLER", "CHEFS_PICK", "POPULAR", "NEW"]).nullable()).optional(),
@@ -349,9 +394,23 @@ export const menuItemCreateSchema = z.object({
   // Capped at 240 to match the restaurant-level prep quote. Optional rather
   // than defaulted: "not quoted" must stay distinguishable from "quoted zero".
   prepMinutes: optionalInt(240),
-  demoteAtPeak: z.boolean().default(false),
+  demoteAtPeak: z.boolean(),
   // Capped at 20: a dish with no size choice and no extras is the common
   // case, and 20 of either is already more than a printed menu shows.
+  variants: z
+    .array(menuItemVariantInputSchema)
+    .max(20)
+    .refine(noDuplicateNames, "Size names must be unique"),
+  addOns: z
+    .array(menuItemAddOnInputSchema)
+    .max(20)
+    .refine(noDuplicateNames, "Add-on names must be unique"),
+});
+
+export const menuItemCreateSchema = menuItemBaseFields.extend({
+  isVeg: z.boolean().default(true),
+  isAvailable: z.boolean().default(true),
+  demoteAtPeak: z.boolean().default(false),
   variants: z
     .array(menuItemVariantInputSchema)
     .max(20)
@@ -365,11 +424,17 @@ export const menuItemCreateSchema = z.object({
 });
 
 /**
- * `.partial()` makes variants/addOns optional rather than defaulted, which is
- * exactly the distinction the PATCH route needs: omitted means "leave options
+ * Built off menuItemBaseFields, NOT menuItemCreateSchema.
+ *
+ * This used to derive from menuItemCreateSchema directly, on the belief that
+ * `.partial()` makes variants/addOns optional rather than defaulted — that's
+ * false in zod 4: `.partial()` does not suppress `.default()`, so an omitted
+ * key still came back defaulted (`variants: []`) instead of genuinely absent.
+ * Deriving from the undefaulted menuItemBaseFields instead is what actually
+ * gets the distinction this route needs: omitted means "leave options
  * alone", an explicit `[]` means "remove every option this item has".
  */
-export const menuItemUpdateSchema = menuItemCreateSchema.partial().extend({
+export const menuItemUpdateSchema = menuItemBaseFields.partial().extend({
   sortOrder: z.coerce.number().int().min(0).optional(),
 });
 
@@ -383,7 +448,22 @@ export const variantCreateSchema = variantFieldsSchema.extend({
   isAvailable: z.boolean().default(true),
 });
 
-export const variantUpdateSchema = variantCreateSchema.partial().extend({
+/**
+ * No current call site — kept in step with menuItemUpdateSchema's own
+ * partial-PATCH shape regardless, so whoever wires this up next doesn't
+ * inherit the landmine menuItemBaseFields' comment describes. Every field is
+ * re-declared here rather than derived from variantFieldsSchema: `.extend()`
+ * only overrides the keys it names, so inheriting priceDelta/isDefault from
+ * variantFieldsSchema's own `.default(...)` would reintroduce the same bug
+ * one level down — only isAvailable would actually get fixed.
+ */
+const variantBaseFields = z.object({
+  name: z.string().trim().min(1).max(40),
+  priceDelta: z.coerce.number().int().min(-100000).max(100000),
+  isDefault: z.boolean(),
+  isAvailable: z.boolean(),
+});
+export const variantUpdateSchema = variantBaseFields.partial().extend({
   sortOrder: z.coerce.number().int().min(0).optional(),
 });
 
@@ -391,7 +471,13 @@ export const addOnCreateSchema = addOnFieldsSchema.extend({
   isAvailable: z.boolean().default(true),
 });
 
-export const addOnUpdateSchema = addOnCreateSchema.partial().extend({
+/** Same reasoning as variantBaseFields above — no current call site either. */
+const addOnBaseFields = z.object({
+  name: z.string().trim().min(1).max(40),
+  price: z.coerce.number().int().min(0).max(100000),
+  isAvailable: z.boolean(),
+});
+export const addOnUpdateSchema = addOnBaseFields.partial().extend({
   sortOrder: z.coerce.number().int().min(0).optional(),
 });
 

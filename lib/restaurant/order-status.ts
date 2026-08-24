@@ -7,6 +7,7 @@ export const ORDER_STATUS_FLOW: RestoOrderStatus[] = [
   "ACCEPTED",
   "PREPARING",
   "READY",
+  "PICKED_UP",
   "COMPLETED",
 ];
 
@@ -14,6 +15,11 @@ export const ORDER_STATUS_FLOW: RestoOrderStatus[] = [
  * The statuses the orders board is for — everything still in the kitchen.
  * Closed orders live on /r/history instead. Shared so the board's page and its
  * polling endpoint can't drift into disagreeing about what "live" means.
+ *
+ * Deliberately does NOT include PICKED_UP — mirrors the API's own
+ * LIVE_STATUSES/BOARD_STATUSES split (order-status.ts) so this file's
+ * constants stay conceptually in sync with the source of truth even though
+ * they're a hand-mirrored copy, not a shared import.
  */
 export const LIVE_STATUSES: RestoOrderStatus[] = [
   "PLACED",
@@ -27,6 +33,7 @@ export const ORDER_STATUS_LABEL: Record<RestoOrderStatus, string> = {
   ACCEPTED: "Accepted",
   PREPARING: "Preparing",
   READY: "Ready",
+  PICKED_UP: "Picked up",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
 };
@@ -37,6 +44,7 @@ export const ORDER_STATUS_CUSTOMER_LABEL: Record<RestoOrderStatus, string> = {
   ACCEPTED: "Confirmed by restaurant",
   PREPARING: "Being prepared",
   READY: "Ready",
+  PICKED_UP: "Picked up",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
 };
@@ -46,20 +54,27 @@ export const ORDER_STATUS_BADGE: Record<RestoOrderStatus, string> = {
   ACCEPTED: "bg-violet-500/10 text-violet-700 dark:text-violet-400",
   PREPARING: "bg-amber-500/10 text-amber-700 dark:text-amber-500",
   READY: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  PICKED_UP: "bg-teal-500/10 text-teal-700 dark:text-teal-400",
   COMPLETED: "bg-muted text-muted-foreground",
   CANCELLED: "bg-destructive/10 text-destructive",
 };
 
 /**
  * Orders move forward one step at a time, and may be cancelled from any
- * state that isn't already terminal. No going backwards: a kitchen that has
- * started cooking can't un-accept.
+ * state that isn't already terminal — WITH ONE DELIBERATE EXCEPTION:
+ * PICKED_UP. Once food has been handed to the customer, "cancel" no longer
+ * describes anything real; a refund from here on is a payment action
+ * (paymentStatus, not order status), not a kitchen-status one. This is the
+ * only state in this map that breaks the "cancellable from any non-terminal
+ * state" rule — please don't "fix" it by adding CANCELLED back without
+ * re-reading this comment.
  */
 const ALLOWED_TRANSITIONS: Record<RestoOrderStatus, RestoOrderStatus[]> = {
   PLACED: ["ACCEPTED", "CANCELLED"],
   ACCEPTED: ["PREPARING", "CANCELLED"],
   PREPARING: ["READY", "CANCELLED"],
-  READY: ["COMPLETED", "CANCELLED"],
+  READY: ["PICKED_UP", "CANCELLED"],
+  PICKED_UP: ["COMPLETED"],
   COMPLETED: [],
   CANCELLED: [],
 };
@@ -94,6 +109,8 @@ export function timestampFieldFor(status: RestoOrderStatus): string | null {
       return "preparingAt";
     case "READY":
       return "readyAt";
+    case "PICKED_UP":
+      return "pickedUpAt";
     case "COMPLETED":
       return "completedAt";
     case "CANCELLED":

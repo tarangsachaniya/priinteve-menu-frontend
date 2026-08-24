@@ -44,6 +44,7 @@ const STATUS_HINT: Record<RestoOrderStatus, string> = {
   ACCEPTED: "The restaurant has your order.",
   PREPARING: "Your food is being cooked.",
   READY: "Ready — collect it or wait to be served.",
+  PICKED_UP: "Handed over — enjoy your meal!",
   COMPLETED: "Enjoy your meal.",
   CANCELLED: "This order was cancelled.",
 };

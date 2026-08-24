@@ -21,7 +21,7 @@ export default async function RestaurantOrdersPage() {
       title="Orders"
       description="Live kitchen board — move each order along as you work through it."
     >
-      <OrdersBoard initialOrders={orders} />
+      <OrdersBoard initialOrders={orders} role={sessionData.session.role} />
     </PageShell>
   );
 }

@@ -11,7 +11,14 @@ export type RestoUserRole = "OWNER" | "STAFF";
 
 export type RestoOrderType = "DINE_IN" | "TAKE_AWAY" | "DELIVERY";
 
-export type RestoOrderStatus = "PLACED" | "ACCEPTED" | "PREPARING" | "READY" | "COMPLETED" | "CANCELLED";
+export type RestoOrderStatus =
+  | "PLACED"
+  | "ACCEPTED"
+  | "PREPARING"
+  | "READY"
+  | "PICKED_UP"
+  | "COMPLETED"
+  | "CANCELLED";
 
 /**
  * ONLINE settles itself — Razorpay verifies the signature and a webhook

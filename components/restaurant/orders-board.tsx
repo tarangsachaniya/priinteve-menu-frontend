@@ -12,7 +12,7 @@ import {
   Store,
   StickyNote,
 } from "lucide-react";
-import type { RestoOrderStatus, RestoOrderType } from "@/lib/api/enums";
+import type { RestoOrderStatus, RestoOrderType, RestoUserRole } from "@/lib/api/enums";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ const COLUMNS: { status: RestoOrderStatus; hint: string }[] = [
   { status: "ACCEPTED", hint: "Queued for the kitchen" },
   { status: "PREPARING", hint: "Being cooked" },
   { status: "READY", hint: "Waiting for pickup" },
+  { status: "PICKED_UP", hint: "Awaiting payment close-out" },
 ];
 
 /** The board's name for the shared live-order DTO. See lib/restaurant/live-order.ts. */
@@ -105,12 +106,14 @@ function OrderCard({
   onCancel,
   onMarkPaid,
   isBusy,
+  role,
 }: {
   order: BoardOrder;
   onAdvance: (order: BoardOrder) => void;
   onCancel: (order: BoardOrder) => void;
   onMarkPaid: (order: BoardOrder) => void;
   isBusy: boolean;
+  role: RestoUserRole;
 }) {
   const TypeIcon = TYPE_ICON[order.type];
   const advanceTo = nextStatus(order.status);
@@ -119,6 +122,10 @@ function OrderCard({
   // Completing is gated on the money actually having arrived — cash included,
   // via "Mark paid" below — not just on the kitchen being done.
   const blockedByPayment = advanceTo === "COMPLETED" && order.paymentStatus !== "PAID";
+  // Marking picked up or completed is owner-only — enforced for real by
+  // orders.routes.ts's role check; this just avoids showing STAFF a button
+  // that would 403.
+  const isOwnerGatedStep = advanceTo === "PICKED_UP" || advanceTo === "COMPLETED";
   // A dine-in order with no table is a data problem the kitchen has to know
   // about — they have no way to deliver it.
   const missingTable = order.type === "DINE_IN" && !order.tableLabel;
@@ -266,23 +273,33 @@ function OrderCard({
             >
               <Receipt />
             </Button>
-            {advanceTo && (
-              <Button
-                type="button"
-                size="xs"
-                disabled={isBusy || blockedByPayment}
-                title={blockedByPayment ? "Mark this order paid before completing it" : undefined}
-                onClick={() => onAdvance(order)}
-              >
-                {advanceTo === "ACCEPTED"
-                  ? "Accept"
-                  : advanceTo === "PREPARING"
-                    ? "Start cooking"
-                    : advanceTo === "READY"
-                      ? "Mark ready"
-                      : "Complete"}
-              </Button>
-            )}
+            {advanceTo &&
+              (isOwnerGatedStep && role !== "OWNER" ? (
+                <span
+                  className="text-xs font-medium text-muted-foreground"
+                  title="Only an owner can do this"
+                >
+                  {advanceTo === "PICKED_UP" ? "Owner marks this picked up" : "Owner completes this order"}
+                </span>
+              ) : (
+                <Button
+                  type="button"
+                  size="xs"
+                  disabled={isBusy || blockedByPayment}
+                  title={blockedByPayment ? "Mark this order paid before completing it" : undefined}
+                  onClick={() => onAdvance(order)}
+                >
+                  {advanceTo === "ACCEPTED"
+                    ? "Accept"
+                    : advanceTo === "PREPARING"
+                      ? "Start cooking"
+                      : advanceTo === "READY"
+                        ? "Mark ready"
+                        : advanceTo === "PICKED_UP"
+                          ? "Mark picked"
+                          : "Complete"}
+                </Button>
+              ))}
           </div>
         </div>
       </CardContent>
@@ -290,7 +307,13 @@ function OrderCard({
   );
 }
 
-export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) {
+export function OrdersBoard({
+  initialOrders,
+  role,
+}: {
+  initialOrders: BoardOrder[];
+  role: RestoUserRole;
+}) {
   const [orders, setOrders] = useState(initialOrders);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -510,6 +533,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: BoardOrder[] }) 
                       onCancel={cancel}
                       onMarkPaid={markPaid}
                       isBusy={busyId === order.id}
+                      role={role}
                     />
                   ))
                 )}

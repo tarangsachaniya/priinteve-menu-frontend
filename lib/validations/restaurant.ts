@@ -549,7 +549,7 @@ export const tableBulkCreateSchema = z.object({
 // ─── Restaurant: orders ────────────────────────────────────────────────────
 
 export const orderStatusUpdateSchema = z.object({
-  status: z.enum(["ACCEPTED", "PREPARING", "READY", "COMPLETED", "CANCELLED"]),
+  status: z.enum(["ACCEPTED", "PREPARING", "READY", "PICKED_UP", "COMPLETED", "CANCELLED"]),
   cancelReason: z.string().trim().max(200).optional(),
 });
 

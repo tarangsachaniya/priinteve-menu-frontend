@@ -1,4 +1,5 @@
 import type {
+  RestoOrderSource,
   RestoOrderStatus,
   RestoOrderType,
   RestoPaymentMode,
@@ -80,6 +81,7 @@ export type LiveOrder = {
   tableLabel: string | null;
   total: number;
   note: string | null;
+  source: RestoOrderSource;
   deliveryAddress: string | null;
   deliveryPincode: string | null;
   pickupInMinutes: number | null;

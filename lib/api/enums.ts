@@ -38,3 +38,6 @@ export type RestoPaymentStatus = "PENDING" | "REQUESTED" | "PAID" | "FAILED" | "
 
 /** Owner-set highlight on a dish. Presentation only. */
 export type RestoItemBadge = "BESTSELLER" | "CHEFS_PICK" | "POPULAR" | "NEW";
+
+/** CUSTOMER: the guest's own ordering flow. STAFF: entered from the console on a guest's behalf. */
+export type RestoOrderSource = "CUSTOMER" | "STAFF";

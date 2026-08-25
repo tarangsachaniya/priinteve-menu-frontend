@@ -62,10 +62,10 @@ export function DevicesForm({
   const [revoking, setRevoking] = useState<Device | null>(null);
 
   async function confirmPairing() {
-    // The TV's own code alphabet is lowercase (no ambiguous 0/o/1/l/i), but
-    // a display formatted with a dash for readability (e.g. "xy7k-2qrs")
-    // shouldn't fail to match just because someone copies the dash too.
-    const normalized = code.trim().toLowerCase().replace(/[\s-]/g, "");
+    // Case is significant — never normalized. Only whitespace and a display
+    // dash (e.g. "xy7k-2qrs") are stripped, since neither is ever part of the
+    // code's own alphabet and copying one in shouldn't break the match.
+    const normalized = code.trim().replace(/[\s-]/g, "");
     if (!normalized || !deviceName.trim()) return;
 
     setBusy(true);
@@ -139,7 +139,7 @@ export function DevicesForm({
                   placeholder="Code from the TV"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="w-40 font-mono uppercase tracking-widest"
+                  className="w-40 font-mono tracking-widest"
                 />
               </div>
               <div className="flex flex-col gap-1.5">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Receipt } from "lucide-react";
-import type { RestoOrderStatus, RestoOrderType, RestoPaymentStatus } from "@/lib/api/enums";
+import type { RestoOrderSource, RestoOrderStatus, RestoOrderType, RestoPaymentStatus } from "@/lib/api/enums";
 
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatDateTime } from "@/lib/format";
@@ -50,6 +50,7 @@ export type HistoryRow = {
   total: number;
   placedAt: string;
   cancelReason: string | null;
+  source: RestoOrderSource;
   items: { id: string; name: string; quantity: number; variantName: string | null }[];
 };
 
@@ -225,7 +226,14 @@ export function OrderHistoryTable({
 
               {rows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="font-medium tabular-nums">#{row.orderNumber}</TableCell>
+                  <TableCell className="font-medium tabular-nums">
+                    #{row.orderNumber}
+                    {row.source === "STAFF" && (
+                      <span className="ml-1.5 inline-flex whitespace-nowrap rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">
+                        Manual
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">
                     {formatDateTime(row.placedAt)}
                   </TableCell>

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { History } from "lucide-react";
 
 import { getRestaurantSession, serverFetch } from "@/lib/api/server";
-import type { RestoOrderStatus, RestoOrderType, RestoPaymentStatus } from "@/lib/api/enums";
+import type { RestoOrderSource, RestoOrderStatus, RestoOrderType, RestoPaymentStatus } from "@/lib/api/enums";
 import { historyQuery, parseHistoryFilters, type HistorySearchParams } from "@/lib/restaurant/order-history";
 import { PageShell } from "@/components/shared/page-shell";
 import { OrderHistoryView } from "@/components/restaurant/order-history-view";
@@ -26,6 +26,7 @@ type HistoryResponse = {
     total: number;
     placedAt: string;
     cancelReason: string | null;
+    source: RestoOrderSource;
     items: { id: string; name: string; quantity: number; variantName: string | null }[];
   }[];
   dishRows: { name: string; quantity: number; revenue: number; timesOrdered: number }[];

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyLane, EmptyState } from "@/components/shared/empty-state";
 import { CancelOrderDialog } from "@/components/restaurant/cancel-order-dialog";
+import { ManualOrderDialog } from "@/components/restaurant/manual-order-dialog";
 import { formatCurrency } from "@/lib/format";
 import type { LiveOrder } from "@/lib/restaurant/live-order";
 import { formatMobile } from "@/lib/restaurant/mobile";
@@ -138,7 +139,14 @@ function OrderCard({
               the number — the half staff need to call the guest — was always
               the half that got cut. */}
           <div className="min-w-0">
-            <p className="font-semibold">#{order.orderNumber}</p>
+            <p className="flex items-center gap-1.5 font-semibold">
+              #{order.orderNumber}
+              {order.source === "STAFF" && (
+                <Badge variant="secondary" className="gap-1 bg-violet-500/10 text-violet-700">
+                  Manual
+                </Badge>
+              )}
+            </p>
             <p className="break-words text-xs text-muted-foreground">{order.customerName}</p>
             <p className="text-xs tabular-nums text-muted-foreground">
               {formatMobile(order.customerMobile)}
@@ -461,10 +469,13 @@ export function OrdersBoard({
         <p className="text-sm text-muted-foreground">
           Updating automatically every {POLL_INTERVAL_MS / 1000} seconds.
         </p>
-        <Button type="button" variant="outline" size="sm" onClick={manualRefresh} disabled={isRefreshing}>
-          <RefreshCw data-icon="inline-start" className={cn(isRefreshing && "animate-spin")} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <ManualOrderDialog onCreated={() => void refresh()} />
+          <Button type="button" variant="outline" size="sm" onClick={manualRefresh} disabled={isRefreshing}>
+            <RefreshCw data-icon="inline-start" className={cn(isRefreshing && "animate-spin")} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {tablesInPlay.length > 0 && (

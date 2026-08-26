@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChefHat, Monitor, RefreshCw, Smartphone, Trash2, Tv } from "lucide-react";
+import { ChefHat, Monitor, Printer, RefreshCw, Smartphone, Trash2, Tv } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
 
-type DeviceKind = "TV_KITCHEN" | "TV_PICKUP" | "MOBILE";
+// PRINTER_BRIDGE pairs through this exact same code-entry flow as a TV — a
+// local software service (not a screen) that relays print jobs to the
+// restaurant's physical printers. This form doesn't pair one differently; it
+// just needs to recognize the kind so a paired bridge renders sanely in the
+// list below instead of falling through to an undefined label/icon.
+type DeviceKind = "TV_KITCHEN" | "TV_PICKUP" | "MOBILE" | "PRINTER_BRIDGE";
 
 type Device = {
   id: string;
@@ -28,12 +33,14 @@ const KIND_LABEL: Record<DeviceKind, string> = {
   TV_KITCHEN: "Kitchen TV",
   TV_PICKUP: "Pickup TV",
   MOBILE: "Mobile app",
+  PRINTER_BRIDGE: "Printer bridge",
 };
 
 const KIND_ICON: Record<DeviceKind, typeof ChefHat> = {
   TV_KITCHEN: ChefHat,
   TV_PICKUP: Monitor,
   MOBILE: Smartphone,
+  PRINTER_BRIDGE: Printer,
 };
 
 /**

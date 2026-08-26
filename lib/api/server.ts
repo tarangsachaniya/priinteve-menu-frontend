@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 import { API_INTERNAL_URL } from "@/lib/api/config";
 import { apiRequest, type FetchOptions } from "@/lib/api/http";
+import type { RestoKotPrinterMode, RestoOperationType } from "@/lib/api/enums";
 
 /**
  * Server components call the API DIRECTLY (never through this app's own
@@ -34,6 +35,15 @@ export type RestaurantInfo = {
   isActive: boolean;
   takeAwayEnabled: boolean;
   deliveryEnabled: boolean;
+  // Printing architecture + operational modules — see lib/api/enums.ts.
+  // operationType is admin-only to view here (never editable from a
+  // restaurant session); kitchenEnabled/pickupEnabled/tvEnabled gate the
+  // Kitchen board, Pickup board and TV pairing respectively.
+  operationType: RestoOperationType;
+  kotPrinterMode: RestoKotPrinterMode | null;
+  kitchenEnabled: boolean;
+  pickupEnabled: boolean;
+  tvEnabled: boolean;
 };
 
 /** Fresh from the API on every call — a paused restaurant loses access immediately. */

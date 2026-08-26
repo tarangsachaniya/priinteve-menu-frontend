@@ -22,7 +22,11 @@ export default async function RestaurantLayout({ children }: { children: React.R
 
   return (
     <div className="flex min-h-screen flex-col bg-muted md:flex-row">
-      <RestaurantSidebar restaurantName={data.restaurant.name} email={data.session.email} />
+      <RestaurantSidebar
+        restaurantName={data.restaurant.name}
+        email={data.session.email}
+        kitchenEnabled={data.restaurant.kitchenEnabled}
+      />
       <div className="min-w-0 flex-1">{children}</div>
       {/* Mounted here rather than on /r/orders so an owner editing their menu
           still hears the order arrive. It renders nothing until one does. */}

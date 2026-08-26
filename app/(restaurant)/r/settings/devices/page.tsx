@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 type DevicesResponse = {
   devices: {
     id: string;
-    kind: "TV_KITCHEN" | "TV_PICKUP" | "MOBILE";
+    kind: "TV_KITCHEN" | "TV_PICKUP" | "MOBILE" | "PRINTER_BRIDGE";
     name: string;
     platform: string | null;
     lastSeenAt: string | null;

@@ -6,6 +6,7 @@ import {
   Clock,
   MapPin,
   Phone,
+  Printer,
   Receipt,
   RefreshCw,
   ShoppingBag,
@@ -106,6 +107,7 @@ function OrderCard({
   onAdvance,
   onCancel,
   onMarkPaid,
+  onPrintBill,
   isBusy,
   role,
 }: {
@@ -113,6 +115,7 @@ function OrderCard({
   onAdvance: (order: BoardOrder) => void;
   onCancel: (order: BoardOrder) => void;
   onMarkPaid: (order: BoardOrder) => void;
+  onPrintBill: (order: BoardOrder) => void;
   isBusy: boolean;
   role: RestoUserRole;
 }) {
@@ -230,16 +233,24 @@ function OrderCard({
           </p>
         )}
 
-        {canMarkPaid && (
-          <div className="flex flex-wrap gap-1.5 border-t border-border pt-2">
+        <div className="flex flex-wrap gap-1.5 border-t border-border pt-2">
+          {canMarkPaid && (
             <Button type="button" variant="outline" size="xs" disabled={isBusy} onClick={() => onMarkPaid(order)}>
               {/* Names where to look before tapping. A UPI QR guest has
                   already paid into the bank, not into the till, and a button
                   that says "cash" would have staff checking the wrong one. */}
               {order.paymentMode === "UPI_QR" ? "Mark paid (UPI received)" : "Mark paid (cash)"}
             </Button>
-          </div>
-        )}
+          )}
+          {/* Valid any time, before or after payment, for both KOT and DBS
+              restaurants — not gated on canMarkPaid. 409s with a clear
+              message if the restaurant has no billing printer configured
+              yet, surfaced as a toast by onPrintBill. */}
+          <Button type="button" variant="outline" size="xs" disabled={isBusy} onClick={() => onPrintBill(order)}>
+            <Printer data-icon="inline-start" />
+            Print bill
+          </Button>
+        </div>
 
         {blockedByPayment && (
           <p className="rounded-xl bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-800">
@@ -457,6 +468,28 @@ export function OrdersBoard({
     }
   }
 
+  /**
+   * No optimistic state to update — a print job doesn't change anything this
+   * board renders, just fires a job at whichever billing printer is
+   * configured. The 409 case (no billing printer set up yet) is the one
+   * worth a specific-sounding toast, since it's the failure a staff member
+   * will actually hit while a restaurant is still being set up.
+   */
+  async function printBill(order: BoardOrder) {
+    setBusyId(order.id);
+    try {
+      const res = await fetch(`/api/restaurant/orders/${order.id}/print-bill`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(typeof data.error === "string" ? data.error : "Could not print the bill");
+        return;
+      }
+      toast.success(`Bill sent to the printer for #${order.orderNumber}`);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function manualRefresh() {
     setIsRefreshing(true);
     await refresh();
@@ -543,6 +576,7 @@ export function OrdersBoard({
                       onAdvance={advance}
                       onCancel={cancel}
                       onMarkPaid={markPaid}
+                      onPrintBill={printBill}
                       isBusy={busyId === order.id}
                       role={role}
                     />

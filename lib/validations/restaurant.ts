@@ -97,6 +97,15 @@ export const restaurantCreateSchema = z.object({
     emptyToNull,
     z.coerce.number().int().min(0).max(200).nullable()
   ).optional().transform((value) => value ?? 0),
+  // Admin-only from the moment of creation onward — see
+  // Restaurant.operationType's schema comment. Defaults to DBS, matching
+  // every existing restaurant's backfilled value, so an admin who doesn't
+  // touch this control still gets a restaurant that behaves like every
+  // other one created before this field existed.
+  operationType: z.enum(["KOT", "DBS"]).default("DBS"),
+  kitchenEnabled: z.boolean().default(true),
+  pickupEnabled: z.boolean().default(true),
+  tvEnabled: z.boolean().default(true),
 });
 
 export const restaurantUpdateSchema = z.object({
@@ -106,10 +115,24 @@ export const restaurantUpdateSchema = z.object({
   email: z.string().trim().toLowerCase().email().optional().or(z.literal("")),
   address: z.string().trim().max(300).optional().or(z.literal("")),
   isActive: z.boolean().optional(),
+  // Admin-controlled operational modules — independent of operationType and
+  // of each other. See Restaurant.kitchenEnabled's schema comment.
+  kitchenEnabled: z.boolean().optional(),
+  pickupEnabled: z.boolean().optional(),
+  tvEnabled: z.boolean().optional(),
 });
 
 export const ownerPasswordResetSchema = z.object({
   password: z.string().min(8).max(72),
+});
+
+/**
+ * Admin-only restaurant operation type change (KOT <-> DBS). Deliberately
+ * does NOT accept kotPrinterMode — that is restaurant-configurable via
+ * kotPrinterModeUpdateSchema below, never bundled into this admin action.
+ */
+export const restaurantOperationTypeSchema = z.object({
+  operationType: z.enum(["KOT", "DBS"]),
 });
 
 // ─── Restaurant: auth ──────────────────────────────────────────────────────
@@ -551,6 +574,89 @@ export const tableBulkCreateSchema = z.object({
 export const orderStatusUpdateSchema = z.object({
   status: z.enum(["ACCEPTED", "PREPARING", "READY", "PICKED_UP", "COMPLETED", "CANCELLED"]),
   cancelReason: z.string().trim().max(200).optional(),
+});
+
+// ─── Restaurant: printers & print jobs ─────────────────────────────────────
+
+const printerRoleEnum = z.enum(["SHARED", "BILLING", "KITCHEN"]);
+const printerConnectionTypeEnum = z.enum(["LAN", "USB", "BLUETOOTH"]);
+const printerPaperWidthEnum = z.enum(["MM_58", "MM_80"]);
+
+/**
+ * No `.default(...)` anywhere — same reasoning as restaurantSettingsBaseFields
+ * above: printerUpdateSchema below is `.partial()`'d straight off this, and a
+ * defaulted field would come back from a PATCH parse as its default instead
+ * of genuinely absent. `role` is deliberately included here (create needs it)
+ * but OMITTED from printerUpdateSchema — it is fixed at creation.
+ */
+const printerBaseFields = z.object({
+  name: z.string().trim().min(1).max(60),
+  role: printerRoleEnum,
+  connectionType: printerConnectionTypeEnum,
+  ipAddress: optionalText(45),
+  port: optionalInt(65535),
+  usbIdentifier: optionalText(120),
+  paperWidth: printerPaperWidthEnum,
+});
+
+export type PrinterInvariantInput = {
+  connectionType: "LAN" | "USB" | "BLUETOOTH";
+  ipAddress?: string | null;
+  port?: number | null;
+  usbIdentifier?: string | null;
+};
+
+/**
+ * Everything about a printer's connection details that cannot be decided one
+ * field at a time. Mirrors printerInvariantIssue on the API — run once on
+ * create (full payload) and again client-side before an edit is sent.
+ */
+export function printerInvariantIssue(v: PrinterInvariantInput): { path: string; message: string } | null {
+  if (v.connectionType === "LAN" && !(v.ipAddress && v.port)) {
+    return { path: "ipAddress", message: "LAN printers need an IP address and port" };
+  }
+  if (v.connectionType !== "LAN" && !v.usbIdentifier) {
+    return {
+      path: "usbIdentifier",
+      message:
+        v.connectionType === "USB"
+          ? "USB printers need a device identifier"
+          : "Pair the Bluetooth printer first, then select it here",
+    };
+  }
+  return null;
+}
+
+export const printerCreateSchema = printerBaseFields
+  .extend({ paperWidth: printerPaperWidthEnum.default("MM_80") })
+  .superRefine((v, ctx) => {
+    const issue = printerInvariantIssue(v);
+    if (issue) ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message, path: [issue.path] });
+  });
+
+/**
+ * `role` is OMITTED, not merely optional — see printerBaseFields' own
+ * comment. "Changing" a printer's role means deactivating this row and
+ * creating another.
+ */
+export const printerUpdateSchema = printerBaseFields.omit({ role: true }).partial().extend({
+  active: z.boolean().optional(),
+});
+
+/** printerId is the route param (POST /api/restaurant/printers/:id/test-print)
+ * — the body only says which ticket to render, since a SHARED printer can
+ * render either. */
+export const testPrintSchema = z.object({ type: z.enum(["BILL", "KOT"]) });
+
+/**
+ * The restaurant-controlled One-Way/Two-Way switch — legal only when
+ * operationType is KOT, enforced by the API. Deliberately its own
+ * endpoint/schema, separate from restaurantOperationTypeSchema (admin-only,
+ * KOT/DBS itself) — see that schema's own comment for why the two must
+ * never be combined.
+ */
+export const kotPrinterModeUpdateSchema = z.object({
+  kotPrinterMode: z.enum(["ONE_WAY", "TWO_WAY"]),
 });
 
 // ─── Customer: ordering ────────────────────────────────────────────────────

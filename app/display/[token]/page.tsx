@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Monitor } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { PickupDisplay, type PickupOrder } from "@/components/restaurant/pickup-display";
 import { ScreenGate } from "@/components/restaurant/screen-gate";
+import { ApiError } from "@/lib/api/http";
 import type { AnnounceLanguage } from "@/lib/restaurant/announce";
 import { probeScreen, screenFetch } from "@/lib/restaurant/screen";
 
@@ -54,10 +56,22 @@ export default async function PickupDisplayPage({ params }: { params: { token: s
     );
   }
 
-  const { orders, announceLanguages } = await screenFetch<{
-    orders: PickupOrder[];
-    announceLanguages: AnnounceLanguage[];
-  }>(params.token, "/pickup");
+  // Same reasoning as the kitchen screen's own try/catch: pickupEnabled can
+  // be turned off after this screen already unlocked, and GET /pickup then
+  // 403s where it previously never would have.
+  let orders: PickupOrder[];
+  let announceLanguages: AnnounceLanguage[];
+  try {
+    ({ orders, announceLanguages } = await screenFetch<{
+      orders: PickupOrder[];
+      announceLanguages: AnnounceLanguage[];
+    }>(params.token, "/pickup"));
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 403) {
+      return <PickupDisabledNotice restaurantName={screen.restaurantName} />;
+    }
+    throw err;
+  }
 
   return (
     <PickupDisplay
@@ -67,5 +81,24 @@ export default async function PickupDisplayPage({ params }: { params: { token: s
       initialOrders={orders}
       initialAnnounceLanguages={announceLanguages}
     />
+  );
+}
+
+/** Same dark board styling as the "almost ready" state above — this is a
+ * public-facing lobby screen, not the staff console. */
+function PickupDisabledNotice({ restaurantName }: { restaurantName: string }) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-neutral-950 p-6 text-neutral-100">
+      <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-neutral-900 text-neutral-400">
+          <Monitor className="size-6" />
+        </span>
+        <h1 className="text-xl font-semibold">Pickup board is disabled</h1>
+        <p className="text-sm text-neutral-400">
+          {restaurantName} has had its Pickup board turned off. Contact your Priinteve
+          administrator if this screen should be active.
+        </p>
+      </div>
+    </main>
   );
 }

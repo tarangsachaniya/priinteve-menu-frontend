@@ -63,6 +63,7 @@ export function RestaurantsTable({ initialRestaurants }: { initialRestaurants: A
             <TableRow>
               <TableHead>Restaurant</TableHead>
               <TableHead>Branch</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Owner login</TableHead>
               <TableHead className="text-right">Menu</TableHead>
               <TableHead className="text-right">Tables</TableHead>
@@ -75,7 +76,7 @@ export function RestaurantsTable({ initialRestaurants }: { initialRestaurants: A
           <TableBody>
             {restaurants.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={10} className="py-10 text-center text-sm text-muted-foreground">
                   No restaurants yet — add your first one to get started.
                 </TableCell>
               </TableRow>
@@ -105,6 +106,19 @@ export function RestaurantsTable({ initialRestaurants }: { initialRestaurants: A
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {/* Rides along on the list response — see
+                      GET /api/admin/restaurants. KOT/DBS controls billing/
+                      printing architecture and is admin-only to change (from
+                      this row's Manage page), never from the restaurant's
+                      own console. */}
+                  <Badge
+                    variant={restaurant.operationType === "KOT" ? "default" : "secondary"}
+                    className="w-fit"
+                  >
+                    {restaurant.operationType ?? "DBS"}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   <span className="block max-w-[13rem] truncate" title={restaurant.ownerEmail ?? undefined}>

@@ -7,6 +7,7 @@ import {
   CreditCard,
   History,
   Monitor,
+  Printer,
   ReceiptText,
   Settings,
   Star,
@@ -58,6 +59,7 @@ export const SETTINGS_NAV_ITEMS: RestaurantNavItem[] = [
   { href: "/r/settings/sounds", label: "Sounds", icon: Volume2 },
   { href: "/r/settings/screens", label: "Screens", icon: Monitor },
   { href: "/r/settings/devices", label: "Devices", icon: Tv },
+  { href: "/r/settings/printing", label: "Printing", icon: Printer },
   { href: "/r/settings/hours", label: "Hours", icon: Clock },
   { href: "/r/settings/invoice", label: "Invoice", icon: ReceiptText },
 ];

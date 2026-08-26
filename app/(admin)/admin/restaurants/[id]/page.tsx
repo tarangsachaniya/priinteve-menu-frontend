@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { UtensilsCrossed } from "lucide-react";
 
 import { serverFetch } from "@/lib/api/server";
+import type { RestoKotPrinterMode, RestoOperationType } from "@/lib/api/enums";
 import { getRestaurantOrderUrl } from "@/lib/restaurant/qr-url";
 import { PageShell } from "@/components/shared/page-shell";
 import { RestaurantDetailPanel } from "@/components/restaurant/admin/restaurant-detail-panel";
@@ -26,6 +27,11 @@ type RestaurantDetailDTO = {
   address: string | null;
   isActive: boolean;
   users: RestaurantUser[];
+  operationType: RestoOperationType;
+  kotPrinterMode: RestoKotPrinterMode | null;
+  kitchenEnabled: boolean;
+  pickupEnabled: boolean;
+  tvEnabled: boolean;
   _count: { tables: number; menuItems: number; categories: number; orders: number };
 };
 
@@ -81,6 +87,11 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
           ownerEmail: owner?.email ?? null,
           ownerName: owner?.name ?? null,
           orderUrl: getRestaurantOrderUrl(restaurant.slug),
+          operationType: restaurant.operationType,
+          kotPrinterMode: restaurant.kotPrinterMode,
+          kitchenEnabled: restaurant.kitchenEnabled,
+          pickupEnabled: restaurant.pickupEnabled,
+          tvEnabled: restaurant.tvEnabled,
         }}
       />
 

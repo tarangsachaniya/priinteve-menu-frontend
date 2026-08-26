@@ -16,8 +16,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import type { RestoKotPrinterMode, RestoOperationType } from "@/lib/api/enums";
 import type { OpenState } from "@/lib/restaurant/hours";
+import { cn } from "@/lib/utils";
 import { restaurantCreateSchema } from "@/lib/validations/restaurant";
 
 export type AdminRestaurant = {
@@ -39,6 +42,15 @@ export type AdminRestaurant = {
   menuItemCount: number;
   orderCount: number;
   createdAt: string | Date;
+  // Printing architecture + operational modules — see lib/api/enums.ts.
+  // Optional because older cached rows built before this feature (e.g. the
+  // synthetic object RestaurantForm's onCreated assembles) may omit them;
+  // the table falls back sensibly wherever it renders these.
+  operationType?: RestoOperationType;
+  kotPrinterMode?: RestoKotPrinterMode | null;
+  kitchenEnabled?: boolean;
+  pickupEnabled?: boolean;
+  tvEnabled?: boolean;
 };
 
 const EMPTY_FORM = {
@@ -50,6 +62,13 @@ const EMPTY_FORM = {
   phone: "",
   address: "",
   tableCount: "",
+  // Defaults match restaurantCreateSchema's own defaults — an admin who
+  // never touches this section still creates a DBS restaurant with every
+  // module on, exactly like every restaurant created before this feature.
+  operationType: "DBS" as RestoOperationType,
+  kitchenEnabled: true,
+  pickupEnabled: true,
+  tvEnabled: true,
 };
 
 /**
@@ -137,6 +156,11 @@ export function RestaurantForm({
         menuItemCount: 0,
         orderCount: 0,
         createdAt: new Date(),
+        operationType: data.restaurant.operationType ?? form.operationType,
+        kotPrinterMode: null,
+        kitchenEnabled: data.restaurant.kitchenEnabled ?? form.kitchenEnabled,
+        pickupEnabled: data.restaurant.pickupEnabled ?? form.pickupEnabled,
+        tvEnabled: data.restaurant.tvEnabled ?? form.tvEnabled,
       });
     } finally {
       setIsSaving(false);
@@ -284,6 +308,69 @@ export function RestaurantForm({
                 kitchen can see which table an order came from. Leave at 0 for takeaway-only.
                 Tables can be added or renamed later.
               </p>
+            </div>
+
+            <div className="flex flex-col gap-1.5 border-t border-border pt-4">
+              <Label>Operation type</Label>
+              <p className="text-xs text-muted-foreground">
+                Controls the billing/printing architecture. Admin-only, and only changeable later
+                from this admin console — the restaurant itself can view but never switch this.
+                A KOT restaurant additionally chooses its own printer mode (One-Way / Two-Way)
+                from its own Settings once created.
+              </p>
+              <div className="flex gap-2">
+                {(["DBS", "KOT"] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => update("operationType", type)}
+                    aria-pressed={form.operationType === type}
+                    className={cn(
+                      "flex-1 rounded-xl border px-3 py-2 text-left text-sm transition-colors",
+                      form.operationType === type
+                        ? "border-primary bg-primary/10 font-medium text-ink"
+                        : "border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <span className="block font-medium text-foreground">{type}</span>
+                    <span className="block text-xs">
+                      {type === "DBS" ? "One billing printer" : "Kitchen Order Ticket printing"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <Label>Operational modules</Label>
+              <p className="text-xs text-muted-foreground">
+                Independent of operation type and of each other — gate whether the Kitchen board,
+                Pickup board, and TV pairing exist for this restaurant.
+              </p>
+              <div className="flex items-center justify-between rounded-xl border border-border/70 p-2.5">
+                <span className="text-sm">Kitchen board</span>
+                <Switch
+                  checked={form.kitchenEnabled}
+                  onCheckedChange={(checked) => update("kitchenEnabled", checked)}
+                  aria-label="Kitchen board enabled"
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/70 p-2.5">
+                <span className="text-sm">Pickup board</span>
+                <Switch
+                  checked={form.pickupEnabled}
+                  onCheckedChange={(checked) => update("pickupEnabled", checked)}
+                  aria-label="Pickup board enabled"
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/70 p-2.5">
+                <span className="text-sm">TV pairing</span>
+                <Switch
+                  checked={form.tvEnabled}
+                  onCheckedChange={(checked) => update("tvEnabled", checked)}
+                  aria-label="TV pairing enabled"
+                />
+              </div>
             </div>
 
             <Button type="submit" disabled={isSaving} className="mt-1">

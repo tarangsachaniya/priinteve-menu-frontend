@@ -51,10 +51,26 @@ function SettingsSubNav({ pathname, onNavigate }: { pathname: string | null; onN
   );
 }
 
-function NavLinks({ pathname, onNavigate }: { pathname: string | null; onNavigate?: () => void }) {
+function NavLinks({
+  pathname,
+  onNavigate,
+  kitchenEnabled,
+}: {
+  pathname: string | null;
+  onNavigate?: () => void;
+  kitchenEnabled: boolean;
+}) {
+  // Kitchen is the one nav item gated by an operational module — see
+  // Restaurant.kitchenEnabled. This only hides the link; the route itself
+  // (app/(kitchen)/r/kitchen/page.tsx) enforces the same check server-side,
+  // since a hidden link is not a guard.
+  const items = kitchenEnabled
+    ? RESTAURANT_NAV_ITEMS
+    : RESTAURANT_NAV_ITEMS.filter((item) => item.href !== "/r/kitchen");
+
   return (
     <>
-      {RESTAURANT_NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const isActive = Boolean(pathname === item.href || pathname?.startsWith(`${item.href}/`));
         return (
           <div key={item.href} className="flex flex-col gap-1">
@@ -119,9 +135,11 @@ function Logo({ name }: { name: string }) {
 export function RestaurantSidebar({
   restaurantName,
   email,
+  kitchenEnabled,
 }: {
   restaurantName: string;
   email: string;
+  kitchenEnabled: boolean;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -131,7 +149,7 @@ export function RestaurantSidebar({
       <nav className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-1 border-r border-border bg-card p-4 md:flex">
         <Logo name={restaurantName} />
         <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          <NavLinks pathname={pathname} />
+          <NavLinks pathname={pathname} kitchenEnabled={kitchenEnabled} />
         </div>
         <ProfileFooter email={email} />
       </nav>
@@ -152,7 +170,11 @@ export function RestaurantSidebar({
           <SheetContent className="left-0 right-auto flex-col slide-in-from-left data-[closed]:slide-out-to-left">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
-              <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+              <NavLinks
+                pathname={pathname}
+                onNavigate={() => setMobileOpen(false)}
+                kitchenEnabled={kitchenEnabled}
+              />
             </div>
             <ProfileFooter email={email} />
           </SheetContent>

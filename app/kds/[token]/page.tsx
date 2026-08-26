@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { ChefHat } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { KitchenScreen } from "@/components/restaurant/kitchen-screen";
 import { ScreenGate } from "@/components/restaurant/screen-gate";
+import { ApiError } from "@/lib/api/http";
 import type { KitchenOrder } from "@/lib/restaurant/live-order";
 import { probeScreen, screenFetch } from "@/lib/restaurant/screen";
 
@@ -50,7 +52,20 @@ export default async function KitchenScreenPage({ params }: { params: { token: s
     );
   }
 
-  const { orders } = await screenFetch<{ orders: KitchenOrder[] }>(params.token, "/orders");
+  // An owner can turn Kitchen off for a restaurant at any time (see
+  // Restaurant.kitchenEnabled) — a screen already unlocked and sitting on
+  // this route then gets a 403 from GET /orders where it previously never
+  // would have. Caught here rather than left to crash into a generic error
+  // page, since a wall-mounted tablet has no one at hand to debug it.
+  let orders: KitchenOrder[];
+  try {
+    ({ orders } = await screenFetch<{ orders: KitchenOrder[] }>(params.token, "/orders"));
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 403) {
+      return <KitchenDisabledNotice restaurantName={screen.restaurantName} />;
+    }
+    throw err;
+  }
 
   return (
     <KitchenScreen
@@ -58,6 +73,25 @@ export default async function KitchenScreenPage({ params }: { params: { token: s
       restaurantName={screen.restaurantName}
       initialOrders={orders}
     />
+  );
+}
+
+/** Mirrors NoPinYet's look below — same screen, different reason the board
+ * can't render. */
+function KitchenDisabledNotice({ restaurantName }: { restaurantName: string }) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-muted p-6">
+      <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-card text-muted-foreground">
+          <ChefHat className="size-6" />
+        </span>
+        <h1 className="text-xl font-semibold text-ink">Kitchen is disabled</h1>
+        <p className="text-sm text-muted-foreground">
+          {restaurantName} has had its Kitchen board turned off. Contact your Priinteve
+          administrator if this screen should be active.
+        </p>
+      </div>
+    </main>
   );
 }
 

@@ -15,6 +15,7 @@ import {
   Table2,
   Tv,
   Volume2,
+  Gift,
   type LucideIcon,
 } from "lucide-react";
 
@@ -62,4 +63,5 @@ export const SETTINGS_NAV_ITEMS: RestaurantNavItem[] = [
   { href: "/r/settings/printing", label: "Printing", icon: Printer },
   { href: "/r/settings/hours", label: "Hours", icon: Clock },
   { href: "/r/settings/invoice", label: "Invoice", icon: ReceiptText },
+  { href: "/r/settings/rewards", label: "Rewards", icon: Gift },
 ];

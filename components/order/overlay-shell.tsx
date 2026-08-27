@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
  *    be a fourth palette no restaurant controls.
  */
 
-export type OverlayTone = "cart" | "checkout" | "dish" | "identity" | "lookup" | "history";
+export type OverlayTone = "cart" | "checkout" | "dish" | "identity" | "lookup" | "history" | "rewards";
 
 const TONE: Record<
   OverlayTone,
@@ -83,6 +83,12 @@ const TONE: Record<
     placement: "sm:items-center sm:justify-center",
     accent: "var(--resto-text-subtle)",
     accentHeight: "h-[2px]",
+  },
+  rewards: {
+    width: "sm:max-w-md",
+    placement: "sm:items-center sm:justify-center",
+    accent: "var(--resto-brand-500)",
+    accentHeight: "h-1",
   },
 };
 

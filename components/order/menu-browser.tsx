@@ -27,6 +27,8 @@ import { RestaurantHero } from "@/components/order/restaurant-hero";
 import { ResumeOrderBanner } from "@/components/order/resume-order-banner";
 import { ReviewsSection } from "@/components/order/reviews-section";
 import { TrackOrderDialog } from "@/components/order/track-order-dialog";
+import { RewardPopup } from "@/components/order/reward-popup";
+import { MyRewardsSheet } from "@/components/order/my-rewards-sheet";
 import { isCustomisable, useCart } from "@/components/order/use-cart";
 import type {
   PublicMenuCategory,
@@ -89,6 +91,7 @@ export function MenuBrowser({
   // The signed-in counterpart to showTrackOrder — no number to type, so it
   // reads the session instead of asking.
   const [showHistory, setShowHistory] = useState(false);
+  const [showMyRewards, setShowMyRewards] = useState(false);
   const [customer, setCustomer] = useState<{ name: string; mobile: string } | null>(null);
   // The signed-in guest's own most-ordered dishes. Personal, so it can't ride
   // down with the page — that payload is shared and cached. Fetched from the
@@ -326,14 +329,26 @@ export function MenuBrowser({
         {/* Signed in, the mobile number is already known, so the history opens
             straight from the session — asking for the number again would be
             the one thing signing in was meant to save. */}
-        <button
-          type="button"
-          onClick={() => (customer ? setShowHistory(true) : setShowTrackOrder(true))}
-          className="shrink-0 text-xs font-semibold underline-offset-2 hover:underline"
-          style={{ color: "var(--resto-text-muted)" }}
-        >
-          {customer ? "My orders" : "Track my order"}
-        </button>
+        <div className="flex items-center gap-4 shrink-0">
+          {customer && (
+            <button
+              type="button"
+              onClick={() => setShowMyRewards(true)}
+              className="text-xs font-semibold underline-offset-2 hover:underline"
+              style={{ color: "var(--resto-brand-text)" }}
+            >
+              Rewards
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => (customer ? setShowHistory(true) : setShowTrackOrder(true))}
+            className="text-xs font-semibold underline-offset-2 hover:underline"
+            style={{ color: "var(--resto-text-muted)" }}
+          >
+            {customer ? "My orders" : "Track my order"}
+          </button>
+        </div>
       </div>
 
       {!isOpen && (
@@ -577,6 +592,20 @@ export function MenuBrowser({
           onClose={() => setShowHistory(false)}
         />
       )}
+
+      {showMyRewards && customer && (
+        <MyRewardsSheet
+          restaurantSlug={restaurant.slug}
+          customer={customer}
+          onClose={() => setShowMyRewards(false)}
+        />
+      )}
+
+      <RewardPopup
+        restaurantSlug={restaurant.slug}
+        customer={customer}
+        onOpenMyRewards={() => setShowMyRewards(true)}
+      />
     </div>
   );
 }

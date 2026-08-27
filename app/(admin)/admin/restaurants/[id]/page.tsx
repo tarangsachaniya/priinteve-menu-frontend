@@ -8,6 +8,8 @@ import { PageShell } from "@/components/shared/page-shell";
 import { RestaurantDetailPanel } from "@/components/restaurant/admin/restaurant-detail-panel";
 import { AudioSettingsForm, type AudioSettings } from "@/components/restaurant/audio-settings-form";
 import { PaymentSettingsForm, type PaymentSettings } from "@/components/restaurant/payment-settings-form";
+import { LoyaltySettingsForm, type LoyaltySettings } from "@/components/restaurant/loyalty-settings-form";
+import { ScratchCampaignForm, type ScratchCampaignSettings } from "@/components/restaurant/scratch-campaign-form";
 import {
   QrMenuCardsPanel,
   type AdminTableRow,
@@ -44,7 +46,7 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
   // Independent reads, so the page costs one round trip rather than four.
   // Payment and audio tolerate failure — a still-deploying API missing either
   // route should not take the whole provisioning screen down with it.
-  const [data, tableData, payment, audio] = await Promise.all([
+  const [data, tableData, payment, audio, loyalty, scratchCampaign] = await Promise.all([
     serverFetch<{ restaurant: RestaurantDetailDTO }>(`/api/admin/restaurants/${params.id}`, {
       cache: "no-store",
       allow404: true,
@@ -57,6 +59,12 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
       cache: "no-store",
     }).catch(() => null),
     serverFetch<AudioSettings>(`/api/admin/restaurants/${params.id}/audio`, {
+      cache: "no-store",
+    }).catch(() => null),
+    serverFetch<LoyaltySettings>(`/api/admin/restaurants/${params.id}/loyalty`, {
+      cache: "no-store",
+    }).catch(() => null),
+    serverFetch<ScratchCampaignSettings>(`/api/admin/restaurants/${params.id}/scratch-campaign`, {
       cache: "no-store",
     }).catch(() => null),
   ]);
@@ -114,6 +122,24 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
           <AudioSettingsForm
             endpoint={`/api/admin/restaurants/${restaurant.id}/audio`}
             initial={audio}
+          />
+        </div>
+      )}
+
+      {loyalty && (
+        <div className="mt-6">
+          <LoyaltySettingsForm
+            endpoint={`/api/admin/restaurants/${restaurant.id}/loyalty`}
+            initial={loyalty}
+          />
+        </div>
+      )}
+
+      {scratchCampaign && (
+        <div className="mt-6">
+          <ScratchCampaignForm
+            endpoint={`/api/admin/restaurants/${restaurant.id}/scratch-campaign`}
+            initial={scratchCampaign}
           />
         </div>
       )}

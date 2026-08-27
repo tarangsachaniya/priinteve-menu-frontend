@@ -6,7 +6,6 @@ import {
   Clock,
   MapPin,
   Phone,
-  Printer,
   Receipt,
   RefreshCw,
   ShoppingBag,
@@ -108,7 +107,7 @@ function OrderCard({
   onAdvance,
   onCancel,
   onMarkPaid,
-  onPrintBill,
+  onComplete,
   isBusy,
   role,
 }: {

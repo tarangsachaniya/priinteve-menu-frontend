@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyLane, EmptyState } from "@/components/shared/empty-state";
 import { CancelOrderDialog } from "@/components/restaurant/cancel-order-dialog";
+import { CompleteOrderDialog } from "@/components/restaurant/complete-order-dialog";
 import { ManualOrderDialog } from "@/components/restaurant/manual-order-dialog";
 import { formatCurrency } from "@/lib/format";
 import type { LiveOrder } from "@/lib/restaurant/live-order";
@@ -115,7 +116,7 @@ function OrderCard({
   onAdvance: (order: BoardOrder) => void;
   onCancel: (order: BoardOrder) => void;
   onMarkPaid: (order: BoardOrder) => void;
-  onPrintBill: (order: BoardOrder) => void;
+  onComplete: (order: BoardOrder) => void;
   isBusy: boolean;
   role: RestoUserRole;
 }) {
@@ -233,7 +234,7 @@ function OrderCard({
           </p>
         )}
 
-        <div className="flex flex-wrap gap-1.5 border-t border-border pt-2">
+        <div className={cn("flex flex-wrap gap-1.5", canMarkPaid && "border-t border-border pt-2")}>
           {canMarkPaid && (
             <Button type="button" variant="outline" size="xs" disabled={isBusy} onClick={() => onMarkPaid(order)}>
               {/* Names where to look before tapping. A UPI QR guest has
@@ -242,14 +243,6 @@ function OrderCard({
               {order.paymentMode === "UPI_QR" ? "Mark paid (UPI received)" : "Mark paid (cash)"}
             </Button>
           )}
-          {/* Valid any time, before or after payment, for both KOT and DBS
-              restaurants — not gated on canMarkPaid. 409s with a clear
-              message if the restaurant has no billing printer configured
-              yet, surfaced as a toast by onPrintBill. */}
-          <Button type="button" variant="outline" size="xs" disabled={isBusy} onClick={() => onPrintBill(order)}>
-            <Printer data-icon="inline-start" />
-            Print bill
-          </Button>
         </div>
 
         {blockedByPayment && (
@@ -306,7 +299,7 @@ function OrderCard({
                   size="xs"
                   disabled={isBusy || blockedByPayment}
                   title={blockedByPayment ? "Mark this order paid before completing it" : undefined}
-                  onClick={() => onAdvance(order)}
+                  onClick={() => (advanceTo === "COMPLETED" ? onComplete(order) : onAdvance(order))}
                 >
                   {advanceTo === "ACCEPTED"
                     ? "Accept"
@@ -338,6 +331,7 @@ export function OrdersBoard({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tableFilter, setTableFilter] = useState<string>("all");
   const [pendingCancel, setPendingCancel] = useState<BoardOrder | null>(null);
+  const [pendingComplete, setPendingComplete] = useState<BoardOrder | null>(null);
   const knownIds = useRef(new Set(initialOrders.map((o) => o.id)));
 
   /**
@@ -438,6 +432,15 @@ export function OrdersBoard({
     if (!pendingCancel) return;
     updateStatus(pendingCancel, "CANCELLED", reason || undefined);
     setPendingCancel(null);
+  }
+
+  function confirmComplete(printBillStatus: boolean) {
+    if (!pendingComplete) return;
+    updateStatus(pendingComplete, "COMPLETED");
+    if (printBillStatus) {
+      printBill(pendingComplete);
+    }
+    setPendingComplete(null);
   }
 
   /**
@@ -576,7 +579,7 @@ export function OrdersBoard({
                       onAdvance={advance}
                       onCancel={cancel}
                       onMarkPaid={markPaid}
-                      onPrintBill={printBill}
+                      onComplete={setPendingComplete}
                       isBusy={busyId === order.id}
                       role={role}
                     />
@@ -592,6 +595,11 @@ export function OrdersBoard({
         order={pendingCancel}
         onOpenChange={(open) => !open && setPendingCancel(null)}
         onConfirm={confirmCancel}
+      />
+      <CompleteOrderDialog
+        order={pendingComplete}
+        onOpenChange={(open) => !open && setPendingComplete(null)}
+        onConfirm={confirmComplete}
       />
     </div>
   );

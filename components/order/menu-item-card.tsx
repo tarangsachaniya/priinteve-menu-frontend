@@ -43,7 +43,7 @@ export function MenuItemCard({
 
   return (
     <li
-      className="relative flex items-center gap-3 border-b p-3 transition-colors bg-white hover:bg-gray-50"
+      className="relative flex items-center gap-3 border-b p-3 transition-colors"
       style={{
         borderColor: "var(--resto-divider)",
         opacity: unavailable ? 0.55 : 1,

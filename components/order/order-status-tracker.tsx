@@ -29,6 +29,7 @@ import {
 import { PaidReceipt, PaymentPanel } from "@/components/order/payment-panel";
 import { PlatformCredit } from "@/components/order/platform-credit";
 import { ReviewPrompt } from "@/components/order/review-prompt";
+import { RewardRedemption } from "@/components/order/reward-redemption";
 
 const POLL_INTERVAL_MS = 8000;
 
@@ -92,6 +93,10 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
   const [paymentMode, setPaymentMode] = useState(initialOrder.paymentMode);
   const [cancelReason, setCancelReason] = useState(initialOrder.cancelReason);
   const [hasReview, setHasReview] = useState(initialOrder.hasReview);
+  // Redeeming a loyalty/scratch reward (see RewardRedemption below) changes
+  // the order's total server-side — tracked here so the summary and payment
+  // panel reflect it immediately, without waiting for the next status poll.
+  const [total, setTotal] = useState(initialOrder.total);
 
   const isPaid = paymentStatus === "PAID";
   const isCancelled = status === "CANCELLED";
@@ -214,6 +219,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         setPaymentMode(data.order.paymentMode);
         setCancelReason(data.order.cancelReason);
         setHasReview(data.order.hasReview);
+        setTotal(data.order.total);
         announceLanguages.current = data.order.announceLanguages;
 
         // Chime only, deliberately — the spoken announcement is a pickup-board
@@ -320,12 +326,22 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         </div>
       )}
 
+      {/* The only window redemption is allowed in — before the restaurant
+          requests payment. See reward-redemption.tsx's own comment. */}
+      {!isCancelled && paymentStatus === "PENDING" && (
+        <RewardRedemption
+          restaurantSlug={initialOrder.restaurantSlug}
+          orderId={initialOrder.id}
+          onRedeemed={setTotal}
+        />
+      )}
+
       {/* Payment first once it is due: it is the only thing on this page the
           guest still has to act on. */}
       {!isCancelled && awaitingPayment && (
         <PaymentPanel
           orderId={initialOrder.id}
-          total={initialOrder.total}
+          total={total}
           canPayCash={initialOrder.canPayCash}
           canPayUpiQr={initialOrder.canPayUpiQr}
           paymentMode={paymentMode}
@@ -336,7 +352,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         />
       )}
 
-      {!isCancelled && isPaid && <PaidReceipt total={initialOrder.total} mode={paymentMode} />}
+      {!isCancelled && isPaid && <PaidReceipt total={total} mode={paymentMode} />}
 
       {isCancelled ? (
         <div
@@ -358,7 +374,7 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
           )}
           {paymentStatus === "REFUNDED" && (
             <p className="text-sm" style={{ color: "var(--resto-text-muted)" }}>
-              This order was already paid — a refund of {formatCurrency(initialOrder.total)} will be
+              This order was already paid — a refund of {formatCurrency(total)} will be
               processed by the restaurant.
             </p>
           )}
@@ -504,10 +520,20 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
           {initialOrder.deliveryFee > 0 && (
             <SummaryRow label="Delivery fee" value={initialOrder.deliveryFee} />
           )}
+          {/* Only appears once a reward has actually been redeemed — before
+              that, subtotal + tax + delivery already equals `total`. */}
+          {initialOrder.subtotal + initialOrder.taxAmount + initialOrder.deliveryFee - total > 0 && (
+            <div className="flex items-baseline justify-between" style={{ color: "var(--resto-success)" }}>
+              <span>Reward discount</span>
+              <span className="resto-numeric">
+                -{formatCurrency(initialOrder.subtotal + initialOrder.taxAmount + initialOrder.deliveryFee - total)}
+              </span>
+            </div>
+          )}
           <div className="flex items-baseline justify-between font-semibold">
             <span style={{ color: "var(--resto-text)" }}>Grand total</span>
             <span className="resto-numeric resto-display" style={{ color: "var(--resto-text)" }}>
-              {formatCurrency(initialOrder.total)}
+              {formatCurrency(total)}
             </span>
           </div>
         </div>

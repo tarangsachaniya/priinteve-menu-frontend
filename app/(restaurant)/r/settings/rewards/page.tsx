@@ -2,47 +2,33 @@ import { serverFetch } from "@/lib/api/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Coins, Ticket, Activity, Gift } from "lucide-react";
 
+import { LoyaltySettingsForm, type LoyaltySettings } from "@/components/restaurant/loyalty-settings-form";
+import { ScratchCampaignForm, type MenuItemOption, type ScratchCampaignSettings } from "@/components/restaurant/scratch-campaign-form";
+
 export const dynamic = "force-dynamic";
 
 type RewardsMetrics = {
-  loyalty: {
-    issued: number;
-    redeemed: number;
-    expired: number;
-  };
-  scratchCards: {
-    issued: number;
-    revealed: number;
-    redeemed: number;
-    expired: number;
-  };
+  loyalty: { issued: number; redeemed: number; expired: number };
+  scratchCards: { issued: number; revealed: number; redeemed: number; expired: number };
 };
 
-// Mock data fetch for now as backend might not be ready
-async function getRewardsMetrics(): Promise<RewardsMetrics> {
-  try {
-    const data = await serverFetch<RewardsMetrics>("/api/restaurant/rewards/metrics", { cache: "no-store" });
-    return data;
-  } catch {
-    // Return mock data if API fails or is not implemented yet
-    return {
-      loyalty: {
-        issued: 12500,
-        redeemed: 8400,
-        expired: 1200,
-      },
-      scratchCards: {
-        issued: 450,
-        revealed: 380,
-        redeemed: 150,
-        expired: 25,
-      }
-    };
-  }
-}
+type ScratchCampaignResponse = { isEnabled: boolean; campaign: ScratchCampaignSettings };
+
+const EMPTY_METRICS: RewardsMetrics = {
+  loyalty: { issued: 0, redeemed: 0, expired: 0 },
+  scratchCards: { issued: 0, revealed: 0, redeemed: 0, expired: 0 },
+};
 
 export default async function RewardsSettingsPage() {
-  const metrics = await getRewardsMetrics();
+  // Independent, fault-tolerant reads — a still-deploying route missing
+  // shouldn't take the whole page down, same convention every other
+  // Settings page here already follows.
+  const [metrics, loyalty, scratch, menuItemsData] = await Promise.all([
+    serverFetch<RewardsMetrics>("/api/restaurant/rewards/metrics", { cache: "no-store" }).catch(() => EMPTY_METRICS),
+    serverFetch<LoyaltySettings>("/api/restaurant/loyalty/settings", { cache: "no-store" }).catch(() => null),
+    serverFetch<ScratchCampaignResponse>("/api/restaurant/scratch/campaign", { cache: "no-store" }).catch(() => null),
+    serverFetch<{ items: MenuItemOption[] }>("/api/restaurant/menu-items", { cache: "no-store" }).catch(() => ({ items: [] })),
+  ]);
 
   return (
     <div className="flex flex-col gap-10">
@@ -79,6 +65,20 @@ export default async function RewardsSettingsPage() {
               <p className="text-xs text-muted-foreground">Unused points that expired</p>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mt-6">
+          {loyalty && loyalty.loyaltyEnabled ? (
+            <LoyaltySettingsForm endpoint="/api/restaurant/loyalty/settings" initial={loyalty} />
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
+                <Gift className="size-5 shrink-0" />
+                Loyalty Points isn&apos;t enabled for your restaurant yet. Ask Priinteve to turn it on, then
+                come back here to set your own rates.
+              </CardContent>
+            </Card>
+          )}
         </div>
       </section>
 
@@ -121,6 +121,20 @@ export default async function RewardsSettingsPage() {
               <div className="text-2xl font-bold">{metrics.scratchCards.expired.toLocaleString()}</div>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mt-6">
+          {scratch && scratch.isEnabled ? (
+            <ScratchCampaignForm endpoint="/api/restaurant/scratch/campaign" initial={scratch.campaign} menuItems={menuItemsData.items} />
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
+                <Ticket className="size-5 shrink-0" />
+                Scratch Cards isn&apos;t enabled for your restaurant yet. Ask Priinteve to turn it on, then
+                come back here to set up your campaign.
+              </CardContent>
+            </Card>
+          )}
         </div>
       </section>
     </div>

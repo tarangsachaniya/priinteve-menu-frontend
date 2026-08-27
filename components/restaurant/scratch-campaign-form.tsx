@@ -16,7 +16,11 @@ export type CampaignReward = {
   type: "POINTS" | "DISCOUNT" | "FREE_ITEM";
   value: number;
   weight: number;
+  /** Required once type is FREE_ITEM — which menu item the customer gets free. */
+  menuItemId?: string;
 };
+
+export type MenuItemOption = { id: string; name: string };
 
 export type ScratchCampaignSettings = {
   campaignEnabled: boolean;
@@ -31,9 +35,12 @@ export type ScratchCampaignSettings = {
 export function ScratchCampaignForm({
   endpoint,
   initial,
+  menuItems = [],
 }: {
   endpoint: string;
   initial: ScratchCampaignSettings;
+  /** For the Free Item reward's menu-item picker. Empty is fine — that reward type just can't be added yet. */
+  menuItems?: MenuItemOption[];
 }) {
   const [enabled, setEnabled] = useState(initial.campaignEnabled);
   const [name, setName] = useState(initial.name);
@@ -46,6 +53,13 @@ export function ScratchCampaignForm({
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+
+    const incomplete = rewards.find(rewardIsIncomplete);
+    if (incomplete) {
+      toast.error("Choose a menu item for every Free Item reward");
+      return;
+    }
+
     setBusy(true);
     try {
       const res = await fetch(endpoint, {
@@ -82,6 +96,10 @@ export function ScratchCampaignForm({
 
   function updateReward(id: string, field: keyof CampaignReward, val: string | number) {
     setRewards(rewards.map((r) => r.id === id ? { ...r, [field]: val } : r));
+  }
+
+  function rewardIsIncomplete(reward: CampaignReward) {
+    return reward.type === "FREE_ITEM" && !reward.menuItemId;
   }
 
   return (
@@ -189,15 +207,38 @@ export function ScratchCampaignForm({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex-1">
-                  <Input
-                    type="number"
-                    placeholder="Value"
-                    value={reward.value}
-                    onChange={(e) => updateReward(reward.id, "value", Number(e.target.value))}
-                    disabled={busy}
-                  />
-                </div>
+                {reward.type === "FREE_ITEM" ? (
+                  <div className="flex-1">
+                    <Select
+                      value={reward.menuItemId ?? ""}
+                      onValueChange={(val) => {
+                        if (val) updateReward(reward.id, "menuItemId", val);
+                      }}
+                      disabled={busy || menuItems.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={menuItems.length === 0 ? "No menu items yet" : "Choose item"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {menuItems.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="flex-1">
+                    <Input
+                      type="number"
+                      placeholder="Value"
+                      value={reward.value}
+                      onChange={(e) => updateReward(reward.id, "value", Number(e.target.value))}
+                      disabled={busy}
+                    />
+                  </div>
+                )}
                 <div className="flex-1">
                   <Input
                     type="number"

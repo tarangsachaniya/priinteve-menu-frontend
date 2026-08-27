@@ -4,12 +4,13 @@ import { UtensilsCrossed } from "lucide-react";
 import { serverFetch } from "@/lib/api/server";
 import type { RestoKotPrinterMode, RestoOperationType } from "@/lib/api/enums";
 import { getRestaurantOrderUrl } from "@/lib/restaurant/qr-url";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/components/shared/page-shell";
 import { RestaurantDetailPanel } from "@/components/restaurant/admin/restaurant-detail-panel";
 import { AudioSettingsForm, type AudioSettings } from "@/components/restaurant/audio-settings-form";
 import { PaymentSettingsForm, type PaymentSettings } from "@/components/restaurant/payment-settings-form";
 import { LoyaltySettingsForm, type LoyaltySettings } from "@/components/restaurant/loyalty-settings-form";
-import { ScratchCampaignForm, type ScratchCampaignSettings } from "@/components/restaurant/scratch-campaign-form";
 import {
   QrMenuCardsPanel,
   type AdminTableRow,
@@ -42,11 +43,13 @@ type AdminTablesDTO = {
   tables: AdminTableRow[];
 };
 
+type ScratchProgramDTO = { isEnabled: boolean; campaigns: { id: string; name: string; status: string }[] };
+
 export default async function AdminRestaurantDetailPage({ params }: { params: { id: string } }) {
   // Independent reads, so the page costs one round trip rather than four.
   // Payment and audio tolerate failure — a still-deploying API missing either
   // route should not take the whole provisioning screen down with it.
-  const [data, tableData, payment, audio, loyalty, scratchCampaign] = await Promise.all([
+  const [data, tableData, payment, audio, loyalty, scratchProgram] = await Promise.all([
     serverFetch<{ restaurant: RestaurantDetailDTO }>(`/api/admin/restaurants/${params.id}`, {
       cache: "no-store",
       allow404: true,
@@ -64,7 +67,7 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
     serverFetch<LoyaltySettings>(`/api/admin/restaurants/${params.id}/loyalty`, {
       cache: "no-store",
     }).catch(() => null),
-    serverFetch<ScratchCampaignSettings>(`/api/admin/restaurants/${params.id}/scratch-campaign`, {
+    serverFetch<ScratchProgramDTO>(`/api/admin/restaurants/${params.id}/scratch`, {
       cache: "no-store",
     }).catch(() => null),
   ]);
@@ -100,6 +103,8 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
           kitchenEnabled: restaurant.kitchenEnabled,
           pickupEnabled: restaurant.pickupEnabled,
           tvEnabled: restaurant.tvEnabled,
+          loyaltyEnabled: loyalty?.loyaltyEnabled ?? false,
+          scratchEnabled: scratchProgram?.isEnabled ?? false,
         }}
       />
 
@@ -126,6 +131,10 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
         </div>
       )}
 
+      {/* Support-override numeric config — the toggle itself lives in the
+          panel above. Shown even while loyalty is off: an admin helping a
+          restaurant get set up may want to pre-fill rates before flipping
+          the switch. */}
       {loyalty && (
         <div className="mt-6">
           <LoyaltySettingsForm
@@ -135,13 +144,24 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
         </div>
       )}
 
-      {scratchCampaign && (
-        <div className="mt-6">
-          <ScratchCampaignForm
-            endpoint={`/api/admin/restaurants/${restaurant.id}/scratch-campaign`}
-            initial={scratchCampaign}
-          />
-        </div>
+      {/* Read-only — campaign design is the restaurant's own job once the
+          toggle above is on (see restaurant/scratch.routes.ts's POST
+          /campaign). This is oversight, not an editor. */}
+      {scratchProgram && scratchProgram.campaigns.length > 0 && (
+        <Card className="mt-6 border-border/80">
+          <CardHeader>
+            <CardTitle className="text-base">Scratch campaigns</CardTitle>
+            <CardDescription>Set up by the restaurant itself — view only.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {scratchProgram.campaigns.map((campaign) => (
+              <div key={campaign.id} className="flex items-center justify-between rounded-2xl border border-border/70 p-3 text-sm">
+                <span>{campaign.name}</span>
+                <Badge variant="secondary">{campaign.status}</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       <div className="mt-6">

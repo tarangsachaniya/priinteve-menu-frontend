@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 
 export type LoyaltySettings = {
+  /** Read-only here — Admin's own on/off switch (see restaurant-detail-panel.tsx / the restaurant's Settings > Rewards page header) controls this, not this form. */
   loyaltyEnabled: boolean;
   pointsPerRupee: number;
   rupeeValuePerPoint: number;
@@ -26,7 +26,6 @@ export function LoyaltySettingsForm({
   endpoint: string;
   initial: LoyaltySettings;
 }) {
-  const [enabled, setEnabled] = useState(initial.loyaltyEnabled);
   const [pointsPerRupee, setPointsPerRupee] = useState(initial.pointsPerRupee);
   const [rupeeValuePerPoint, setRupeeValuePerPoint] = useState(initial.rupeeValuePerPoint);
   const [expiryDays, setExpiryDays] = useState(initial.expiryDays);
@@ -42,7 +41,6 @@ export function LoyaltySettingsForm({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          loyaltyEnabled: enabled,
           pointsPerRupee: Number(pointsPerRupee),
           rupeeValuePerPoint: Number(rupeeValuePerPoint),
           expiryDays: Number(expiryDays),
@@ -74,21 +72,6 @@ export function LoyaltySettingsForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={save} className="flex flex-col gap-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <Label htmlFor="loyalty-enabled">Enable Loyalty Program</Label>
-              <p className="text-xs text-muted-foreground">
-                Customers will earn and can redeem points when this is on.
-              </p>
-            </div>
-            <Switch
-              id="loyalty-enabled"
-              checked={enabled}
-              onCheckedChange={setEnabled}
-              disabled={busy}
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="points-per-rupee">Spend required per point (₹)</Label>

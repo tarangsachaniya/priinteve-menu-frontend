@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bike, Loader2, ShoppingBag, Store, Wallet, X } from "lucide-react";
 import type { RestoOrderType } from "@/lib/api/enums";
@@ -71,15 +71,6 @@ export function CheckoutSheet({
   const [pickupInMinutes, setPickupInMinutes] = useState(0);
   const [note, setNote] = useState("");
   const [isPlacing, setIsPlacing] = useState(false);
-  const [useLoyalty, setUseLoyalty] = useState(false);
-  const [loyaltyData, setLoyaltyData] = useState<{
-    points: number;
-    value: number;
-    maxUsablePoints: number;
-    maxDiscountValue: number;
-  } | null>(null);
-  const [isFetchingLoyalty, setIsFetchingLoyalty] = useState(false);
-
 
   // The session stores the mobile canonically as +91…; the API wants the bare
   // ten digits.
@@ -98,47 +89,17 @@ export function CheckoutSheet({
     orderType,
   });
 
-  useEffect(() => {
-    let cancelled = false;
-    
-    async function calculateLoyalty() {
-      setIsFetchingLoyalty(true);
-      try {
-        const res = await fetch(`/api/order/rewards/calculate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            restaurantSlug: restaurant.slug,
-            subtotal: totals.subtotal,
-          }),
-        });
-        const data = await res.json().catch(() => null);
-        if (!cancelled && data && data.loyaltyEnabled) {
-          setLoyaltyData({
-            points: data.points,
-            value: data.value,
-            maxUsablePoints: data.maxUsablePoints,
-            maxDiscountValue: data.maxDiscountValue,
-          });
-        }
-      } catch {
-        // Loyalty calculation failed or is unavailable
-      } finally {
-        if (!cancelled) setIsFetchingLoyalty(false);
-      }
-    }
-    
-    void calculateLoyalty();
-    
-    return () => {
-      cancelled = true;
-    };
-  }, [restaurant.slug, totals.subtotal]);
-
   const belowMinimum = totals.subtotal < restaurant.minOrderValue;
-  
-  const discountAmount = useLoyalty && loyaltyData ? loyaltyData.maxDiscountValue : 0;
-  const finalPayable = Math.max(0, totals.total - discountAmount);
+
+  // Loyalty points and scratch-card rewards can only be redeemed against a
+  // real order while it's still PENDING (before the restaurant requests
+  // payment) — see priinteve-api's loyalty-redemption.ts. There's no order
+  // yet at checkout time, so there's nothing valid to preview or apply here;
+  // the "Redeem rewards" step lives on the order-status page instead, in the
+  // window between placing and the restaurant accepting — see
+  // components/order/reward-redemption.tsx, rendered from
+  // order-status-tracker.tsx.
+  const finalPayable = totals.total;
 
   async function placeOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -172,7 +133,6 @@ export function CheckoutSheet({
           deliveryNotes:
             orderType === "DELIVERY" && deliveryNotes.trim() ? deliveryNotes.trim() : undefined,
           pickupInMinutes: orderType === "TAKE_AWAY" ? pickupInMinutes : undefined,
-          useLoyalty: useLoyalty && loyaltyData ? true : undefined,
         }),
       });
 
@@ -363,46 +323,10 @@ export function CheckoutSheet({
           />
         </div>
 
-        {loyaltyData && loyaltyData.points > 0 && (
-          <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-sm font-semibold flex items-center gap-1.5">
-                  <span>🎁</span> Loyalty Points
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Available: {loyaltyData.points} (worth {formatCurrency(loyaltyData.value)})
-                </p>
-              </div>
-              {isFetchingLoyalty ? (
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
-              ) : (
-                <Button
-                  type="button"
-                  variant={useLoyalty ? "default" : "outline"}
-                  size="xs"
-                  onClick={() => setUseLoyalty(!useLoyalty)}
-                  disabled={loyaltyData.maxDiscountValue <= 0}
-                >
-                  {useLoyalty ? "Applied" : "Use Points"}
-                </Button>
-              )}
-            </div>
-            
-            {loyaltyData.maxDiscountValue > 0 ? (
-              <div className="mt-1 rounded-xl bg-primary/10 px-3 py-2 text-xs text-primary-foreground">
-                <span className="font-medium text-primary">
-                  {useLoyalty ? "Using " : "You can use "} {loyaltyData.maxUsablePoints} points 
-                  to get {formatCurrency(loyaltyData.maxDiscountValue)} off.
-                </span>
-              </div>
-            ) : (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Your order subtotal does not meet the minimum for loyalty redemption.
-              </p>
-            )}
-          </section>
-        )}
+        <p className="rounded-2xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+          🎁 Got loyalty points or a scratch card here? You can apply them once your order is placed —
+          look for &quot;Redeem rewards&quot; on the next screen.
+        </p>
 
         <section className="flex flex-col gap-1 rounded-2xl bg-muted p-3 text-sm">
           <div className="flex justify-between">
@@ -428,12 +352,6 @@ export function CheckoutSheet({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Delivery</span>
               <span className="tabular-nums">{formatCurrency(totals.deliveryFee)}</span>
-            </div>
-          )}
-          {useLoyalty && loyaltyData && (
-            <div className="flex justify-between text-emerald-600">
-              <span>Loyalty Discount</span>
-              <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
             </div>
           )}
           <div className="mt-1 flex justify-between border-t border-border pt-2 font-semibold">

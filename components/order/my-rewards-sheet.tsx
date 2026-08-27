@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Gift, X, Loader2 } from "lucide-react";
+import { Gift, X, Loader2, Sparkles } from "lucide-react";
+
 import { OverlayShell } from "@/components/order/overlay-shell";
+import { ScratchCardInteractive } from "@/components/order/scratch-card";
 
 type RewardHistory = {
   id: string;
@@ -17,6 +19,19 @@ export type RewardsData = {
   history: RewardHistory[];
 };
 
+type ScratchReward = {
+  type: string;
+  label: string;
+  percentValue: number | null;
+  amountValue: number | null;
+} | null;
+
+type ScratchCardEntry = {
+  id: string;
+  status: string;
+  reward: ScratchReward;
+};
+
 export function MyRewardsSheet({
   restaurantSlug,
   customer,
@@ -27,6 +42,7 @@ export function MyRewardsSheet({
   onClose: () => void;
 }) {
   const [rewards, setRewards] = useState<RewardsData | null>(null);
+  const [cards, setCards] = useState<ScratchCardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -39,26 +55,26 @@ export function MyRewardsSheet({
 
     (async () => {
       try {
-        const res = await fetch(`/api/order/rewards/me?restaurantSlug=${restaurantSlug}`);
-        if (!res.ok) {
-          throw new Error("Failed to load rewards");
-        }
-        const data = await res.json();
+        const [meRes, cardsRes] = await Promise.all([
+          fetch(`/api/order/rewards/me?restaurantSlug=${restaurantSlug}`),
+          fetch(`/api/order/scratch/cards?restaurantSlug=${restaurantSlug}`),
+        ]);
+        if (!meRes.ok) throw new Error("Failed to load rewards");
+        const data = await meRes.json();
+        const cardsData = await cardsRes.json().catch(() => ({ cards: [] }));
+
         if (!cancelled) {
           setRewards({
             pointsBalance: data.pointsBalance || 0,
             unscratchedCardsCount: data.unscratchedCardsCount || 0,
             history: data.history || [],
           });
+          setCards(cardsData.cards ?? []);
         }
       } catch {
-        if (!cancelled) {
-          setError(true);
-        }
+        if (!cancelled) setError(true);
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        if (!cancelled) setIsLoading(false);
       }
     })();
 
@@ -66,6 +82,22 @@ export function MyRewardsSheet({
       cancelled = true;
     };
   }, [customer, restaurantSlug]);
+
+  async function scratch(cardId: string) {
+    try {
+      const res = await fetch(`/api/order/scratch/${cardId}/scratch?restaurantSlug=${restaurantSlug}`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.card) {
+        setCards((prev) => prev.map((c) => (c.id === cardId ? data.card : c)));
+      }
+    } catch {
+      // The canvas has already visually revealed by the time this runs — a
+      // failed call just leaves the tile showing "Revealing…" until the next
+      // sheet open retries the fetch. Not worth a toast for a convenience feature.
+    }
+  }
+
+  const activeCards = cards.filter((c) => c.status === "ISSUED" || c.status === "AVAILABLE");
 
   return (
     <OverlayShell tone="rewards" label="My Rewards" onClose={onClose}>
@@ -109,7 +141,38 @@ export function MyRewardsSheet({
                 <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Scratch Cards</p>
               </div>
             </div>
-            
+
+            {activeCards.length > 0 && (
+              <div className="p-5 border-b" style={{ borderColor: "var(--resto-divider)" }}>
+                <h3 className="resto-display text-sm font-semibold mb-4 flex items-center gap-1.5" style={{ color: "var(--resto-text)" }}>
+                  <Sparkles className="size-4" style={{ color: "var(--resto-brand-500)" }} />
+                  Scratch Cards
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {activeCards.map((card) => (
+                    <div key={card.id} className="aspect-square">
+                      {card.status === "ISSUED" ? (
+                        <ScratchCardInteractive onReveal={() => scratch(card.id)} className="text-sm font-semibold text-white">
+                          <span className="text-center text-xs text-muted-foreground">Revealing…</span>
+                        </ScratchCardInteractive>
+                      ) : (
+                        <div
+                          className="flex h-full flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center"
+                          style={{ borderColor: "var(--resto-brand-500)", backgroundColor: "var(--resto-surface-alt)" }}
+                        >
+                          <Sparkles className="size-5" style={{ color: "var(--resto-brand-500)" }} />
+                          <p className="text-sm font-semibold" style={{ color: "var(--resto-text)" }}>
+                            {card.reward?.label ?? "Reward"}
+                          </p>
+                          <p className="text-xs" style={{ color: "var(--resto-text-muted)" }}>Use at checkout</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="p-5">
               <h3 className="resto-display text-sm font-semibold mb-4" style={{ color: "var(--resto-text)" }}>Reward History</h3>
               {rewards.history.length === 0 ? (
@@ -122,7 +185,7 @@ export function MyRewardsSheet({
                         <p className="text-sm" style={{ color: "var(--resto-text)" }}>{item.description}</p>
                         <p className="text-xs mt-0.5" style={{ color: "var(--resto-text-subtle)" }}>{new Date(item.date).toLocaleDateString()}</p>
                       </div>
-                      <span className={`text-sm font-semibold resto-numeric ${item.amount > 0 ? "" : ""}`} style={{ color: item.amount > 0 ? "var(--resto-success)" : "var(--resto-text)" }}>
+                      <span className="text-sm font-semibold resto-numeric" style={{ color: item.amount > 0 ? "var(--resto-success)" : "var(--resto-text)" }}>
                         {item.amount > 0 ? "+" : ""}{item.amount} pt
                       </span>
                     </li>

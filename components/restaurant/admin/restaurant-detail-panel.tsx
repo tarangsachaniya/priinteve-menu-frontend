@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, KeyRound, Printer } from "lucide-react";
+import { Check, Copy, Gift, KeyRound, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,8 @@ export type AdminRestaurantDetail = {
   kitchenEnabled: boolean;
   pickupEnabled: boolean;
   tvEnabled: boolean;
+  loyaltyEnabled: boolean;
+  scratchEnabled: boolean;
 };
 
 type OperationTypeChangeResult = {
@@ -65,6 +67,44 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
     tvEnabled: restaurant.tvEnabled,
   });
   const [savingModule, setSavingModule] = useState<keyof typeof modules | null>(null);
+
+  // Separate endpoints from the module toggles above — the loyalty/scratch
+  // "is this restaurant allowed to use the feature at all" switch, per
+  // priinteve-api's RestoLoyaltyProgram/RestoScratchProgram. Configuring the
+  // details (rates, campaigns) is the restaurant's own job once this is on;
+  // see LoyaltySettingsForm below and the restaurant's own Settings > Rewards
+  // page for the campaign editor.
+  const REWARD_TOGGLE_ENDPOINT = {
+    loyaltyEnabled: `/api/admin/restaurants/${restaurant.id}/loyalty/toggle`,
+    scratchEnabled: `/api/admin/restaurants/${restaurant.id}/scratch/toggle`,
+  } as const;
+  const [rewardModules, setRewardModules] = useState({
+    loyaltyEnabled: restaurant.loyaltyEnabled,
+    scratchEnabled: restaurant.scratchEnabled,
+  });
+  const [savingRewardModule, setSavingRewardModule] = useState<keyof typeof rewardModules | null>(null);
+
+  async function toggleRewardModule(key: keyof typeof rewardModules) {
+    const next = !rewardModules[key];
+    const previous = rewardModules;
+    setRewardModules((prev) => ({ ...prev, [key]: next }));
+    setSavingRewardModule(key);
+    try {
+      const res = await fetch(REWARD_TOGGLE_ENDPOINT[key], {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isEnabled: next }),
+      });
+      if (!res.ok) {
+        setRewardModules(previous);
+        toast.error("Could not update this");
+        return;
+      }
+      toast.success("Saved");
+    } finally {
+      setSavingRewardModule(null);
+    }
+  }
 
   // operationType itself is never in `form` above — it has no place on the
   // contact-details PATCH at all (see restaurantUpdateSchema), only its own
@@ -410,6 +450,49 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
                 aria-label="TV pairing enabled"
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6 border-border/80">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Gift className="size-4" />
+            Loyalty &amp; Scratch Cards
+          </CardTitle>
+          <CardDescription>
+            Grant the restaurant access to each program. Once on, the restaurant configures its own
+            rates, campaigns and rewards from its own Settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <div className="flex items-center justify-between rounded-2xl border border-border/70 p-3">
+            <div>
+              <p className="text-sm font-medium">Loyalty Points</p>
+              <p className="text-xs text-muted-foreground">
+                Customers earn and redeem points once the restaurant sets its own rates.
+              </p>
+            </div>
+            <Switch
+              checked={rewardModules.loyaltyEnabled}
+              disabled={savingRewardModule === "loyaltyEnabled"}
+              onCheckedChange={() => void toggleRewardModule("loyaltyEnabled")}
+              aria-label="Loyalty Points enabled"
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-2xl border border-border/70 p-3">
+            <div>
+              <p className="text-sm font-medium">Scratch Cards</p>
+              <p className="text-xs text-muted-foreground">
+                Customers can win rewards once the restaurant sets up its own campaign.
+              </p>
+            </div>
+            <Switch
+              checked={rewardModules.scratchEnabled}
+              disabled={savingRewardModule === "scratchEnabled"}
+              onCheckedChange={() => void toggleRewardModule("scratchEnabled")}
+              aria-label="Scratch Cards enabled"
+            />
           </div>
         </CardContent>
       </Card>

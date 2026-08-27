@@ -74,8 +74,8 @@ export function CategoryCarousel({
   if (categories.length < 2) return null;
 
   return (
-    <section className="mx-auto mt-6 w-full max-w-[var(--resto-measure)]">
-      <div className="flex items-center justify-between gap-2 px-4">
+    <section className="sticky top-0 z-30 bg-opacity-95 backdrop-blur-sm mx-auto mt-6 w-full max-w-[var(--resto-measure)]" style={{ backgroundColor: "var(--resto-bg)" }}>
+      <div className="flex items-center justify-between gap-2 px-4 py-2">
         <h2
           className="resto-display text-base font-semibold"
           style={{ color: "var(--resto-text)" }}

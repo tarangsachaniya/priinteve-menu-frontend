@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { uploadDirect } from "@/lib/upload";
 
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -232,285 +233,297 @@ export function MenuItemForm({
           onSubmit={handleSubmit}
           className="scrollbar-none flex max-h-[75vh] flex-col gap-4 overflow-y-auto px-1"
         >
-          {/* Two columns rather than one long stack: the dish's own fields on
-              the left, sizes and add-ons — which can grow arbitrarily long —
-              on the right, so a plain item's dialog isn't dominated by empty
-              "optional" sections and a loaded one doesn't force page scroll. */}
-          <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
-          <div className="flex flex-col gap-4">
-          <div className="flex gap-3">
-            <div className="relative size-20 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
-              {form.imageUrl ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={form.imageUrl}
-                    alt=""
-                    className="size-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => update("imageUrl", "")}
-                    className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white"
-                    aria-label="Remove image"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </>
-              ) : (
-                <div className="flex size-full items-center justify-center text-muted-foreground">
-                  <ImagePlus className="size-6" />
+
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="mb-4 flex w-full">
+              <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
+              <TabsTrigger value="pricing" className="flex-1">Pricing</TabsTrigger>
+              <TabsTrigger value="availability" className="flex-1">Availability</TabsTrigger>
+              <TabsTrigger value="variants" className="flex-1">Variants & Add-ons</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="details" className="flex flex-col gap-4">
+              <div className="flex gap-4 items-start">
+                <div className="relative size-24 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/20 shadow-sm">
+                  {form.imageUrl ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={form.imageUrl}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => update("imageUrl", "")}
+                        className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white"
+                        aria-label="Remove image"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex size-full items-center justify-center text-muted-foreground">
+                      <ImagePlus className="size-6" />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="flex flex-col justify-center gap-1.5">
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleUpload(file);
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isUploading}
-                onClick={() => fileRef.current?.click()}
-              >
-                {isUploading ? (
-                  <Loader2 data-icon="inline-start" className="animate-spin" />
-                ) : (
-                  <ImagePlus data-icon="inline-start" />
-                )}
-                {isUploading ? "Uploading…" : form.imageUrl ? "Replace photo" : "Add photo"}
-              </Button>
-              <p className="text-xs text-muted-foreground">JPEG, PNG or WebP · max 5MB</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="item-name">Name</Label>
-            <Input
-              id="item-name"
-              value={form.name}
-              onChange={(e) => update("name", e.target.value)}
-              placeholder="Paneer Butter Masala"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="item-price">Price (₹)</Label>
-              <Input
-                id="item-price"
-                type="number"
-                min={0}
-                value={form.price}
-                onChange={(e) => update("price", e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Category</Label>
-              <Select
-                value={form.categoryId}
-                onValueChange={(v) => update("categoryId", v ?? form.categoryId)}
-                items={categories.map((category) => ({ value: category.id, label: category.name }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="item-serve-time">Serve time (optional)</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="item-serve-time"
-                type="number"
-                min={0}
-                max={240}
-                value={form.prepMinutes}
-                onChange={(e) => update("prepMinutes", e.target.value)}
-                placeholder="20"
-                className="w-28"
-              />
-              <span className="text-sm text-muted-foreground">minutes</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Roughly how long the kitchen takes. Guests see it as &ldquo;~20 min&rdquo;. Leave
-              blank to show nothing.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="item-description">Description</Label>
-            <Textarea
-              id="item-description"
-              rows={2}
-              value={form.description}
-              onChange={(e) => update("description", e.target.value)}
-              placeholder="Cottage cheese in a rich tomato and butter gravy"
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-border/70 px-3 py-2">
-            <Label htmlFor="item-veg" className="cursor-pointer">
-              Vegetarian
-            </Label>
-            <Switch
-              id="item-veg"
-              checked={form.isVeg}
-              onCheckedChange={(checked) => update("isVeg", checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-border/70 px-3 py-2">
-            <div>
-              <Label htmlFor="item-available" className="cursor-pointer">
-                Available
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Unavailable items stay on the menu, greyed out.
-              </p>
-            </div>
-            <Switch
-              id="item-available"
-              checked={form.isAvailable}
-              onCheckedChange={(checked) => update("isAvailable", checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-border/70 px-3 py-2">
-            <div>
-              <Label htmlFor="item-demote-at-peak" className="cursor-pointer">
-                Hide during rush
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Moves this dish to the last page of your menu during your rush hours, so fewer
-                guests order it while the kitchen is busy. It stays fully orderable.
-              </p>
-            </div>
-            <Switch
-              id="item-demote-at-peak"
-              checked={form.demoteAtPeak}
-              onCheckedChange={(checked) => update("demoteAtPeak", checked)}
-            />
-          </div>
-          </div>
-
-          <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2 rounded-xl border border-border/70 p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Sizes (optional)</p>
-                <p className="text-xs text-muted-foreground">
-                  A guest picks exactly one. Price adjusts the base — negative for smaller.
-                </p>
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUpload(file);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isUploading}
+                    onClick={() => fileRef.current?.click()}
+                    className="w-fit"
+                  >
+                    {isUploading ? (
+                      <Loader2 data-icon="inline-start" className="animate-spin" />
+                    ) : (
+                      <ImagePlus data-icon="inline-start" />
+                    )}
+                    {isUploading ? "Uploading?" : form.imageUrl ? "Replace photo" : "Add photo"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">JPEG, PNG or WebP ? max 5MB</p>
+                </div>
               </div>
-              <Button type="button" variant="outline" size="xs" onClick={addVariant}>
-                <Plus data-icon="inline-start" /> Add size
-              </Button>
-            </div>
 
-            {form.variants.map((variant, index) => (
-              <div key={index} className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setDefaultVariant(index)}
-                  aria-label={variant.isDefault ? "Default size" : "Make this the default size"}
-                  aria-pressed={variant.isDefault}
-                  className="shrink-0 p-1 text-muted-foreground data-[active=true]:text-amber-500"
-                  data-active={variant.isDefault}
-                  title="Default size"
-                >
-                  <Star className={variant.isDefault ? "size-4 fill-current" : "size-4"} />
-                </button>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="item-name">Name</Label>
                 <Input
-                  value={variant.name}
-                  onChange={(e) => updateVariant(index, { name: e.target.value })}
-                  placeholder="Half"
-                  className="min-w-0 flex-1"
+                  id="item-name"
+                  value={form.name}
+                  onChange={(e) => update("name", e.target.value)}
+                  placeholder="Paneer Butter Masala"
+                  className="bg-background shadow-sm"
                   required
                 />
-                <Input
-                  type="number"
-                  value={variant.priceDelta}
-                  onChange={(e) => updateVariant(index, { priceDelta: e.target.value })}
-                  placeholder="0"
-                  className="w-24 shrink-0"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={`Remove ${variant.name || "this size"}`}
-                  onClick={() => removeVariant(index)}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Category</Label>
+                <Select
+                  value={form.categoryId}
+                  onValueChange={(v) => update("categoryId", v ?? form.categoryId)}
                 >
-                  <Trash2 />
-                </Button>
+                  <SelectTrigger className="bg-background shadow-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            ))}
-          </div>
 
-          <div className="flex flex-col gap-2 rounded-xl border border-border/70 p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Add-ons (optional)</p>
-                <p className="text-xs text-muted-foreground">A guest may choose any number.</p>
-              </div>
-              <Button type="button" variant="outline" size="xs" onClick={addAddOn}>
-                <Plus data-icon="inline-start" /> Add add-on
-              </Button>
-            </div>
-
-            {form.addOns.map((addOn, index) => (
-              <div key={index} className="flex items-center gap-1.5">
-                <Input
-                  value={addOn.name}
-                  onChange={(e) => updateAddOn(index, { name: e.target.value })}
-                  placeholder="Extra cheese"
-                  className="min-w-0 flex-1"
-                  required
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="item-description">Description</Label>
+                <Textarea
+                  id="item-description"
+                  rows={2}
+                  value={form.description}
+                  onChange={(e) => update("description", e.target.value)}
+                  placeholder="Cottage cheese in a rich tomato and butter gravy"
+                  className="bg-background shadow-sm"
                 />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 shadow-sm">
+                <Label htmlFor="item-veg" className="cursor-pointer font-medium">
+                  Vegetarian
+                </Label>
+                <Switch
+                  id="item-veg"
+                  checked={form.isVeg}
+                  onCheckedChange={(checked) => update("isVeg", checked)}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="pricing" className="flex flex-col gap-4 mt-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="item-price">Base Price (?)</Label>
                 <Input
+                  id="item-price"
                   type="number"
                   min={0}
-                  value={addOn.price}
-                  onChange={(e) => updateAddOn(index, { price: e.target.value })}
-                  placeholder="0"
-                  className="w-24 shrink-0"
+                  value={form.price}
+                  onChange={(e) => update("price", e.target.value)}
+                  required
+                  className="max-w-[200px] bg-background shadow-sm"
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={`Remove ${addOn.name || "this add-on"}`}
-                  onClick={() => removeAddOn(index)}
-                >
-                  <Trash2 />
-                </Button>
               </div>
-            ))}
-          </div>
-          </div>
-          </div>
+            </TabsContent>
 
-          <Button type="submit" disabled={isSaving || isUploading} className="mt-1">
+            <TabsContent value="availability" className="flex flex-col gap-4 mt-2">
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 shadow-sm">
+                <div>
+                  <Label htmlFor="item-available" className="cursor-pointer font-medium">
+                    Available
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Unavailable items stay on the menu, greyed out.
+                  </p>
+                </div>
+                <Switch
+                  id="item-available"
+                  checked={form.isAvailable}
+                  onCheckedChange={(checked) => update("isAvailable", checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 shadow-sm">
+                <div>
+                  <Label htmlFor="item-demote-at-peak" className="cursor-pointer font-medium">
+                    Hide during rush
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5 pr-4">
+                    Moves this dish to the last page of your menu during your rush hours, so fewer
+                    guests order it while the kitchen is busy. It stays fully orderable.
+                  </p>
+                </div>
+                <Switch
+                  id="item-demote-at-peak"
+                  checked={form.demoteAtPeak}
+                  onCheckedChange={(checked) => update("demoteAtPeak", checked)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 pt-2">
+                <Label htmlFor="item-serve-time">Serve time (optional)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="item-serve-time"
+                    type="number"
+                    min={0}
+                    max={240}
+                    value={form.prepMinutes}
+                    onChange={(e) => update("prepMinutes", e.target.value)}
+                    placeholder="20"
+                    className="w-28 bg-background shadow-sm"
+                  />
+                  <span className="text-sm text-muted-foreground">minutes</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Roughly how long the kitchen takes. Guests see it as &ldquo;~20 min&rdquo;. Leave
+                  blank to show nothing.
+                </p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="variants" className="flex flex-col gap-6 mt-2">
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/10 p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Sizes (optional)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      A guest picks exactly one. Price adjusts the base ? negative for smaller.
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addVariant}>
+                    <Plus data-icon="inline-start" className="size-4 mr-1" /> Add size
+                  </Button>
+                </div>
+
+                {form.variants.map((variant, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDefaultVariant(index)}
+                      aria-label={variant.isDefault ? "Default size" : "Make this the default size"}
+                      aria-pressed={variant.isDefault}
+                      className="shrink-0 p-1 text-muted-foreground data-[active=true]:text-amber-500 transition-colors hover:text-amber-500"
+                      data-active={variant.isDefault}
+                      title="Default size"
+                    >
+                      <Star className={variant.isDefault ? "size-5 fill-current" : "size-5"} />
+                    </button>
+                    <Input
+                      value={variant.name}
+                      onChange={(e) => updateVariant(index, { name: e.target.value })}
+                      placeholder="Half"
+                      className="min-w-0 flex-1 bg-background"
+                      required
+                    />
+                    <Input
+                      type="number"
+                      value={variant.priceDelta}
+                      onChange={(e) => updateVariant(index, { priceDelta: e.target.value })}
+                      placeholder="0"
+                      className="w-24 shrink-0 bg-background"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove"
+                      onClick={() => removeVariant(index)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/10 p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Add-ons (optional)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">A guest may choose any number.</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addAddOn}>
+                    <Plus data-icon="inline-start" className="size-4 mr-1" /> Add add-on
+                  </Button>
+                </div>
+
+                {form.addOns.map((addOn, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={addOn.name}
+                      onChange={(e) => updateAddOn(index, { name: e.target.value })}
+                      placeholder="Extra cheese"
+                      className="min-w-0 flex-1 bg-background"
+                      required
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      value={addOn.price}
+                      onChange={(e) => updateAddOn(index, { price: e.target.value })}
+                      placeholder="0"
+                      className="w-24 shrink-0 bg-background"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove"
+                      onClick={() => removeAddOn(index)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+<Button type="submit" disabled={isSaving || isUploading} className="mt-1">
             {isSaving ? "Saving…" : isEdit ? "Save changes" : "Add item"}
           </Button>
         </form>

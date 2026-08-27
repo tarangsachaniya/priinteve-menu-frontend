@@ -1,9 +1,8 @@
 "use client";
 
-import { Clock, Minus, Plus, Star } from "lucide-react";
-
+import { Minus, Plus, Star } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-import { ITEM_BADGE_LABEL, formatRating, formatServeTime } from "@/lib/restaurant/menu-display";
+import { ITEM_BADGE_LABEL, formatRating } from "@/lib/restaurant/menu-display";
 import { DishImage } from "@/components/order/dish-image";
 import { isCustomisable } from "@/components/order/use-cart";
 import type { PublicMenuItem } from "@/components/order/types";
@@ -39,28 +38,19 @@ export function MenuItemCard({
   onDecrement: () => void;
 }) {
   const rating = formatRating(item.ratingValue);
-  const serveTime = formatServeTime(item.prepMinutes);
   const customisable = isCustomisable(item);
   const unavailable = !item.isAvailable;
 
   return (
     <li
-      /* items-start, not the default stretch: the Add control is positioned
-         against the bottom of the image column, so a stretched column would
-         push it down by however tall the text happens to be. That is what made
-         the gap under the photo differ card to card — a dish with a badge and a
-         two-line description sat visibly lower than a bare one. */
-      className="relative flex items-start gap-4 border p-3 transition-colors"
+      className="relative flex items-center gap-3 border-b p-3 transition-colors bg-white hover:bg-gray-50"
       style={{
-        backgroundColor: "var(--resto-card)",
-        borderColor: "var(--resto-border)",
-        borderRadius: "var(--resto-radius-lg)",
-        boxShadow: "var(--resto-shadow-card)",
+        borderColor: "var(--resto-divider)",
         opacity: unavailable ? 0.55 : 1,
       }}
     >
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex-1 min-w-0 py-1">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
           <VegPill isVeg={item.isVeg} />
           {item.badge && (
             <span
@@ -77,7 +67,7 @@ export function MenuItemCard({
         </div>
 
         <h3
-          className="resto-display mt-1.5 text-sm font-semibold leading-snug"
+          className="text-sm font-semibold leading-snug truncate"
           style={{ color: "var(--resto-text)" }}
         >
           {item.name}
@@ -85,23 +75,23 @@ export function MenuItemCard({
 
         {item.description && (
           <p
-            className="mt-1 line-clamp-2 text-sm leading-relaxed"
+            className="mt-0.5 line-clamp-1 text-[13px] leading-relaxed"
             style={{ color: "var(--resto-text-muted)" }}
           >
             {item.description}
           </p>
         )}
 
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-1.5 flex items-center gap-3">
           <span
-            className="resto-numeric text-sm font-semibold"
+            className="resto-numeric text-sm font-bold"
             style={{ color: "var(--resto-text)" }}
           >
             {formatCurrency(item.price)}
           </span>
           {rating && (
             <span
-              className="resto-numeric flex items-center gap-1 text-xs"
+              className="resto-numeric flex items-center gap-0.5 text-xs font-medium"
               style={{ color: "var(--resto-text-muted)" }}
             >
               <Star
@@ -112,33 +102,20 @@ export function MenuItemCard({
               {rating}
             </span>
           )}
-          {/* Muted, beside the rating rather than under the name: it's a
-              qualifier on the dish, not a headline. A guest scanning for
-              something quick finds it; everyone else reads past it. */}
-          {serveTime && (
-            <span
-              className="resto-numeric flex items-center gap-1 text-xs"
-              style={{ color: "var(--resto-text-muted)" }}
-            >
-              <Clock className="size-3" aria-hidden />
-              <span className="sr-only">Takes about </span>
-              {serveTime}
-            </span>
-          )}
         </div>
 
         {unavailable ? (
-          <p className="mt-1.5 text-xs" style={{ color: "var(--resto-text-muted)" }}>
-            Sold out for today
+          <p className="mt-1 text-xs" style={{ color: "var(--resto-text-muted)" }}>
+            Sold out
           </p>
         ) : (
           customisable && (
             <span
-              className="mt-2 w-fit px-2 py-0.5 text-[11px] font-medium"
+              className="mt-1.5 inline-block px-1.5 py-0.5 text-[10px] font-medium"
               style={{
                 backgroundColor: "var(--resto-surface-alt)",
                 color: "var(--resto-text-muted)",
-                borderRadius: "var(--resto-radius-full)",
+                borderRadius: "var(--resto-radius-sm)",
               }}
             >
               customisable
@@ -147,19 +124,18 @@ export function MenuItemCard({
         )}
       </div>
 
-      <div className="relative shrink-0">
-        <DishImage
-          url={item.imageUrl}
-          alt={item.name}
-          logoUrl={restaurantLogoUrl}
-          width={224}
-          className="w-[92px] sm:w-28"
-        />
-
-        {/* While the restaurant is closed there is no control at all, rather
-            than a disabled one: a greyed-out Add invites tapping, and the
-            banner above the menu has already given the reason. */}
-        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
+      <div className="flex flex-col items-end shrink-0 gap-2">
+        {item.imageUrl && (
+          <DishImage
+            url={item.imageUrl}
+            alt={item.name}
+            logoUrl={restaurantLogoUrl}
+            width={160}
+            className="w-20 h-20 rounded-md object-cover"
+          />
+        )}
+        
+        <div>
           {orderingDisabled ? null : unavailable ? (
             <span
               className="whitespace-nowrap border px-3 py-1 text-[11px] font-medium"
@@ -176,7 +152,7 @@ export function MenuItemCard({
             <button
               type="button"
               onClick={onAdd}
-              className="w-[86px] py-1.5 text-[13px] font-semibold transition-colors"
+              className="w-20 py-1.5 text-[13px] font-semibold transition-colors"
               style={{
                 backgroundColor: "var(--resto-add-bg)",
                 color: "var(--resto-add-text)",
@@ -188,7 +164,7 @@ export function MenuItemCard({
             </button>
           ) : (
             <div
-              className="flex w-[86px] items-center justify-between"
+              className="flex w-20 items-center justify-between"
               style={{
                 backgroundColor: "var(--resto-add-bg)",
                 color: "var(--resto-add-text)",
@@ -200,7 +176,7 @@ export function MenuItemCard({
                 type="button"
                 onClick={onDecrement}
                 aria-label={`Remove one ${item.name}`}
-                className="flex size-8 items-center justify-center rounded-full"
+                className="flex size-7 items-center justify-center rounded-full"
               >
                 <Minus className="size-3.5" aria-hidden />
               </button>
@@ -211,7 +187,7 @@ export function MenuItemCard({
                 aria-label={
                   customisable ? `Add another ${item.name}` : `Add one ${item.name}`
                 }
-                className="flex size-8 items-center justify-center rounded-full"
+                className="flex size-7 items-center justify-center rounded-full"
               >
                 <Plus className="size-3.5" aria-hidden />
               </button>

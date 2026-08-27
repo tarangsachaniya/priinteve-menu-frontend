@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, ArrowRight, Check } from "lucide-react";
-
+import { ArrowRight, Check } from "lucide-react";
 import { HERO_STATS } from "@/lib/marketing/content";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
@@ -41,36 +40,27 @@ export function Hero() {
             Every order lands on your kitchen board the moment it&apos;s placed.
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
             <Button
-              size="xl"
-              className="h-14 bg-ink px-8 text-white hover:bg-ink hover:brightness-125"
+              className="h-14 bg-primary px-8 text-white hover:bg-primary/90 shadow-lg"
               render={<Link href="/r/login" />}
             >
-              Restaurant Login
-              <ArrowRight />
+              <ArrowRight className="ml-2" />
             </Button>
             <Button
               size="xl"
-              variant="ghost"
-              className="h-14 px-6 text-ink hover:bg-muted"
-              render={<a href="#how-it-works" />}
+              render={<a href="#kds-preview" />}
             >
-              See how it works
-              <ArrowDown />
+              Kitchen Display
             </Button>
           </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-2 pt-2">
-            {HERO_STATS.map(({ label }) => (
+          <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 pt-6">
               <span key={label} className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Check className="size-4 text-primary" strokeWidth={2.5} />
                 {label}
-              </span>
             ))}
           </div>
         </div>
       </Reveal>
-    </section>
   );
 }

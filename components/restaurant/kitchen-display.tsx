@@ -490,6 +490,7 @@ export function KitchenDisplay({
                     isBusy={busyId === order.id}
                     onAdvance={advance}
                     onCancel={setPendingCancel}
+                    laneKey={lane.key}
                   />
                 ))}
               </div>
@@ -515,37 +516,73 @@ function KitchenTicket({
   isBusy,
   onAdvance,
   onCancel,
+  laneKey,
 }: {
   order: KitchenOrder;
   now: number;
   isBusy: boolean;
   onAdvance: (order: KitchenOrder) => void;
   onCancel: (order: KitchenOrder) => void;
+  laneKey: string;
 }) {
   const advanceTo = nextStatus(order.status);
   const waited = minutesWaiting(order.placedAt, now);
   const late = waited >= LATE_AFTER_MINUTES;
   const warn = !late && waited >= WARN_AFTER_MINUTES;
 
+  // Semantic background based on lane
+  let bgClass = "bg-card";
+  let borderClass = "border-border";
+  let buttonClass = "bg-primary text-primary-foreground hover:bg-primary/90";
+  let textClass = "text-ink";
+  let subtextClass = "text-muted-foreground";
+
+  if (laneKey === "new") {
+    bgClass = "bg-blue-50/80";
+    borderClass = "border-blue-200";
+    buttonClass = "bg-blue-600 text-white hover:bg-blue-700";
+    textClass = "text-blue-950";
+    subtextClass = "text-blue-700";
+  } else if (laneKey === "cooking") {
+    bgClass = "bg-amber-50/80";
+    borderClass = "border-amber-200";
+    buttonClass = "bg-amber-600 text-white hover:bg-amber-700";
+    textClass = "text-amber-950";
+    subtextClass = "text-amber-700";
+  } else if (laneKey === "ready") {
+    bgClass = "bg-emerald-50/80";
+    borderClass = "border-emerald-200";
+    buttonClass = "bg-emerald-600 text-white hover:bg-emerald-700";
+    textClass = "text-emerald-950";
+    subtextClass = "text-emerald-700";
+  }
+
+  // Time warnings override borders
+  if (late) borderClass = "border-destructive shadow-sm shadow-destructive/50";
+  else if (warn) borderClass = "border-amber-500";
+
   return (
     <article
       className={cn(
-        "flex flex-col gap-3 rounded-2xl border-2 bg-card p-4",
-        late ? "border-destructive" : warn ? "border-amber-500" : "border-border",
+        "flex flex-col gap-3 rounded-2xl border-2 p-4 transition-colors",
+        bgClass,
+        borderClass
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-3xl font-bold tabular-nums leading-none text-ink">#{order.orderNumber}</p>
-          <p className="mt-1 truncate text-sm text-muted-foreground">
+          <p className={cn("text-3xl font-bold tabular-nums leading-none", textClass)}>#{order.orderNumber}</p>
+          <p className={cn("mt-1 truncate text-sm font-medium", subtextClass)}>
             {order.tableLabel ?? ORDER_TYPE_LABEL[order.type]}
             {order.customerName && <span> · {order.customerName}</span>}
           </p>
         </div>
         <p
           className={cn(
-            "flex shrink-0 items-center gap-1 text-xl font-semibold tabular-nums",
-            late ? "text-destructive" : warn ? "text-amber-600" : "text-muted-foreground",
+            "flex shrink-0 items-center gap-1 text-xl font-semibold tabular-nums px-2 py-1 rounded-md",
+            late ? "bg-destructive/10 text-destructive" : warn ? "bg-amber-100 text-amber-700" : bgClass,
+            late ? "animate-pulse" : "",
+            (!late && !warn) ? subtextClass : ""
           )}
         >
           <Timer className="size-4" />
@@ -553,21 +590,19 @@ function KitchenTicket({
         </p>
       </div>
 
-      <ul className="flex flex-col gap-2 border-t border-border pt-3">
+      <ul className={cn("flex flex-col gap-2 border-t pt-3", laneKey === "new" ? "border-blue-200" : laneKey === "cooking" ? "border-amber-200" : laneKey === "ready" ? "border-emerald-200" : "border-border")}>
         {order.items.map((item) => {
           const options = [item.variantName, ...item.addOns].filter(Boolean).join(" · ");
           return (
             <li key={item.id} className="flex gap-2 text-lg leading-snug">
-              <span className="shrink-0 font-bold tabular-nums text-ink">{item.quantity}×</span>
+              <span className={cn("shrink-0 font-bold tabular-nums", textClass)}>{item.quantity}×</span>
               <span className="min-w-0">
-                {/* Wrapping, not truncating: a dropped add-on is a remade dish,
-                    so a taller ticket is the cheaper outcome. */}
-                <span className="break-words font-medium text-ink">{item.name}</span>
+                <span className={cn("break-words font-medium", textClass)}>{item.name}</span>
                 {options && (
-                  <span className="block break-words text-sm text-muted-foreground">{options}</span>
+                  <span className={cn("block break-words text-sm", subtextClass)}>{options}</span>
                 )}
                 {item.note && (
-                  <span className="mt-1 flex gap-1.5 break-words rounded-lg bg-amber-500/10 px-2 py-1 text-sm font-medium text-amber-800">
+                  <span className="mt-1 flex gap-1.5 break-words rounded-lg bg-red-100/80 px-2 py-1 text-sm font-medium text-red-800">
                     <StickyNote className="mt-0.5 size-3.5 shrink-0" />
                     {item.note}
                   </span>
@@ -579,21 +614,17 @@ function KitchenTicket({
       </ul>
 
       {order.note && (
-        <p className="flex gap-1.5 rounded-xl bg-amber-500/10 p-2.5 text-sm font-medium text-amber-800">
+        <p className="flex gap-1.5 rounded-xl bg-red-100/80 p-2.5 text-sm font-medium text-red-800 mt-2">
           <StickyNote className="mt-0.5 size-4 shrink-0" />
           {order.note}
         </p>
       )}
 
-      <div className="flex items-center gap-2 border-t border-border pt-3">
-        {/* h-14 to match the advance button beside it: a cook working with wet
-            or gloved hands is exactly who this screen is built for, and a 36px
-            default-size button next to a 56px one is a touch target that's easy
-            to miss under a screen's worth of adrenaline. */}
+      <div className={cn("flex items-center gap-2 border-t pt-3 mt-1", laneKey === "new" ? "border-blue-200" : laneKey === "cooking" ? "border-amber-200" : laneKey === "ready" ? "border-emerald-200" : "border-border")}>
         <Button
           type="button"
-          variant="ghost"
-          className="h-14 shrink-0 px-5 text-base"
+          variant="outline"
+          className={cn("h-14 shrink-0 px-5 text-base border-2 bg-transparent hover:bg-black/5", laneKey === "new" ? "border-blue-300 text-blue-800" : laneKey === "cooking" ? "border-amber-300 text-amber-800" : laneKey === "ready" ? "border-emerald-300 text-emerald-800" : "")}
           disabled={isBusy}
           onClick={() => onCancel(order)}
         >
@@ -603,20 +634,14 @@ function KitchenTicket({
           <Button
             type="button"
             size="lg"
-            className="h-14 flex-1 text-lg"
+            className={cn("h-14 flex-1 text-lg font-semibold", buttonClass)}
             disabled={isBusy}
             onClick={() => onAdvance(order)}
           >
             {ADVANCE_LABEL[advanceTo]}
           </Button>
         ) : (
-          /*
-            A READY ticket gets no advance button. Completing an order requires
-            paymentStatus PAID (the API 409s otherwise), which is a decision made
-            at the till, not at the stove. Offering the button here would mean a
-            cook tapping it and getting an error about money they can't see.
-          */
-          <p className="flex-1 rounded-xl bg-muted px-3 py-3 text-center text-sm font-medium text-muted-foreground">
+          <p className={cn("flex-1 rounded-xl px-3 py-3 text-center text-sm font-medium", laneKey === "new" ? "bg-blue-100/50 text-blue-700" : laneKey === "cooking" ? "bg-amber-100/50 text-amber-700" : laneKey === "ready" ? "bg-emerald-100/50 text-emerald-700" : "bg-muted text-muted-foreground")}>
             At the till
           </p>
         )}

@@ -14,6 +14,8 @@ type RewardHistory = {
 };
 
 export type RewardsData = {
+  loyaltyEnabled: boolean;
+  scratchEnabled: boolean;
   pointsBalance: number;
   unscratchedCardsCount: number;
   history: RewardHistory[];
@@ -65,6 +67,8 @@ export function MyRewardsSheet({
 
         if (!cancelled) {
           setRewards({
+            loyaltyEnabled: Boolean(data.loyaltyEnabled),
+            scratchEnabled: Boolean(data.scratchEnabled),
             pointsBalance: data.pointsBalance || 0,
             unscratchedCardsCount: data.unscratchedCardsCount || 0,
             history: data.history || [],
@@ -106,7 +110,7 @@ export function MyRewardsSheet({
         style={{ borderColor: "var(--resto-border)" }}
       >
         <h2 className="resto-display text-xl font-semibold flex items-center gap-2" style={{ color: "var(--resto-text)" }}>
-          <Gift className="size-5" style={{ color: "var(--resto-brand-500)" }} />
+          <Gift className="size-5" style={{ color: "var(--resto-brand-text)" }} />
           My Rewards
         </h2>
         <button
@@ -131,21 +135,31 @@ export function MyRewardsSheet({
           </div>
         ) : (
           <>
-            <div className="p-5 flex gap-4 border-b" style={{ borderColor: "var(--resto-divider)" }}>
-              <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
-                <p className="text-3xl font-bold resto-numeric" style={{ color: "var(--resto-brand-500)" }}>{rewards.pointsBalance}</p>
-                <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Loyalty Points</p>
+            {/* Each tile — and the section below — only appears for a program
+                the restaurant actually has switched on. A restaurant that's
+                never enabled Scratch Cards must never show a permanent "0"
+                tile implying the feature exists here. */}
+            {(rewards.loyaltyEnabled || rewards.scratchEnabled) && (
+              <div className="p-5 flex gap-4 border-b" style={{ borderColor: "var(--resto-divider)" }}>
+                {rewards.loyaltyEnabled && (
+                  <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
+                    <p className="text-3xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.pointsBalance}</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Loyalty Points</p>
+                  </div>
+                )}
+                {rewards.scratchEnabled && (
+                  <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
+                    <p className="text-3xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.unscratchedCardsCount}</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Scratch Cards</p>
+                  </div>
+                )}
               </div>
-              <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
-                <p className="text-3xl font-bold resto-numeric" style={{ color: "var(--resto-brand-500)" }}>{rewards.unscratchedCardsCount}</p>
-                <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Scratch Cards</p>
-              </div>
-            </div>
+            )}
 
-            {activeCards.length > 0 && (
+            {rewards.scratchEnabled && activeCards.length > 0 && (
               <div className="p-5 border-b" style={{ borderColor: "var(--resto-divider)" }}>
                 <h3 className="resto-display text-sm font-semibold mb-4 flex items-center gap-1.5" style={{ color: "var(--resto-text)" }}>
-                  <Sparkles className="size-4" style={{ color: "var(--resto-brand-500)" }} />
+                  <Sparkles className="size-4" style={{ color: "var(--resto-brand-text)" }} />
                   Scratch Cards
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
@@ -160,7 +174,7 @@ export function MyRewardsSheet({
                           className="flex h-full flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center"
                           style={{ borderColor: "var(--resto-brand-500)", backgroundColor: "var(--resto-surface-alt)" }}
                         >
-                          <Sparkles className="size-5" style={{ color: "var(--resto-brand-500)" }} />
+                          <Sparkles className="size-5" style={{ color: "var(--resto-brand-text)" }} />
                           <p className="text-sm font-semibold" style={{ color: "var(--resto-text)" }}>
                             {card.reward?.label ?? "Reward"}
                           </p>

@@ -18,9 +18,9 @@ import type { PublicMenuCategory } from "@/components/order/types";
  * not be on the current page at all. "All" leads, so the way back is always
  * one tap and always in the same place.
  *
- * The chips are sticky. Their active state is driven by --resto-chip-* tokens
- * rather than classes, so the accent decision stays in one place — see
- * section 6 of app/resto-theme.css.
+ * The chips' active state is driven by --resto-chip-* tokens rather than
+ * classes, so the accent decision stays in one place — see section 6 of
+ * app/resto-theme.css.
  */
 export function MenuToolbar({
   categories,
@@ -49,9 +49,9 @@ export function MenuToolbar({
 
   return (
     <div
-      className="sticky top-0 z-30 border-b backdrop-blur-xl"
+      className="border-b"
       style={{
-        backgroundColor: "color-mix(in oklab, var(--resto-bg) 88%, transparent)",
+        backgroundColor: "var(--resto-bg)",
         borderColor: "var(--resto-border)",
       }}
     >

@@ -426,7 +426,7 @@ export function MenuBrowser({
 
       <main
         ref={listRef}
-        className="mx-auto w-full max-w-[var(--resto-measure)] scroll-mt-32 px-4 py-8"
+        className="mx-auto w-full max-w-[var(--resto-measure)] px-4 py-8"
       >
         {categories.length === 0 ? (
           <EmptyState

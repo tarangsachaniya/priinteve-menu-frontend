@@ -72,7 +72,7 @@ export function RewardPopup({
         style={{ borderColor: "var(--resto-border)" }}
       >
         <h2 className="resto-display text-xl font-semibold flex items-center gap-2" style={{ color: "var(--resto-text)" }}>
-          <Gift className="size-5" style={{ color: "var(--resto-brand-500)" }} />
+          <Gift className="size-5" style={{ color: "var(--resto-brand-text)" }} />
           Welcome back!
         </h2>
         <button
@@ -94,14 +94,14 @@ export function RewardPopup({
         <div className="flex gap-4">
           {rewards.pointsBalance > 0 && (
             <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
-              <p className="text-2xl font-bold resto-numeric" style={{ color: "var(--resto-brand-500)" }}>{rewards.pointsBalance}</p>
+              <p className="text-2xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.pointsBalance}</p>
               <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Loyalty Points</p>
             </div>
           )}
           
           {rewards.unscratchedCardsCount > 0 && (
             <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
-              <p className="text-2xl font-bold resto-numeric" style={{ color: "var(--resto-brand-500)" }}>{rewards.unscratchedCardsCount}</p>
+              <p className="text-2xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.unscratchedCardsCount}</p>
               <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Scratch Cards</p>
             </div>
           )}

@@ -102,6 +102,15 @@ export function ScratchCampaignForm({
     return reward.type === "FREE_ITEM" && !reward.menuItemId;
   }
 
+  // A raw "weight" of 54 means nothing on its own — it's only meaningful
+  // relative to the other rewards' weights. Shown live next to each row so
+  // an owner can see the actual odds they're setting, not just a number.
+  const totalWeight = rewards.reduce((sum, r) => sum + (Number.isFinite(r.weight) ? r.weight : 0), 0);
+  function chancePercent(weight: number) {
+    if (totalWeight <= 0) return 0;
+    return Math.round((weight / totalWeight) * 1000) / 10; // one decimal place
+  }
+
   return (
     <Card className="border-border/80">
       <CardHeader>
@@ -186,7 +195,23 @@ export function ScratchCampaignForm({
           </div>
 
           <div className="flex flex-col gap-3">
-            <Label>Rewards (Probabilities)</Label>
+            <div>
+              <Label>Rewards (Probabilities)</Label>
+              <p className="text-xs text-muted-foreground">
+                Weight sets the odds of winning each reward, relative to the others — it isn&apos;t a
+                percentage by itself. The chance shown updates as you type.
+              </p>
+            </div>
+
+            {rewards.length > 0 && (
+              <div className="hidden gap-2 px-1 text-xs font-medium text-muted-foreground sm:flex">
+                <span className="flex-1">Reward type</span>
+                <span className="flex-1">Value</span>
+                <span className="flex-1">Weight → chance of winning</span>
+                <span className="w-9" />
+              </div>
+            )}
+
             {rewards.map((reward) => (
               <div key={reward.id} className="flex items-center gap-2 border p-3 rounded-md">
                 <div className="flex-1">
@@ -239,14 +264,19 @@ export function ScratchCampaignForm({
                     />
                   </div>
                 )}
-                <div className="flex-1">
+                <div className="flex flex-1 items-center gap-1.5">
                   <Input
                     type="number"
-                    placeholder="Weight/Prob"
+                    min="0"
+                    placeholder="Weight"
                     value={reward.weight}
                     onChange={(e) => updateReward(reward.id, "weight", Number(e.target.value))}
                     disabled={busy}
+                    className="min-w-0"
                   />
+                  <span className="shrink-0 whitespace-nowrap text-xs font-medium text-muted-foreground">
+                    ≈ {chancePercent(reward.weight)}%
+                  </span>
                 </div>
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeReward(reward.id)} disabled={busy}>
                   <Trash2 className="size-4 text-red-500" />

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
+
 import { HERO_STATS } from "@/lib/marketing/content";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
@@ -42,25 +43,42 @@ export function Hero() {
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
             <Button
+              size="xl"
               className="h-14 bg-primary px-8 text-white hover:bg-primary/90 shadow-lg"
               render={<Link href="/r/login" />}
             >
+              Restaurant Solutions
               <ArrowRight className="ml-2" />
             </Button>
             <Button
               size="xl"
+              variant="outline"
+              className="h-14 px-8 border-border text-ink hover:bg-muted"
               render={<a href="#kds-preview" />}
             >
               Kitchen Display
             </Button>
+            <Button
+              size="xl"
+              variant="ghost"
+              className="h-14 px-6 text-ink hover:bg-muted"
+              render={<a href="#menu-preview" />}
+            >
+              Customer Menu
+            </Button>
           </div>
+
           <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 pt-6">
+            {HERO_STATS.map(({ label }) => (
               <span key={label} className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Check className="size-4 text-primary" strokeWidth={2.5} />
                 {label}
+              </span>
             ))}
           </div>
         </div>
       </Reveal>
+    </section>
   );
 }
+

@@ -175,7 +175,7 @@ export function ScratchCampaignForm({
                   <Select
                     value={reward.type}
                     onValueChange={(val) => {
-                      if (val) updateReward(reward.id, "type", val as any);
+                      if (val) updateReward(reward.id, "type", val);
                     }}
                     disabled={busy}
                   >

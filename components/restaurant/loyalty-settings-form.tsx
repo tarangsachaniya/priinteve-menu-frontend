@@ -12,10 +12,12 @@ import { Label } from "@/components/ui/label";
 export type LoyaltySettings = {
   /** Read-only here — Admin's own on/off switch (see restaurant-detail-panel.tsx / the restaurant's Settings > Rewards page header) controls this, not this form. */
   loyaltyEnabled: boolean;
-  pointsPerRupee: number;
+  /** Direct multiplier: "0.1" earns 0.1 points per ₹1 spent — a ₹650 order earns floor(650 × 0.1) = 65 points. */
+  earnRate: number;
+  /** An order below this earns nothing at all — not fewer points, none. 0 = every order earns. */
+  minOrderValueForRewards: number;
   rupeeValuePerPoint: number;
   expiryDays: number;
-  maxPointsRedemption: number;
   maxBillPercentage: number;
 };
 
@@ -26,10 +28,10 @@ export function LoyaltySettingsForm({
   endpoint: string;
   initial: LoyaltySettings;
 }) {
-  const [pointsPerRupee, setPointsPerRupee] = useState(initial.pointsPerRupee);
+  const [earnRate, setEarnRate] = useState(initial.earnRate);
+  const [minOrderValueForRewards, setMinOrderValueForRewards] = useState(initial.minOrderValueForRewards);
   const [rupeeValuePerPoint, setRupeeValuePerPoint] = useState(initial.rupeeValuePerPoint);
   const [expiryDays, setExpiryDays] = useState(initial.expiryDays);
-  const [maxPointsRedemption, setMaxPointsRedemption] = useState(initial.maxPointsRedemption);
   const [maxBillPercentage, setMaxBillPercentage] = useState(initial.maxBillPercentage);
   const [busy, setBusy] = useState(false);
 
@@ -41,10 +43,10 @@ export function LoyaltySettingsForm({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pointsPerRupee: Number(pointsPerRupee),
+          earnRate: Number(earnRate),
+          minOrderValueForRewards: Number(minOrderValueForRewards),
           rupeeValuePerPoint: Number(rupeeValuePerPoint),
           expiryDays: Number(expiryDays),
-          maxPointsRedemption: Number(maxPointsRedemption),
           maxBillPercentage: Number(maxBillPercentage),
         }),
       });
@@ -74,23 +76,26 @@ export function LoyaltySettingsForm({
         <form onSubmit={save} className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="points-per-rupee">Spend required per point (₹)</Label>
+              <Label htmlFor="earn-rate">Points earned per ₹1 spent</Label>
               <Input
-                id="points-per-rupee"
+                id="earn-rate"
                 type="number"
-                min="0"
+                min="0.01"
                 step="0.01"
-                value={pointsPerRupee}
-                onChange={(e) => setPointsPerRupee(Number(e.target.value))}
+                value={earnRate}
+                onChange={(e) => setEarnRate(Number(e.target.value))}
                 disabled={busy}
               />
+              <p className="text-xs text-muted-foreground">
+                e.g. 0.1 → a ₹650 order earns 65 points, simple as that.
+              </p>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="rupee-value-per-point">Point value (₹ per point)</Label>
               <Input
                 id="rupee-value-per-point"
                 type="number"
-                min="0"
+                min="0.01"
                 step="0.01"
                 value={rupeeValuePerPoint}
                 onChange={(e) => setRupeeValuePerPoint(Number(e.target.value))}
@@ -113,16 +118,18 @@ export function LoyaltySettingsForm({
               <p className="text-xs text-muted-foreground">0 means points never expire</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="max-points">Max Points Redemption</Label>
+              <Label htmlFor="min-order-value">Minimum order value for rewards (₹)</Label>
               <Input
-                id="max-points"
+                id="min-order-value"
                 type="number"
                 min="0"
-                value={maxPointsRedemption}
-                onChange={(e) => setMaxPointsRedemption(Number(e.target.value))}
+                value={minOrderValueForRewards}
+                onChange={(e) => setMinOrderValueForRewards(Number(e.target.value))}
                 disabled={busy}
               />
-              <p className="text-xs text-muted-foreground">Max points a user can redeem in one order</p>
+              <p className="text-xs text-muted-foreground">
+                Orders below this earn nothing at all. 0 means every order earns.
+              </p>
             </div>
           </div>
 

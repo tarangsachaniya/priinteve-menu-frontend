@@ -89,7 +89,7 @@ export function ScratchCampaignForm({
   }
 
   function addReward() {
-    setRewards([...rewards, { id: Date.now().toString(), type: "POINTS", value: 10, weight: 1 }]);
+    setRewards([...rewards, { id: Date.now().toString(), type: "POINTS", value: 10, weight: 10, maxQuantity: 10 }]);
   }
 
   function removeReward(id: string) {
@@ -98,6 +98,22 @@ export function ScratchCampaignForm({
 
   function updateReward(id: string, field: keyof CampaignReward, val: string | number) {
     setRewards(rewards.map((r) => r.id === id ? { ...r, [field]: val } : r));
+  }
+
+  /**
+   * The one number a restaurant sets per reward: how many of this card exist
+   * in the whole campaign — no weight, no percentage. It doubles as both the
+   * odds (more of a card in the pool means it's drawn more often) and the
+   * hard stock cap (once that many have been won, no more go out) — the same
+   * single fact a physical box of scratch cards would have printed on it.
+   */
+  function updateQuantity(id: string, quantity: number) {
+    const clamped = Math.max(1, Math.round(quantity));
+    setRewards(rewards.map((r) => r.id === id ? { ...r, weight: clamped, maxQuantity: clamped } : r));
+  }
+
+  function quantityOf(reward: CampaignReward) {
+    return reward.maxQuantity && reward.maxQuantity > 0 ? reward.maxQuantity : reward.weight;
   }
 
   function rewardIsIncomplete(reward: CampaignReward) {
@@ -113,43 +129,12 @@ export function ScratchCampaignForm({
     return menuItems.find((item) => item.id === menuItemId)?.name ?? "Unknown item";
   }
 
-  // A raw "weight" of 54 means nothing on its own — it's only meaningful
-  // relative to the other rewards' weights. Shown live next to each row so
-  // an owner can see the actual odds they're setting, not just a number.
-  const totalWeight = rewards.reduce((sum, r) => sum + (Number.isFinite(r.weight) ? r.weight : 0), 0);
-  function chancePercent(weight: number) {
-    if (totalWeight <= 0) return 0;
-    return Math.round((weight / totalWeight) * 1000) / 10; // one decimal place
-  }
-
-  /**
-   * The reverse direction: typing a percentage solves for the weight that
-   * would produce it, holding every OTHER reward's weight fixed. Editing one
-   * reward's chance still shifts the others' *share* of the new total (their
-   * raw weight doesn't move, but the pie is now cut differently) — the same
-   * way any relative-odds system works, and is called out in the caption
-   * below so it doesn't read as a bug.
-   */
-  function setChancePercent(id: string, percentInput: number) {
-    const current = rewards.find((r) => r.id === id);
-    if (!current) return;
-    const otherSum = totalWeight - (Number.isFinite(current.weight) ? current.weight : 0);
-
-    // Only reward in the list (or every other weight is 0) — its chance is
-    // always 100% no matter what its own weight is; nothing to solve for.
-    if (otherSum <= 0) return;
-
-    const p = Math.min(99, Math.max(1, percentInput)) / 100;
-    const newWeight = Math.max(1, Math.round((p * otherSum) / (1 - p)));
-    updateReward(id, "weight", newWeight);
-  }
-
-  // What the user asked "add a total" for: how many cards this campaign will
-  // actually hand out across all its reward tiers, so it's easy to sanity-check
-  // against "Max Cards (Total)" above without doing the arithmetic by hand.
-  const hasUnlimitedReward = rewards.some((r) => !r.maxQuantity || r.maxQuantity <= 0);
-  const totalConfiguredQuantity = rewards.reduce((sum, r) => sum + (r.maxQuantity && r.maxQuantity > 0 ? r.maxQuantity : 0), 0);
-  const exceedsMaxCards = maxCards > 0 && !hasUnlimitedReward && totalConfiguredQuantity > maxCards;
+  // How many cards this campaign will actually hand out across all its
+  // reward tiers — every reward always has an explicit count now, so this is
+  // a plain sum, shown live below the list and checked against "Max Cards
+  // (Total)" above.
+  const totalConfiguredQuantity = rewards.reduce((sum, r) => sum + quantityOf(r), 0);
+  const exceedsMaxCards = maxCards > 0 && totalConfiguredQuantity > maxCards;
 
   return (
     <Card className="border-border/80">
@@ -236,11 +221,11 @@ export function ScratchCampaignForm({
 
           <div className="flex flex-col gap-3">
             <div>
-              <Label>Rewards (Probabilities)</Label>
+              <Label>Rewards</Label>
               <p className="text-xs text-muted-foreground">
-                Set the odds either way — type a Weight (relative to the other rewards) or type the
-                Chance % directly and the weight is worked out for you. Editing one reward&apos;s
-                chance shifts how the others split the remaining odds, same as any relative system.
+                Set how many of each card exist. A customer who scratches gets a random one of
+                whatever&apos;s still available — no percentages to work out, more of a card just
+                means it&apos;s won more often.
               </p>
             </div>
 
@@ -248,9 +233,7 @@ export function ScratchCampaignForm({
               <div className="hidden gap-2 px-1 text-xs font-medium text-muted-foreground sm:flex">
                 <span className="flex-1">Reward type</span>
                 <span className="flex-1">Value</span>
-                <span className="flex-1">Weight</span>
-                <span className="flex-1">Chance of winning</span>
-                <span className="flex-1">Max quantity</span>
+                <span className="flex-1">How many of this card</span>
                 <span className="w-9" />
               </div>
             )}
@@ -292,47 +275,21 @@ export function ScratchCampaignForm({
                   </Button>
                 </div>
 
-                {/* Odds + stock cap — its own line so both ways of setting the
-                    odds (weight or chance %) get room to be properly labelled,
-                    rather than a bare number next to a "≈" nobody explained. */}
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px] text-muted-foreground">Weight</span>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={reward.weight}
-                      onChange={(e) => updateReward(reward.id, "weight", Number(e.target.value))}
-                      disabled={busy}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px] text-muted-foreground">Chance of winning</span>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        min="1"
-                        max="99"
-                        step="0.1"
-                        value={chancePercent(reward.weight)}
-                        onChange={(e) => setChancePercent(reward.id, Number(e.target.value))}
-                        disabled={busy || rewards.length < 2}
-                        className="pr-6"
-                      />
-                      <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px] text-muted-foreground">Max quantity</span>
-                    <Input
-                      type="number"
-                      min="0"
-                      placeholder="Unlimited"
-                      value={reward.maxQuantity ?? ""}
-                      onChange={(e) => updateReward(reward.id, "maxQuantity", e.target.value === "" ? 0 : Number(e.target.value))}
-                      disabled={busy}
-                    />
-                  </div>
+                {/* One number, no percentage: how many of this exact card
+                    exist. A customer who scratches gets a uniformly random
+                    still-available card — more of one reward in the pool is
+                    what makes it win more often, the same way it would with a
+                    physical box of printed cards. */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px] text-muted-foreground">How many of this card</span>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={quantityOf(reward)}
+                    onChange={(e) => updateQuantity(reward.id, Number(e.target.value))}
+                    disabled={busy}
+                    className="max-w-[10rem]"
+                  />
                 </div>
 
                 {/* Its own full-width row, not squeezed into the Value column
@@ -384,7 +341,6 @@ export function ScratchCampaignForm({
                 <span>Total scratch cards across all rewards</span>
                 <span className="font-semibold tabular-nums">
                   {totalConfiguredQuantity}
-                  {hasUnlimitedReward ? " + unlimited" : ""}
                   {maxCards > 0 && ` / ${maxCards} max`}
                 </span>
               </div>

@@ -8,7 +8,12 @@ import type { RestoOrderType } from "@/lib/api/enums";
  * never trusted — same rule as the card purchase flow
  * (see app/api/purchase/initiate/route.ts).
  *
- * All amounts are whole rupees.
+ * Item-level amounts (unitPrice, quantity) are always whole rupees — menu
+ * prices are entered that way. `taxAmount`/`total`, though, are routinely
+ * fractional (5% of a whole-rupee subtotal is not itself whole — ₹150 → ₹7.50
+ * tax), so they carry up to 2 decimal places. See RestoOrder's schema comment
+ * (priinteve-api) for why those two columns are `Decimal(10,2)` rather than
+ * `Int`.
  */
 
 export type PricedLine = {
@@ -63,10 +68,15 @@ export function computeOrderTotals({
    * dish at 5% reports ₹9.52 of GST already inside that ₹200 — never added to
    * `total`. Delivery is never taxed in either mode: it is a separate line
    * item on the invoice, not part of the priced menu.
+   *
+   * Rounded to the nearest PAISA (2 decimal places), never the nearest whole
+   * rupee — `subtotal * rules.taxPercent` is an exact integer product (both
+   * operands are integers), so dividing it by 100 at the end is exact for
+   * every value that matters here: ₹150 × 5% → 750 / 100 = ₹7.50, not ₹8.
    */
   const taxAmount = rules.taxInclusive
-    ? subtotal - Math.round((subtotal * 100) / (100 + rules.taxPercent))
-    : Math.round((subtotal * rules.taxPercent) / 100);
+    ? subtotal - Math.round((subtotal * 10000) / (100 + rules.taxPercent)) / 100
+    : Math.round(subtotal * rules.taxPercent) / 100;
 
   const total = rules.taxInclusive ? subtotal + deliveryFee : subtotal + taxAmount + deliveryFee;
 

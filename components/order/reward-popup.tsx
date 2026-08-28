@@ -102,7 +102,10 @@ export function RewardPopup({
           {rewards.unscratchedCardsCount > 0 && (
             <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
               <p className="text-2xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.unscratchedCardsCount}</p>
-              <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Scratch Cards</p>
+              {/* Deliberately labelled "Unscratched", not "Scratch Cards" — this
+                  popup exists to prompt action on cards waiting to be scratched,
+                  not to report the customer's total collection. */}
+              <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Unscratched Cards</p>
             </div>
           )}
         </div>

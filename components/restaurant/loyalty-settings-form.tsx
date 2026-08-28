@@ -19,6 +19,8 @@ export type LoyaltySettings = {
   rupeeValuePerPoint: number;
   expiryDays: number;
   maxBillPercentage: number;
+  /** The customer's balance must be at least this many points before any redemption is allowed. 0 = no minimum. */
+  minRedemptionPoints: number;
 };
 
 export function LoyaltySettingsForm({
@@ -33,6 +35,7 @@ export function LoyaltySettingsForm({
   const [rupeeValuePerPoint, setRupeeValuePerPoint] = useState(initial.rupeeValuePerPoint);
   const [expiryDays, setExpiryDays] = useState(initial.expiryDays);
   const [maxBillPercentage, setMaxBillPercentage] = useState(initial.maxBillPercentage);
+  const [minRedemptionPoints, setMinRedemptionPoints] = useState(initial.minRedemptionPoints);
   const [busy, setBusy] = useState(false);
 
   async function save(e: React.FormEvent) {
@@ -48,6 +51,7 @@ export function LoyaltySettingsForm({
           rupeeValuePerPoint: Number(rupeeValuePerPoint),
           expiryDays: Number(expiryDays),
           maxBillPercentage: Number(maxBillPercentage),
+          minRedemptionPoints: Number(minRedemptionPoints),
         }),
       });
 
@@ -133,18 +137,34 @@ export function LoyaltySettingsForm({
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="max-bill">Max Bill Percentage</Label>
-            <Input
-              id="max-bill"
-              type="number"
-              min="0"
-              max="100"
-              value={maxBillPercentage}
-              onChange={(e) => setMaxBillPercentage(Number(e.target.value))}
-              disabled={busy}
-            />
-            <p className="text-xs text-muted-foreground">Max % of bill that can be paid with points</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="max-bill">Max Bill Percentage</Label>
+              <Input
+                id="max-bill"
+                type="number"
+                min="0"
+                max="100"
+                value={maxBillPercentage}
+                onChange={(e) => setMaxBillPercentage(Number(e.target.value))}
+                disabled={busy}
+              />
+              <p className="text-xs text-muted-foreground">Max % of bill that can be paid with points</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="min-redemption-points">Minimum points to redeem</Label>
+              <Input
+                id="min-redemption-points"
+                type="number"
+                min="0"
+                value={minRedemptionPoints}
+                onChange={(e) => setMinRedemptionPoints(Number(e.target.value))}
+                disabled={busy}
+              />
+              <p className="text-xs text-muted-foreground">
+                e.g. 20 → a customer with fewer points can&apos;t redeem at all. 0 means no minimum.
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-2">

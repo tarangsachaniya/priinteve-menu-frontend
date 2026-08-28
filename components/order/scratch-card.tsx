@@ -87,12 +87,22 @@ export function ScratchCardInteractive({
         ctx.fill();
       }
       
-      // Draw text
+      // Draw text — sized relative to the container so it reads cleanly at
+      // both the small grid-tile preview and the full-screen reveal, and
+      // shrunk further if it would still overflow (e.g. an unusually narrow
+      // container) rather than ever wrapping across two lines.
+      const label = "Scratch To Reveal";
       ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-      ctx.font = "bold 24px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("Scratch to Reveal", width / 2, height / 2);
+      let fontSize = Math.max(14, Math.min(32, width * 0.09));
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      const maxTextWidth = width * 0.85;
+      while (ctx.measureText(label).width > maxTextWidth && fontSize > 10) {
+        fontSize -= 1;
+        ctx.font = `bold ${fontSize}px sans-serif`;
+      }
+      ctx.fillText(label, width / 2, height / 2);
     };
 
     initCanvas();

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Gift, X, Loader2, Sparkles } from "lucide-react";
 
 import { OverlayShell } from "@/components/order/overlay-shell";
-import { ScratchCardInteractive } from "@/components/order/scratch-card";
+import { ScratchCardFullscreen } from "@/components/order/scratch-card-fullscreen";
 
 type RewardHistory = {
   id: string;
@@ -18,6 +18,8 @@ export type RewardsData = {
   scratchEnabled: boolean;
   pointsBalance: number;
   unscratchedCardsCount: number;
+  totalScratchCards: number;
+  scratchedCardsCount: number;
   history: RewardHistory[];
 };
 
@@ -47,6 +49,8 @@ export function MyRewardsSheet({
   const [cards, setCards] = useState<ScratchCardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  // The card currently open in the full-screen scratch view, if any.
+  const [openCardId, setOpenCardId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!customer) return;
@@ -71,6 +75,8 @@ export function MyRewardsSheet({
             scratchEnabled: Boolean(data.scratchEnabled),
             pointsBalance: data.pointsBalance || 0,
             unscratchedCardsCount: data.unscratchedCardsCount || 0,
+            totalScratchCards: data.totalScratchCards || 0,
+            scratchedCardsCount: data.scratchedCardsCount || 0,
             history: data.history || [],
           });
           setCards(cardsData.cards ?? []);
@@ -93,6 +99,18 @@ export function MyRewardsSheet({
       const data = await res.json().catch(() => null);
       if (res.ok && data?.card) {
         setCards((prev) => prev.map((c) => (c.id === cardId ? data.card : c)));
+        // A LOYALTY_POINTS reward is auto-credited the instant it's revealed
+        // (see order/scratch.routes.ts) — reflect the new balance immediately
+        // rather than leaving the tile stale until the sheet reopens. Scratched
+        // count also moves right away since the card's status just changed.
+        if (typeof data.pointsBalanceAfter === "number") {
+          setRewards((prev) => (prev ? { ...prev, pointsBalance: data.pointsBalanceAfter } : prev));
+        }
+        setRewards((prev) =>
+          prev
+            ? { ...prev, unscratchedCardsCount: Math.max(0, prev.unscratchedCardsCount - 1), scratchedCardsCount: prev.scratchedCardsCount + 1 }
+            : prev,
+        );
       }
     } catch {
       // The canvas has already visually revealed by the time this runs — a
@@ -139,20 +157,29 @@ export function MyRewardsSheet({
                 the restaurant actually has switched on. A restaurant that's
                 never enabled Scratch Cards must never show a permanent "0"
                 tile implying the feature exists here. */}
-            {(rewards.loyaltyEnabled || rewards.scratchEnabled) && (
+            {rewards.loyaltyEnabled && (
               <div className="p-5 flex gap-4 border-b" style={{ borderColor: "var(--resto-divider)" }}>
-                {rewards.loyaltyEnabled && (
-                  <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
-                    <p className="text-3xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.pointsBalance}</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Loyalty Points</p>
-                  </div>
-                )}
-                {rewards.scratchEnabled && (
-                  <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
-                    <p className="text-3xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.unscratchedCardsCount}</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Scratch Cards</p>
-                  </div>
-                )}
+                <div className="flex-1 rounded-lg border p-4 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
+                  <p className="text-3xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.pointsBalance}</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Loyalty Points</p>
+                </div>
+              </div>
+            )}
+
+            {rewards.scratchEnabled && (
+              <div className="px-5 pb-5 flex gap-3 border-b" style={{ borderColor: "var(--resto-divider)" }}>
+                <div className="flex-1 rounded-lg border p-3 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
+                  <p className="text-2xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.totalScratchCards}</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Total Cards</p>
+                </div>
+                <div className="flex-1 rounded-lg border p-3 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
+                  <p className="text-2xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.unscratchedCardsCount}</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Unscratched</p>
+                </div>
+                <div className="flex-1 rounded-lg border p-3 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
+                  <p className="text-2xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.scratchedCardsCount}</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Scratched</p>
+                </div>
               </div>
             )}
 
@@ -163,29 +190,55 @@ export function MyRewardsSheet({
                   Scratch Cards
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
+                  {/* A plain tappable preview, not the live scratch canvas —
+                      the actual scratch interaction happens full-screen (see
+                      ScratchCardFullscreen), opened on tap. */}
                   {activeCards.map((card) => (
-                    <div key={card.id} className="aspect-square">
-                      {card.status === "ISSUED" ? (
-                        <ScratchCardInteractive onReveal={() => scratch(card.id)} className="text-sm font-semibold text-white">
-                          <span className="text-center text-xs text-muted-foreground">Revealing…</span>
-                        </ScratchCardInteractive>
-                      ) : (
-                        <div
-                          className="flex h-full flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center"
-                          style={{ borderColor: "var(--resto-brand-500)", backgroundColor: "var(--resto-surface-alt)" }}
-                        >
-                          <Sparkles className="size-5" style={{ color: "var(--resto-brand-text)" }} />
+                    <button
+                      key={card.id}
+                      type="button"
+                      onClick={() => setOpenCardId(card.id)}
+                      className="aspect-square rounded-xl border p-3 text-center transition-opacity hover:opacity-90"
+                      style={{
+                        borderColor: card.status === "ISSUED" ? "var(--resto-border)" : "var(--resto-brand-500)",
+                        backgroundColor: "var(--resto-surface-alt)",
+                      }}
+                    >
+                      <div className="flex h-full flex-col items-center justify-center gap-1">
+                        <Sparkles className="size-5" style={{ color: "var(--resto-brand-text)" }} />
+                        {card.status === "ISSUED" ? (
                           <p className="text-sm font-semibold" style={{ color: "var(--resto-text)" }}>
-                            {card.reward?.label ?? "Reward"}
+                            Scratch to Reveal
                           </p>
-                          <p className="text-xs" style={{ color: "var(--resto-text-muted)" }}>Use at checkout</p>
-                        </div>
-                      )}
-                    </div>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold" style={{ color: "var(--resto-text)" }}>
+                              {card.reward?.label ?? "Reward"}
+                            </p>
+                            <p className="text-xs" style={{ color: "var(--resto-text-muted)" }}>
+                              {card.reward?.type === "LOYALTY_POINTS" ? "Added to your points balance" : "Use at checkout"}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </button>
                   ))}
                 </div>
               </div>
             )}
+
+            {openCardId &&
+              (() => {
+                const openCard = cards.find((c) => c.id === openCardId);
+                if (!openCard) return null;
+                return (
+                  <ScratchCardFullscreen
+                    card={openCard}
+                    onReveal={() => scratch(openCard.id)}
+                    onClose={() => setOpenCardId(null)}
+                  />
+                );
+              })()}
 
             <div className="p-5">
               <h3 className="resto-display text-sm font-semibold mb-4" style={{ color: "var(--resto-text)" }}>Reward History</h3>

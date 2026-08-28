@@ -16,6 +16,7 @@ import { computeOrderTotals } from "@/lib/restaurant/pricing";
 import { ORDER_TYPE_LABEL } from "@/lib/restaurant/order-status";
 import { writeResumeOrder } from "@/lib/restaurant/order-recovery";
 import { OverlayShell } from "@/components/order/overlay-shell";
+import { RewardRedemption } from "@/components/order/reward-redemption";
 import type { CartLine, PublicRestaurant, PublicTable } from "@/components/order/types";
 
 const ORDER_TYPE_ICON: Record<RestoOrderType, typeof Store> = {
@@ -32,10 +33,14 @@ const PICKUP_OPTIONS = [
 ];
 
 /**
- * Placing an order and paying for it are now two separate moments. This sheet
- * only does the first: it collects who the guest is and how they want the food
- * delivered, then hands off to the kitchen. Payment happens on the status page
- * once the restaurant closes the invoice — see components/order/payment-panel.tsx.
+ * Placing an order and paying for it are two separate moments. This sheet
+ * does two things in sequence, both before payment: it collects who the guest
+ * is and how they want the food delivered, then — once that creates a real
+ * PENDING order — offers a "Redeem rewards" step against that order (loyalty
+ * points can only ever be redeemed against a real order; see
+ * priinteve-api's loyalty-redemption.ts). Only after that does it hand off to
+ * the status page, where payment happens once the restaurant closes the
+ * invoice — see components/order/payment-panel.tsx.
  */
 export function CheckoutSheet({
   restaurant,
@@ -71,6 +76,10 @@ export function CheckoutSheet({
   const [pickupInMinutes, setPickupInMinutes] = useState(0);
   const [note, setNote] = useState("");
   const [isPlacing, setIsPlacing] = useState(false);
+  // Set once the order is created — switches the drawer from "Your details"
+  // into a "Redeem rewards" step against the real order, before finally
+  // continuing to the status/payment page. See the header comment below.
+  const [placedOrder, setPlacedOrder] = useState<{ orderId: string; statusUrl: string; total: number } | null>(null);
 
   // The session stores the mobile canonically as +91…; the API wants the bare
   // ten digits.
@@ -90,15 +99,6 @@ export function CheckoutSheet({
   });
 
   const belowMinimum = totals.subtotal < restaurant.minOrderValue;
-
-  // Loyalty points and scratch-card rewards can only be redeemed against a
-  // real order while it's still PENDING (before the restaurant requests
-  // payment) — see priinteve-api's loyalty-redemption.ts. There's no order
-  // yet at checkout time, so there's nothing valid to preview or apply here;
-  // the "Redeem rewards" step lives on the order-status page instead, in the
-  // window between placing and the restaurant accepting — see
-  // components/order/reward-redemption.tsx, rendered from
-  // order-status-tracker.tsx.
   const finalPayable = totals.total;
 
   async function placeOrder(e: React.FormEvent) {
@@ -150,11 +150,18 @@ export function CheckoutSheet({
         statusUrl: data.statusUrl,
         placedAt: new Date().toISOString(),
       });
-      router.push(data.statusUrl);
+      // Don't navigate yet — switch this same drawer into the "Redeem
+      // rewards" step against the order that now exists, in the window
+      // before the restaurant requests payment.
+      setPlacedOrder({ orderId: data.orderId, statusUrl: data.statusUrl, total: data.total });
     } catch {
       toast.error("Something went wrong. Please try again.");
       setIsPlacing(false);
     }
+  }
+
+  function continueToPayment() {
+    if (placedOrder) router.push(placedOrder.statusUrl);
   }
 
   return (
@@ -165,15 +172,21 @@ export function CheckoutSheet({
         >
           <div>
             <h2 className="resto-display text-xl font-semibold" style={{ color: "var(--resto-text)" }}>
-              Checkout
+              {placedOrder ? "Redeem rewards" : "Checkout"}
             </h2>
             <p className="mt-0.5 text-xs" style={{ color: "var(--resto-text-muted)" }}>
-              Review your order and place it in a few taps.
+              {placedOrder
+                ? "Your order is placed — use any points or scratch cards before you continue."
+                : "Review your order and place it in a few taps."}
             </p>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            // Once the order exists there is no "cart" to go back to — closing
+            // this drawer the same way "Continue to payment" does keeps the
+            // guest from landing somewhere that implies the order can still be
+            // edited.
+            onClick={placedOrder ? continueToPayment : onClose}
             aria-label="Close"
             className="rounded-full p-1 transition-opacity hover:opacity-70"
             style={{ color: "var(--resto-text-muted)" }}
@@ -182,6 +195,26 @@ export function CheckoutSheet({
           </button>
         </header>
 
+        {placedOrder ? (
+          <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
+            <RewardRedemption
+              restaurantSlug={restaurant.slug}
+              orderId={placedOrder.orderId}
+              onRedeemed={(newTotal) => setPlacedOrder((prev) => (prev ? { ...prev, total: newTotal } : prev))}
+            />
+
+            <section className="mt-auto flex flex-col gap-1 rounded-2xl bg-muted p-3 text-sm">
+              <div className="flex justify-between font-semibold">
+                <span>Payable</span>
+                <span className="tabular-nums">{formatCurrency(placedOrder.total)}</span>
+              </div>
+            </section>
+
+            <Button type="button" size="lg" onClick={continueToPayment}>
+              Continue to payment
+            </Button>
+          </div>
+        ) : (
         <form onSubmit={placeOrder} className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
         {/* Shown rather than hidden: someone ordering on a friend's phone has
             to be able to notice the wrong name and fix it. */}
@@ -323,11 +356,6 @@ export function CheckoutSheet({
           />
         </div>
 
-        <p className="rounded-2xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-          🎁 Got loyalty points or a scratch card here? You can apply them once your order is placed —
-          look for &quot;Redeem rewards&quot; on the next screen.
-        </p>
-
         <section className="flex flex-col gap-1 rounded-2xl bg-muted p-3 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Subtotal</span>
@@ -396,6 +424,7 @@ export function CheckoutSheet({
           </Button>
         </div>
       </form>
+        )}
     </OverlayShell>
   );
 }

@@ -114,6 +114,29 @@ export function RewardRedemption({
     }
   }
 
+  async function undoRedeemPoints() {
+    setBusy("points");
+    try {
+      const res = await fetch("/api/order/loyalty/undo-redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restaurantSlug, orderId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(typeof data.error === "string" ? data.error : "Could not remove this redemption");
+        return;
+      }
+      toast.success("Redemption removed");
+      setLoyaltyApplied(false);
+      onRedeemed(data.order.total);
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function redeemCard(cardId: string) {
     setBusy(cardId);
     try {
@@ -140,8 +163,12 @@ export function RewardRedemption({
   if (loading) return null;
 
   const hasLoyalty = Boolean(loyalty?.eligible && loyalty.maxPoints > 0);
+  // A customer with a real balance who still can't redeem (e.g. below the
+  // configured minimum) gets told why, rather than the section just vanishing
+  // as if they had no points at all.
+  const showIneligibleReason = Boolean(loyalty && !loyalty.eligible && loyalty.availablePoints > 0 && loyalty.reason);
   const hasCards = cards.length > 0;
-  if (!hasLoyalty && !hasCards) return null;
+  if (!hasLoyalty && !showIneligibleReason && !hasCards) return null;
 
   return (
     <section
@@ -155,6 +182,15 @@ export function RewardRedemption({
       <h2 className="text-sm font-semibold" style={{ color: "var(--resto-text)" }}>
         Redeem rewards
       </h2>
+
+      {showIneligibleReason && loyalty && (
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm">
+          <Gift className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span>
+            {loyalty.availablePoints} points available · {loyalty.reason}
+          </span>
+        </div>
+      )}
 
       {hasLoyalty && loyalty && (
         <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5">
@@ -171,8 +207,8 @@ export function RewardRedemption({
                 Redeemed {pointsToRedeem} points · saved{" "}
                 {formatCurrency(Math.floor((pointsToRedeem * loyalty.maxDiscount) / loyalty.maxPoints))}
               </span>
-              <Button type="button" size="xs" variant="outline" disabled>
-                Applied
+              <Button type="button" size="xs" variant="outline" disabled={busy !== null} onClick={undoRedeemPoints}>
+                {busy === "points" ? "Removing…" : "Remove"}
               </Button>
             </div>
           ) : (

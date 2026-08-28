@@ -282,7 +282,7 @@ export function ManualOrderDialog({ onCreated }: { onCreated: () => void }) {
           </Button>
         }
       />
-      <DialogContent className="sm:max-w-4xl">
+      <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Add order</DialogTitle>
           <DialogDescription>Enter an order for a guest — a phone-in or a walk-in.</DialogDescription>
@@ -295,9 +295,9 @@ export function ManualOrderDialog({ onCreated }: { onCreated: () => void }) {
         ) : loadError ? (
           <p className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive">{loadError}</p>
         ) : (
-          <div className="scrollbar-none grid max-h-[75vh] gap-6 overflow-y-auto px-1 md:grid-cols-2">
-            {/* Left: pick items */}
-            <div className="flex flex-col gap-3">
+          <div className="flex max-h-[75vh] gap-6 overflow-hidden px-1">
+            {/* Left: pick items — scrollable */}
+            <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
               <Input
                 placeholder="Search dishes…"
                 value={search}
@@ -332,8 +332,8 @@ export function ManualOrderDialog({ onCreated }: { onCreated: () => void }) {
               </div>
             </div>
 
-            {/* Right: the order being built */}
-            <div className="flex flex-col gap-4">
+            {/* Right: the order being built — sticky */}
+            <div className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto">
               <div className="flex flex-col gap-1.5">
                 <Label>Order lines</Label>
                 {cart.lines.length === 0 ? (

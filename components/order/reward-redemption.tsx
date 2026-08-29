@@ -104,7 +104,7 @@ export function RewardRedemption({
         toast.error(typeof data.error === "string" ? data.error : "Could not redeem points");
         return;
       }
-      toast.success(`Redeemed ${pointsToRedeem} points`);
+      toast.success("Points Redeemed Successfully", { description: `${pointsToRedeem} points redeemed` });
       setLoyaltyApplied(true);
       onRedeemed(data.order.total);
     } catch {

@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Gift, X, Loader2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 import { OverlayShell } from "@/components/order/overlay-shell";
 import { ScratchCardFullscreen } from "@/components/order/scratch-card-fullscreen";
+import { revealScratchCard, type ScratchCardEntry } from "@/lib/order/scratch-reveal";
 
 type RewardHistory = {
   id: string;
@@ -23,19 +25,6 @@ export type RewardsData = {
   history: RewardHistory[];
 };
 
-type ScratchReward = {
-  type: string;
-  label: string;
-  percentValue: number | null;
-  amountValue: number | null;
-} | null;
-
-type ScratchCardEntry = {
-  id: string;
-  status: string;
-  reward: ScratchReward;
-};
-
 export function MyRewardsSheet({
   restaurantSlug,
   customer,
@@ -51,6 +40,8 @@ export function MyRewardsSheet({
   const [error, setError] = useState(false);
   // The card currently open in the full-screen scratch view, if any.
   const [openCardId, setOpenCardId] = useState<string | null>(null);
+  // Id of the card whose last reveal attempt failed server-side, if any.
+  const [revealError, setRevealError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!customer) return;
@@ -94,18 +85,21 @@ export function MyRewardsSheet({
   }, [customer, restaurantSlug]);
 
   async function scratch(cardId: string) {
+    setRevealError(null);
+    const previousStatus = cards.find((c) => c.id === cardId)?.status;
     try {
-      const res = await fetch(`/api/order/scratch/${cardId}/scratch?restaurantSlug=${restaurantSlug}`, { method: "POST" });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.card) {
-        setCards((prev) => prev.map((c) => (c.id === cardId ? data.card : c)));
-        // A LOYALTY_POINTS reward is auto-credited the instant it's revealed
-        // (see order/scratch.routes.ts) — reflect the new balance immediately
-        // rather than leaving the tile stale until the sheet reopens. Scratched
-        // count also moves right away since the card's status just changed.
-        if (typeof data.pointsBalanceAfter === "number") {
-          setRewards((prev) => (prev ? { ...prev, pointsBalance: data.pointsBalanceAfter } : prev));
-        }
+      const { card, pointsBalanceAfter } = await revealScratchCard(cardId, restaurantSlug);
+      setCards((prev) => prev.map((c) => (c.id === cardId ? card : c)));
+      // A LOYALTY_POINTS reward is auto-credited the instant it's revealed
+      // (see order/scratch.routes.ts) — reflect the new balance immediately
+      // rather than leaving the tile stale until the sheet reopens.
+      if (typeof pointsBalanceAfter === "number") {
+        setRewards((prev) => (prev ? { ...prev, pointsBalance: pointsBalanceAfter } : prev));
+      }
+      // Only move the counts the first time this card actually flips off
+      // ISSUED — a retried call after a lost response is idempotent
+      // server-side but must not double-decrement the tile counts.
+      if (previousStatus === "ISSUED" && card.status !== "ISSUED") {
         setRewards((prev) =>
           prev
             ? { ...prev, unscratchedCardsCount: Math.max(0, prev.unscratchedCardsCount - 1), scratchedCardsCount: prev.scratchedCardsCount + 1 }
@@ -113,9 +107,8 @@ export function MyRewardsSheet({
         );
       }
     } catch {
-      // The canvas has already visually revealed by the time this runs — a
-      // failed call just leaves the tile showing "Revealing…" until the next
-      // sheet open retries the fetch. Not worth a toast for a convenience feature.
+      setRevealError(cardId);
+      toast.error("Couldn't reveal your reward. Tap to try again.");
     }
   }
 
@@ -236,6 +229,8 @@ export function MyRewardsSheet({
                     card={openCard}
                     onReveal={() => scratch(openCard.id)}
                     onClose={() => setOpenCardId(null)}
+                    revealFailed={revealError === openCard.id}
+                    onRetryReveal={() => scratch(openCard.id)}
                   />
                 );
               })()}

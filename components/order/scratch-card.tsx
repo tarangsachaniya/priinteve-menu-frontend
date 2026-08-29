@@ -55,19 +55,12 @@ export function ScratchCardInteractive({
       
       ctx.scale(dpr, dpr);
 
-      // Draw initial pattern/gradient
-      const patterns = [
-        { c1: "#FADB5F", c2: "#f7b733" }, // Gold
-        { c1: "#e0e0e0", c2: "#bdbdbd" }, // Silver
-        { c1: "#cd7f32", c2: "#a0522d" }, // Bronze
-        { c1: "#FF416C", c2: "#FF4B2B" }, // Colorful
-        { c1: "#4CA1AF", c2: "#C4E0E5" }  // Blue-ish
-      ];
-      const selected = patterns[Math.floor(Math.random() * patterns.length)];
-
+      // Draw the initial foil gradient — one fixed palette for every scratch
+      // card on every restaurant, so the scratch surface is a consistent,
+      // intentional design rather than a random per-card look.
       const gradient = ctx.createLinearGradient(0, 0, width, height);
-      gradient.addColorStop(0, selected.c1);
-      gradient.addColorStop(1, selected.c2);
+      gradient.addColorStop(0, "#FADB5F");
+      gradient.addColorStop(1, "#f7b733");
 
       ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = gradient;

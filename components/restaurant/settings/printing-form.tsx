@@ -172,8 +172,8 @@ export function PrintingForm({
               </p>
               <Button
                 type="button"
-                variant="ghost"
-                size="xs"
+                variant="secondary"
+                size="sm"
                 disabled={isSwitchingMode}
                 onClick={() => chooseMode(kotPrinterMode === "ONE_WAY" ? "TWO_WAY" : "ONE_WAY")}
               >

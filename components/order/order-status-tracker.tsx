@@ -26,6 +26,7 @@ import {
   ORDER_STATUS_FLOW,
   ORDER_TYPE_LABEL,
 } from "@/lib/restaurant/order-status";
+import { BillPaidScratchPrompt } from "@/components/order/bill-paid-scratch-prompt";
 import { PaidReceipt, PaymentPanel } from "@/components/order/payment-panel";
 import { PlatformCredit } from "@/components/order/platform-credit";
 import { ReviewPrompt } from "@/components/order/review-prompt";
@@ -352,7 +353,12 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
         />
       )}
 
-      {!isCancelled && isPaid && <PaidReceipt total={total} mode={paymentMode} />}
+      {!isCancelled && isPaid && (
+        <>
+          <BillPaidScratchPrompt restaurantSlug={initialOrder.restaurantSlug} orderId={initialOrder.id} />
+          <PaidReceipt total={total} mode={paymentMode} />
+        </>
+      )}
 
       {isCancelled ? (
         <div

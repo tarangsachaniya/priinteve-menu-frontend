@@ -1,21 +1,9 @@
 "use client";
 
-import { Sparkles, X } from "lucide-react";
+import { RotateCcw, Sparkles, X } from "lucide-react";
 
 import { ScratchCardInteractive } from "@/components/order/scratch-card";
-
-type ScratchReward = {
-  type: string;
-  label: string;
-  percentValue: number | null;
-  amountValue: number | null;
-} | null;
-
-type ScratchCardEntry = {
-  id: string;
-  status: string;
-  reward: ScratchReward;
-};
+import type { ScratchCardEntry } from "@/lib/order/scratch-reveal";
 
 /**
  * Full-screen scratch reveal (spec section 2). Wraps the same canvas engine
@@ -33,11 +21,17 @@ export function ScratchCardFullscreen({
   card,
   onReveal,
   onClose,
+  revealFailed = false,
+  onRetryReveal,
 }: {
   card: ScratchCardEntry;
   /** Fires once the scratch threshold is crossed — the parent owns the actual API call. */
   onReveal: () => void;
   onClose: () => void;
+  /** True when the last reveal attempt for this card failed server-side. */
+  revealFailed?: boolean;
+  /** Retries the same reveal call. Required whenever revealFailed can become true. */
+  onRetryReveal?: () => void;
 }) {
   const isRevealed = card.status !== "ISSUED";
 
@@ -71,6 +65,16 @@ export function ScratchCardFullscreen({
                     : "Use at checkout"}
                 </p>
               </div>
+            ) : revealFailed ? (
+              <button
+                type="button"
+                onClick={onRetryReveal}
+                className="flex flex-col items-center gap-2 text-center"
+              >
+                <RotateCcw className="size-6 text-white" aria-hidden />
+                <p className="text-sm font-semibold text-white">Couldn&apos;t reveal your reward</p>
+                <span className="text-xs font-semibold text-white underline underline-offset-2">Tap to try again</span>
+              </button>
             ) : (
               <span className="text-sm text-white/70">Revealing…</span>
             )}

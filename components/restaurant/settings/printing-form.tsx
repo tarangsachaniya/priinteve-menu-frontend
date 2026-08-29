@@ -486,13 +486,13 @@ function PrinterCard({
           ) : (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`${role}-usb`}>
-                {form.connectionType === "USB" ? "Device identifier" : "Paired Bluetooth device"}
+                {form.connectionType === "USB" ? "Windows printer name" : "Paired Bluetooth device"}
               </Label>
               <Input
                 id={`${role}-usb`}
                 value={form.usbIdentifier}
                 onChange={(e) => update("usbIdentifier", e.target.value)}
-                placeholder={form.connectionType === "USB" ? "USB001" : "Name of the paired printer"}
+                placeholder={form.connectionType === "USB" ? "POS-80 Series" : "Name of the paired printer"}
                 required
               />
             </div>

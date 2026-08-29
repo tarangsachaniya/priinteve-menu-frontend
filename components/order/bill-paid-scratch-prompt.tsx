@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { CheckCircle2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ScratchCardFullscreen } from "@/components/order/scratch-card-fullscreen";
@@ -78,6 +78,10 @@ export function BillPaidScratchPrompt({
 
   if (!card || dismissed) return null;
 
+  // Once revealed, this prompt is done — show the outcome, not a button that
+  // implies there's still something left to do.
+  const isRevealedAlready = card.status !== "ISSUED";
+
   return (
     <>
       <section
@@ -91,20 +95,29 @@ export function BillPaidScratchPrompt({
         <Sparkles className="size-6" style={{ color: "var(--resto-brand-text)" }} aria-hidden />
         <div>
           <p className="text-base font-semibold" style={{ color: "var(--resto-text)" }}>
-            🎉 You Got a Scratch Card!
+            {isRevealedAlready ? "🎉 Scratch Card Completed" : "🎉 You Got a Scratch Card!"}
           </p>
           <p className="mt-1 text-sm" style={{ color: "var(--resto-text-muted)" }}>
-            Scratch your card and reveal your reward.
+            {isRevealedAlready
+              ? `You won ${card.reward?.label ?? "a reward"}.`
+              : "Scratch your card and reveal your reward."}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
-            Later
-          </Button>
-          <Button type="button" size="sm" onClick={() => setOpen(true)}>
-            Open Scratch Card
-          </Button>
-        </div>
+        {isRevealedAlready ? (
+          <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--resto-success)" }}>
+            <CheckCircle2 className="size-4" aria-hidden />
+            Completed
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
+              Later
+            </Button>
+            <Button type="button" size="sm" onClick={() => setOpen(true)}>
+              Open Scratch Card
+            </Button>
+          </div>
+        )}
       </section>
 
       {open && (

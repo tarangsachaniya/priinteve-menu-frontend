@@ -63,7 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={cn("font-sans", restaurantFontVariables)}>
       <body className={cn(restaurantFontVariables, "antialiased")}>
         <TooltipProvider>{children}</TooltipProvider>
-        <Toaster position="top-center" />
+        <Toaster position="top-right" />
       </body>
     </html>
   );

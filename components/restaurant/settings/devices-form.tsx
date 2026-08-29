@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChefHat, Monitor, Printer, RefreshCw, Smartphone, Trash2, Tv } from "lucide-react";
+import { ChefHat, Laptop, Monitor, Printer, RefreshCw, Smartphone, Trash2, Tv } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { formatDateTime } from "@/lib/format";
 // restaurant's physical printers. This form doesn't pair one differently; it
 // just needs to recognize the kind so a paired bridge renders sanely in the
 // list below instead of falling through to an undefined label/icon.
-type DeviceKind = "TV_KITCHEN" | "TV_PICKUP" | "MOBILE" | "PRINTER_BRIDGE";
+type DeviceKind = "TV_KITCHEN" | "TV_PICKUP" | "MOBILE" | "PRINTER_BRIDGE" | "DESKTOP";
 
 type Device = {
   id: string;
@@ -34,6 +34,7 @@ const KIND_LABEL: Record<DeviceKind, string> = {
   TV_PICKUP: "Pickup TV",
   MOBILE: "Mobile app",
   PRINTER_BRIDGE: "Printer bridge",
+  DESKTOP: "Desktop app",
 };
 
 const KIND_ICON: Record<DeviceKind, typeof ChefHat> = {
@@ -41,6 +42,7 @@ const KIND_ICON: Record<DeviceKind, typeof ChefHat> = {
   TV_PICKUP: Monitor,
   MOBILE: Smartphone,
   PRINTER_BRIDGE: Printer,
+  DESKTOP: Laptop,
 };
 
 /**

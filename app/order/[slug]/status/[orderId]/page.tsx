@@ -23,6 +23,12 @@ type OrderPageDTO = {
   taxAmount: number;
   deliveryFee: number;
   total: number;
+  taxPercent: number;
+  taxInclusive: boolean;
+  loyaltyPointsRedeemed: number;
+  loyaltyDiscountAmount: number;
+  rewardDiscountAmount: number;
+  rewardLabel: string | null;
   cancelReason: string | null;
   placedAt: string;
   items: { id: string; name: string; quantity: number; lineTotal: number; variantName: string | null; prepMinutes: number | null; addOns: string[] }[];

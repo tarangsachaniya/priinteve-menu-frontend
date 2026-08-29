@@ -92,15 +92,47 @@ export type TaxSplit = {
  * The CGST/SGST split an Indian restaurant invoice shows.
  *
  * Always an intra-state supply, so always split in half rather than charged as
- * IGST: a guest eats where the restaurant is. The rounding puts any odd rupee
- * on CGST so the two halves still add back to exactly the tax that was charged
+ * IGST: a guest eats where the restaurant is. Split at PAISA precision, not
+ * whole-rupee precision — taxAmount is routinely fractional (₹150 @ 5% is
+ * ₹7.50, see pricing.ts), and rounding it up to a whole rupee before halving
+ * would overcharge CGST by up to 50 paise. The rounding puts any odd paisa on
+ * CGST so the two halves still add back to exactly the tax that was charged
  * — an invoice whose parts don't sum to its total is one an auditor stops at.
  */
 export function splitTax(taxAmount: number, taxPercent: number): TaxSplit {
-  const cgst = Math.ceil(taxAmount / 2);
+  const paisa = Math.round(taxAmount * 100);
+  const cgstPaisa = Math.ceil(paisa / 2);
   return {
-    cgst,
-    sgst: taxAmount - cgst,
+    cgst: cgstPaisa / 100,
+    sgst: (paisa - cgstPaisa) / 100,
     halfRatePercent: taxPercent / 2,
   };
+}
+
+/**
+ * The pre-tax base a bill's "Subtotal" line shows.
+ *
+ * Exclusive mode: `subtotal` already IS that base — taxAmount was added on
+ * top of it, never folded in, so it passes through unchanged.
+ *
+ * Inclusive mode: `subtotal` is the gross, GST-included menu total (what the
+ * items actually cost), so the base a bill has to show as "Subtotal" is what
+ * remains once the GST already folded into it is taken back out — otherwise
+ * a printed Subtotal + CGST + SGST would overshoot the printed Total by the
+ * tax amount, double-counting it.
+ *
+ * MUST stay identical to priinteve-api's copy of this file — see
+ * pricing.ts's PricingRules.taxInclusive comment for why the two copies can
+ * never disagree.
+ */
+export function taxableAmount({
+  subtotal,
+  taxAmount,
+  taxInclusive,
+}: {
+  subtotal: number;
+  taxAmount: number;
+  taxInclusive: boolean;
+}): number {
+  return taxInclusive ? subtotal - taxAmount : subtotal;
 }

@@ -64,6 +64,14 @@ export type StatusOrder = {
   taxAmount: number;
   deliveryFee: number;
   total: number;
+  taxPercent: number;
+  taxInclusive: boolean;
+  /** Already subtracted into `total` — see the summary section below for why
+   * these are read directly rather than inferred from subtotal/tax/total. */
+  loyaltyPointsRedeemed: number;
+  loyaltyDiscountAmount: number;
+  rewardDiscountAmount: number;
+  rewardLabel: string | null;
   cancelReason: string | null;
   /** ISO instant the order was placed; the estimate below counts from it. */
   placedAt: string;
@@ -522,18 +530,34 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
           style={{ borderColor: "var(--resto-border)" }}
         >
           <SummaryRow label="Item total" value={initialOrder.subtotal} />
-          {initialOrder.taxAmount > 0 && <SummaryRow label="Tax" value={initialOrder.taxAmount} />}
+          {initialOrder.taxAmount > 0 &&
+            (initialOrder.taxInclusive ? (
+              // Not a charge row: this line is INSIDE the item total above it,
+              // not added to it — `total` already excludes it, same convention
+              // checkout-sheet.tsx uses before the order exists.
+              <SummaryRow label={`Includes GST (${initialOrder.taxPercent}%)`} value={initialOrder.taxAmount} />
+            ) : (
+              <SummaryRow label={`Tax (${initialOrder.taxPercent}%)`} value={initialOrder.taxAmount} />
+            ))}
           {initialOrder.deliveryFee > 0 && (
             <SummaryRow label="Delivery fee" value={initialOrder.deliveryFee} />
           )}
-          {/* Only appears once a reward has actually been redeemed — before
-              that, subtotal + tax + delivery already equals `total`. */}
-          {initialOrder.subtotal + initialOrder.taxAmount + initialOrder.deliveryFee - total > 0 && (
+          {/* Read directly off the order rather than inferred as "whatever
+              subtotal + tax + delivery doesn't add up to" — that arithmetic
+              only ever held for GST-EXCLUSIVE orders. Under GST-inclusive
+              pricing, tax is already inside subtotal, so subtotal + tax +
+              delivery overshoots total by the tax amount even with no
+              discount at all, and the inferred figure would be wrong. */}
+          {initialOrder.loyaltyDiscountAmount > 0 && (
             <div className="flex items-baseline justify-between" style={{ color: "var(--resto-success)" }}>
-              <span>Reward discount</span>
-              <span className="resto-numeric">
-                -{formatCurrency(initialOrder.subtotal + initialOrder.taxAmount + initialOrder.deliveryFee - total)}
-              </span>
+              <span>Loyalty discount ({initialOrder.loyaltyPointsRedeemed} pts)</span>
+              <span className="resto-numeric">-{formatCurrency(initialOrder.loyaltyDiscountAmount)}</span>
+            </div>
+          )}
+          {initialOrder.rewardDiscountAmount > 0 && (
+            <div className="flex items-baseline justify-between" style={{ color: "var(--resto-success)" }}>
+              <span>{initialOrder.rewardLabel ? `Reward discount (${initialOrder.rewardLabel})` : "Reward discount"}</span>
+              <span className="resto-numeric">-{formatCurrency(initialOrder.rewardDiscountAmount)}</span>
             </div>
           )}
           <div className="flex items-baseline justify-between font-semibold">

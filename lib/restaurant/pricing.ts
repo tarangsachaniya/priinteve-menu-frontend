@@ -73,9 +73,17 @@ export function computeOrderTotals({
    * rupee — `subtotal * rules.taxPercent` is an exact integer product (both
    * operands are integers), so dividing it by 100 at the end is exact for
    * every value that matters here: ₹150 × 5% → 750 / 100 = ₹7.50, not ₹8.
+   *
+   * The inclusive branch subtracts two PAISA-scale integers (`subtotal * 100`
+   * and the rounded taxable-base paisa count) and divides by 100 only once,
+   * at the very end — never `subtotal - taxableBase` as two already-rounded
+   * decimals. Rupee amounts like ₹95.24 have no exact IEEE-754 double, so
+   * subtracting two of them accumulates a residue (100 - 95.24 lands on
+   * 4.760000000000005, not 4.76) that a strict `=== 4.76` bill-reconciliation
+   * check would fail on.
    */
   const taxAmount = rules.taxInclusive
-    ? subtotal - Math.round((subtotal * 10000) / (100 + rules.taxPercent)) / 100
+    ? (Math.round(subtotal * 100) - Math.round((subtotal * 10000) / (100 + rules.taxPercent))) / 100
     : Math.round(subtotal * rules.taxPercent) / 100;
 
   const total = rules.taxInclusive ? subtotal + deliveryFee : subtotal + taxAmount + deliveryFee;

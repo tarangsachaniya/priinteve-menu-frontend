@@ -9,6 +9,7 @@ type DevicesResponse = {
     kind: "TV_KITCHEN" | "TV_PICKUP" | "MOBILE" | "PRINTER_BRIDGE";
     name: string;
     platform: string | null;
+    appVersion: string | null;
     lastSeenAt: string | null;
     createdAt: string;
     expiresAt: string;

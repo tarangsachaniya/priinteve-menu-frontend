@@ -10,6 +10,8 @@ type SettingsResponse = {
 
 type PrintersResponse = { printers: Printer[] };
 
+type DetectedPrintersResponse = { printers: string[] };
+
 /**
  * The restaurant's own printing configuration.
  *
@@ -23,9 +25,10 @@ type PrintersResponse = { printers: Printer[] };
  * See PrintingForm for how each shape renders.
  */
 export default async function PrintingSettingsPage() {
-  const [{ restaurant }, { printers }] = await Promise.all([
+  const [{ restaurant }, { printers }, { printers: detectedPrinters }] = await Promise.all([
     serverFetch<SettingsResponse>("/api/restaurant/settings", { cache: "no-store" }),
     serverFetch<PrintersResponse>("/api/restaurant/printers", { cache: "no-store" }),
+    serverFetch<DetectedPrintersResponse>("/api/restaurant/printers/detected", { cache: "no-store" }),
   ]);
 
   return (
@@ -33,6 +36,7 @@ export default async function PrintingSettingsPage() {
       operationType={restaurant.operationType}
       initialKotPrinterMode={restaurant.kotPrinterMode}
       initialPrinters={printers}
+      detectedPrinters={detectedPrinters}
     />
   );
 }

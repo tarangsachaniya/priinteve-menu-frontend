@@ -23,6 +23,9 @@ type Device = {
   kind: DeviceKind;
   name: string;
   platform: string | null;
+  // Only ever set for PRINTER_BRIDGE today — every other kind sends no
+  // X-Bridge-Version header, so this stays null for them.
+  appVersion: string | null;
   lastSeenAt: string | null;
   createdAt: string;
   expiresAt: string;
@@ -223,6 +226,7 @@ function DeviceRow({ device, onRevoke }: { device: Device; onRevoke: () => void 
         <p className="truncate text-sm font-medium text-ink">{device.name}</p>
         <p className="text-xs text-muted-foreground">
           {KIND_LABEL[device.kind]}
+          {device.appVersion ? ` · v${device.appVersion}` : ""}
           {revoked
             ? " · Signed out"
             : device.lastSeenAt

@@ -82,10 +82,17 @@ export function PrintingForm({
   operationType,
   initialKotPrinterMode,
   initialPrinters,
+  detectedPrinters = [],
 }: {
   operationType: RestoOperationType;
   initialKotPrinterMode: RestoKotPrinterMode | null;
   initialPrinters: Printer[];
+  /** Windows printer/queue names reported by this restaurant's paired
+   * bridge(s) — see GET /api/restaurant/printers/detected. Only ever
+   * suggested for USB connections; free-text entry stays legal for any
+   * name not in this list (a LAN printer, or a bridge that hasn't
+   * reported yet). */
+  detectedPrinters?: string[];
 }) {
   const [kotPrinterMode, setKotPrinterMode] = useState(initialKotPrinterMode);
   const [printers, setPrinters] = useState(initialPrinters);
@@ -217,6 +224,7 @@ export function PrintingForm({
           description="Prints both the guest bill and the kitchen order ticket."
           printer={activePrinter("SHARED")}
           testTypes={["BILL", "KOT"]}
+          detectedPrinters={detectedPrinters}
           onSaved={upsertPrinter}
           onDeactivated={deactivateLocally}
         />
@@ -230,6 +238,7 @@ export function PrintingForm({
             description="Prints the guest bill."
             printer={activePrinter("BILLING")}
             testTypes={["BILL"]}
+            detectedPrinters={detectedPrinters}
             onSaved={upsertPrinter}
             onDeactivated={deactivateLocally}
           />
@@ -239,6 +248,7 @@ export function PrintingForm({
             description="Prints the kitchen order ticket."
             printer={activePrinter("KITCHEN")}
             testTypes={["KOT"]}
+            detectedPrinters={detectedPrinters}
             onSaved={upsertPrinter}
             onDeactivated={deactivateLocally}
           />
@@ -252,6 +262,7 @@ export function PrintingForm({
           description="DBS restaurants support exactly one billing printer."
           printer={activePrinter("BILLING")}
           testTypes={["BILL"]}
+          detectedPrinters={detectedPrinters}
           onSaved={upsertPrinter}
           onDeactivated={deactivateLocally}
         />
@@ -290,6 +301,7 @@ function PrinterCard({
   description,
   printer,
   testTypes,
+  detectedPrinters,
   onSaved,
   onDeactivated,
 }: {
@@ -300,6 +312,7 @@ function PrinterCard({
   /** Which test-print buttons are legal for this role — BILLING only ever
    * gets BILL, KITCHEN only ever gets KOT, SHARED gets both. */
   testTypes: RestoPrintJobType[];
+  detectedPrinters: string[];
   onSaved: (printer: Printer) => void;
   onDeactivated: (id: string) => void;
 }) {
@@ -490,11 +503,22 @@ function PrinterCard({
               </Label>
               <Input
                 id={`${role}-usb`}
+                list={form.connectionType === "USB" ? `${role}-detected-printers` : undefined}
                 value={form.usbIdentifier}
                 onChange={(e) => update("usbIdentifier", e.target.value)}
                 placeholder={form.connectionType === "USB" ? "POS-80 Series" : "Name of the paired printer"}
                 required
               />
+              {/* Suggestions only, from Get-Printer on the restaurant's paired
+                  bridge(s) — free-text entry stays legal for a name not listed
+                  here (a bridge that hasn't reported yet, for instance). */}
+              {form.connectionType === "USB" && detectedPrinters.length > 0 && (
+                <datalist id={`${role}-detected-printers`}>
+                  {detectedPrinters.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              )}
             </div>
           )}
 

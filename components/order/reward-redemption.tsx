@@ -12,6 +12,7 @@ type LoyaltyCalc = {
   reason?: string;
   maxPoints: number;
   maxDiscount: number;
+  rupeeValuePerPoint: number;
   availablePoints: number;
 };
 
@@ -188,6 +189,7 @@ export function RewardRedemption({
           <Gift className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <span>
             {loyalty.availablePoints} points available · {loyalty.reason}
+            {loyalty.rupeeValuePerPoint > 0 && ` · 1 point = ${formatCurrency(loyalty.rupeeValuePerPoint)}`}
           </span>
         </div>
       )}
@@ -198,6 +200,7 @@ export function RewardRedemption({
             <Gift className="size-4 shrink-0 text-muted-foreground" aria-hidden />
             <span>
               {loyalty.availablePoints} points available · up to {loyalty.maxPoints} usable on this order
+              {loyalty.rupeeValuePerPoint > 0 && ` · 1 point = ${formatCurrency(loyalty.rupeeValuePerPoint)}`}
             </span>
           </div>
 

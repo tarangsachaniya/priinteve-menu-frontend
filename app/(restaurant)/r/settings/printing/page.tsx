@@ -15,10 +15,11 @@ type DetectedPrintersResponse = { printers: string[] };
 /**
  * The restaurant's own printing configuration.
  *
- * operationType (KOT/DBS) rides along on /api/restaurant/settings — it's
- * read-only here, admin-only to change (see restaurant-detail-panel.tsx on
- * the admin side). What renders below the read-only banner depends on it:
- *   - KOT with no kotPrinterMode chosen yet: a One-Way/Two-Way prompt.
+ * operationType (KOT/DBS) and kotPrinterMode (One-Way/Two-Way) both ride
+ * along on /api/restaurant/settings — both read-only here, admin-only to
+ * change (see restaurant-detail-panel.tsx on the admin side). What renders
+ * below the read-only banner depends on them:
+ *   - KOT with no kotPrinterMode set yet: a "waiting on your administrator" note.
  *   - KOT + ONE_WAY: one SHARED printer card.
  *   - KOT + TWO_WAY: a BILLING card and a KITCHEN card.
  *   - DBS: one BILLING card.

@@ -15,10 +15,10 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { cn } from "@/lib/utils";
 
 /**
- * Settings' seven sections, indented under the Settings link itself rather
- * than a tab bar in the content area — see SETTINGS_NAV_ITEMS' own comment
- * for why. Rendered only while a settings page is actually open, so every
- * other section of the sidebar stays exactly as short as it always was.
+ * Settings' sections, indented under the Settings link itself rather than a
+ * tab bar in the content area — see SETTINGS_NAV_ITEMS' own comment for why.
+ * Rendered only while a settings page is actually open, so every other
+ * section of the sidebar stays exactly as short as it always was.
  *
  * Plain conditional styling rather than NavItemLink's shared-layout pill —
  * that pill uses `layoutId="nav-active-pill"`, and a second list of items
@@ -26,10 +26,28 @@ import { cn } from "@/lib/utils";
  * animating the top-level Settings pill and a sub-item's pill as if they
  * were the same element sliding between two very different positions.
  */
-function SettingsSubNav({ pathname, onNavigate }: { pathname: string | null; onNavigate?: () => void }) {
+function SettingsSubNav({
+  pathname,
+  onNavigate,
+  kitchenEnabled,
+  pickupEnabled,
+}: {
+  pathname: string | null;
+  onNavigate?: () => void;
+  kitchenEnabled: boolean;
+  pickupEnabled: boolean;
+}) {
+  // Screens (the kitchen display and pickup board links/PIN) has nothing to
+  // configure once both boards are off for this restaurant — same rule
+  // NavLinks below already applies to the top-level Kitchen link.
+  const items =
+    kitchenEnabled || pickupEnabled
+      ? SETTINGS_NAV_ITEMS
+      : SETTINGS_NAV_ITEMS.filter((item) => item.href !== "/r/settings/screens");
+
   return (
     <div className="ml-4 flex flex-col gap-0.5 border-l border-border pl-3.5">
-      {SETTINGS_NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const isActive = pathname === item.href;
         const Icon = item.icon;
         return (
@@ -55,15 +73,17 @@ function NavLinks({
   pathname,
   onNavigate,
   kitchenEnabled,
+  pickupEnabled,
 }: {
   pathname: string | null;
   onNavigate?: () => void;
   kitchenEnabled: boolean;
+  pickupEnabled: boolean;
 }) {
-  // Kitchen is the one nav item gated by an operational module — see
-  // Restaurant.kitchenEnabled. This only hides the link; the route itself
-  // (app/(kitchen)/r/kitchen/page.tsx) enforces the same check server-side,
-  // since a hidden link is not a guard.
+  // Kitchen is the one top-level nav item gated by an operational module —
+  // see Restaurant.kitchenEnabled. This only hides the link; the route
+  // itself (app/(kitchen)/r/kitchen/page.tsx) enforces the same check
+  // server-side, since a hidden link is not a guard.
   const items = kitchenEnabled
     ? RESTAURANT_NAV_ITEMS
     : RESTAURANT_NAV_ITEMS.filter((item) => item.href !== "/r/kitchen");
@@ -82,7 +102,12 @@ function NavLinks({
               onNavigate={onNavigate}
             />
             {item.href === "/r/settings" && isActive && (
-              <SettingsSubNav pathname={pathname} onNavigate={onNavigate} />
+              <SettingsSubNav
+                pathname={pathname}
+                onNavigate={onNavigate}
+                kitchenEnabled={kitchenEnabled}
+                pickupEnabled={pickupEnabled}
+              />
             )}
           </div>
         );
@@ -136,10 +161,12 @@ export function RestaurantSidebar({
   restaurantName,
   email,
   kitchenEnabled,
+  pickupEnabled,
 }: {
   restaurantName: string;
   email: string;
   kitchenEnabled: boolean;
+  pickupEnabled: boolean;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -149,7 +176,7 @@ export function RestaurantSidebar({
       <nav className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-1 border-r border-border bg-card p-4 md:flex">
         <Logo name={restaurantName} />
         <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          <NavLinks pathname={pathname} kitchenEnabled={kitchenEnabled} />
+          <NavLinks pathname={pathname} kitchenEnabled={kitchenEnabled} pickupEnabled={pickupEnabled} />
         </div>
         <ProfileFooter email={email} />
       </nav>
@@ -174,6 +201,7 @@ export function RestaurantSidebar({
                 pathname={pathname}
                 onNavigate={() => setMobileOpen(false)}
                 kitchenEnabled={kitchenEnabled}
+                pickupEnabled={pickupEnabled}
               />
             </div>
             <ProfileFooter email={email} />

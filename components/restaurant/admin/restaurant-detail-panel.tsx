@@ -43,6 +43,11 @@ type OperationTypeChangeResult = {
   failedJobCount: number;
 };
 
+const MODE_LABEL: Record<RestoKotPrinterMode, string> = {
+  ONE_WAY: "One-Way",
+  TWO_WAY: "Two-Way",
+};
+
 export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaurantDetail }) {
   const [form, setForm] = useState({
     name: restaurant.name,
@@ -108,11 +113,15 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
 
   // operationType itself is never in `form` above — it has no place on the
   // contact-details PATCH at all (see restaurantUpdateSchema), only its own
-  // confirm-gated endpoint below.
+  // confirm-gated endpoint below. kotPrinterMode is the same shape of
+  // decision (Admin-only, real side effects on printers) but its own,
+  // separate endpoint — see changePrinterMode below.
   const [operationType, setOperationType] = useState(restaurant.operationType);
   const [kotPrinterMode, setKotPrinterMode] = useState(restaurant.kotPrinterMode);
   const [confirmingOperationType, setConfirmingOperationType] = useState<RestoOperationType | null>(null);
   const [isChangingOperationType, setIsChangingOperationType] = useState(false);
+  const [confirmingPrinterMode, setConfirmingPrinterMode] = useState<RestoKotPrinterMode | null>(null);
+  const [isChangingPrinterMode, setIsChangingPrinterMode] = useState(false);
 
   async function toggleModule(key: keyof typeof modules) {
     const next = !modules[key];
@@ -169,6 +178,41 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
       }
     } finally {
       setIsChangingOperationType(false);
+    }
+  }
+
+  async function changePrinterMode() {
+    if (!confirmingPrinterMode) return;
+    const next = confirmingPrinterMode;
+    setConfirmingPrinterMode(null);
+    setIsChangingPrinterMode(true);
+    try {
+      const res = await fetch(`/api/admin/restaurants/${restaurant.id}/printer-mode`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kotPrinterMode: next }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Partial<OperationTypeChangeResult> & {
+        error?: unknown;
+      };
+      if (!res.ok) {
+        toast.error(typeof data.error === "string" ? data.error : "Could not change the printer mode");
+        return;
+      }
+
+      setKotPrinterMode(data.restaurant?.kotPrinterMode ?? next);
+
+      const deactivated = data.deactivatedPrinters?.length ?? 0;
+      const failedJobs = data.failedJobCount ?? 0;
+      if (deactivated > 0 || failedJobs > 0) {
+        toast.success(
+          `Switched to ${MODE_LABEL[next]}. Deactivated ${deactivated} printer${deactivated === 1 ? "" : "s"}, failed ${failedJobs} pending print job${failedJobs === 1 ? "" : "s"}.`,
+        );
+      } else {
+        toast.success(`Switched to ${MODE_LABEL[next]}`);
+      }
+    } finally {
+      setIsChangingPrinterMode(false);
     }
   }
 
@@ -382,17 +426,9 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
             <div>
               <p className="text-sm font-medium">
                 Operation type: <Badge variant="secondary">{operationType}</Badge>
-                {operationType === "KOT" && (
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    Printer mode: {kotPrinterMode ?? "not chosen yet"}
-                  </span>
-                )}
               </p>
               <p className="text-xs text-muted-foreground">
                 Managed by Administrator — the restaurant can view this but never change it.
-                {operationType === "KOT"
-                  ? " The restaurant chooses its own One-Way / Two-Way printer mode from its own Settings."
-                  : ""}
               </p>
             </div>
             <Button
@@ -405,6 +441,30 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
               {isChangingOperationType ? "Switching…" : `Change to ${operationType === "KOT" ? "DBS" : "KOT"}`}
             </Button>
           </div>
+
+          {operationType === "KOT" && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 p-3">
+              <div>
+                <p className="text-sm font-medium">
+                  Printer mode: <Badge variant="secondary">{kotPrinterMode ? MODE_LABEL[kotPrinterMode] : "Not set"}</Badge>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Managed by Administrator — the restaurant can view this but never change it.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isChangingPrinterMode}
+                onClick={() => setConfirmingPrinterMode(kotPrinterMode === "ONE_WAY" ? "TWO_WAY" : "ONE_WAY")}
+              >
+                {isChangingPrinterMode
+                  ? "Switching…"
+                  : `Change to ${kotPrinterMode === "ONE_WAY" ? "Two-Way" : "One-Way"}`}
+              </Button>
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between rounded-2xl border border-border/70 p-3">
@@ -504,11 +564,21 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
         title={`Switch this restaurant to ${confirmingOperationType}?`}
         description={
           confirmingOperationType === "KOT"
-            ? "Every currently-active printer will be deactivated and any pending print jobs on them will fail — the restaurant will need to choose One-Way or Two-Way printing and set printers up again from their own Settings."
+            ? "Every currently-active printer will be deactivated and any pending print jobs on them will fail — you'll need to set the printer mode (One-Way or Two-Way) below before the restaurant can print again."
             : "Any printer that isn't a Billing Printer will be deactivated and its pending print jobs will fail. A currently-active billing printer stays online."
         }
         confirmLabel={`Switch to ${confirmingOperationType}`}
         onConfirm={changeOperationType}
+      />
+
+      <ConfirmDialog
+        open={confirmingPrinterMode !== null}
+        onOpenChange={(open) => !open && setConfirmingPrinterMode(null)}
+        variant="destructive"
+        title={`Switch to ${confirmingPrinterMode ? MODE_LABEL[confirmingPrinterMode] : ""} printing?`}
+        description="Any printer that isn't legal under the new mode will be deactivated, and its pending print jobs will fail."
+        confirmLabel={`Switch to ${confirmingPrinterMode ? MODE_LABEL[confirmingPrinterMode] : ""}`}
+        onConfirm={changePrinterMode}
       />
     </>
   );

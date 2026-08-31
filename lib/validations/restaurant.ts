@@ -128,8 +128,8 @@ export const ownerPasswordResetSchema = z.object({
 
 /**
  * Admin-only restaurant operation type change (KOT <-> DBS). Deliberately
- * does NOT accept kotPrinterMode — that is restaurant-configurable via
- * kotPrinterModeUpdateSchema below, never bundled into this admin action.
+ * does NOT accept kotPrinterMode — that is its own admin-only action via
+ * kotPrinterModeUpdateSchema below, never bundled into this one.
  */
 export const restaurantOperationTypeSchema = z.object({
   operationType: z.enum(["KOT", "DBS"]),
@@ -649,11 +649,12 @@ export const printerUpdateSchema = printerBaseFields.omit({ role: true }).partia
 export const testPrintSchema = z.object({ type: z.enum(["BILL", "KOT"]) });
 
 /**
- * The restaurant-controlled One-Way/Two-Way switch — legal only when
- * operationType is KOT, enforced by the API. Deliberately its own
- * endpoint/schema, separate from restaurantOperationTypeSchema (admin-only,
- * KOT/DBS itself) — see that schema's own comment for why the two must
- * never be combined.
+ * The admin-only One-Way/Two-Way switch — legal only when operationType is
+ * KOT, enforced by the API (POST /api/admin/restaurants/:id/printer-mode).
+ * Deliberately its own endpoint/schema, separate from
+ * restaurantOperationTypeSchema (admin-only, KOT/DBS itself) — the two have
+ * real, independent side effects (each can deactivate a different set of
+ * now-illegal printers) and must never be combined into one action.
  */
 export const kotPrinterModeUpdateSchema = z.object({
   kotPrinterMode: z.enum(["ONE_WAY", "TWO_WAY"]),

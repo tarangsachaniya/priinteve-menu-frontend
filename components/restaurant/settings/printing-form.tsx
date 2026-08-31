@@ -42,14 +42,6 @@ export type Printer = {
   updatedAt: string;
 };
 
-/** Same response shape as the admin operation-type endpoint — switching
- * printer mode can also deactivate now-illegal printers. */
-type PrinterModeChangeResult = {
-  restaurant: { operationType: RestoOperationType; kotPrinterMode: RestoKotPrinterMode | null };
-  deactivatedPrinters: { id: string; name: string; role: RestoPrinterRole }[];
-  failedJobCount: number;
-};
-
 const CONNECTION_LABEL: Record<RestoPrinterConnectionType, string> = {
   LAN: "Network (LAN)",
   USB: "USB",
@@ -73,10 +65,9 @@ const MODE_LABEL: Record<RestoKotPrinterMode, string> = {
 /**
  * The restaurant's own Printing settings page.
  *
- * What it shows depends entirely on operationType/kotPrinterMode, both
- * read-only here except kotPrinterMode itself (the one thing a KOT
- * restaurant configures about its own printing). See the page's own comment
- * for the four shapes this can render.
+ * operationType and kotPrinterMode are both Admin-only now — this page only
+ * displays them and the printer(s) they imply. See the page's own comment
+ * for the shapes this can render.
  */
 export function PrintingForm({
   operationType,
@@ -94,60 +85,13 @@ export function PrintingForm({
    * reported yet). */
   detectedPrinters?: string[];
 }) {
-  const [kotPrinterMode, setKotPrinterMode] = useState(initialKotPrinterMode);
+  const kotPrinterMode = initialKotPrinterMode;
   const [printers, setPrinters] = useState(initialPrinters);
-  const [confirmingMode, setConfirmingMode] = useState<RestoKotPrinterMode | null>(null);
-  const [isSwitchingMode, setIsSwitchingMode] = useState(false);
 
   function activePrinter(role: RestoPrinterRole): Printer | undefined {
     // GET /api/restaurant/printers includes inactive/historical rows too —
     // only an active one counts as "the current printer" for a role.
     return printers.find((p) => p.role === role && p.active);
-  }
-
-  async function applyPrinterMode(mode: RestoKotPrinterMode) {
-    setIsSwitchingMode(true);
-    try {
-      const res = await fetch("/api/restaurant/settings/printer-mode", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kotPrinterMode: mode }),
-      });
-      const data = (await res.json().catch(() => ({}))) as Partial<PrinterModeChangeResult> & {
-        error?: unknown;
-      };
-      if (!res.ok) {
-        toast.error(typeof data.error === "string" ? data.error : "Could not change the printer mode");
-        return;
-      }
-
-      setKotPrinterMode(data.restaurant?.kotPrinterMode ?? mode);
-      const deactivatedIds = new Set((data.deactivatedPrinters ?? []).map((p) => p.id));
-      if (deactivatedIds.size > 0) {
-        setPrinters((prev) => prev.map((p) => (deactivatedIds.has(p.id) ? { ...p, active: false } : p)));
-      }
-
-      const deactivated = data.deactivatedPrinters?.length ?? 0;
-      const failedJobs = data.failedJobCount ?? 0;
-      toast.success(
-        deactivated > 0 || failedJobs > 0
-          ? `Switched to ${MODE_LABEL[mode]}. Deactivated ${deactivated} printer${deactivated === 1 ? "" : "s"}, failed ${failedJobs} pending print job${failedJobs === 1 ? "" : "s"}.`
-          : `Switched to ${MODE_LABEL[mode]} printing`,
-      );
-    } finally {
-      setIsSwitchingMode(false);
-    }
-  }
-
-  function chooseMode(mode: RestoKotPrinterMode) {
-    // The very first choice is free — no printer exists yet, so nothing can
-    // be deactivated. Changing an already-chosen mode can deactivate
-    // now-illegal printers, so that path confirms first.
-    if (kotPrinterMode === null) {
-      void applyPrinterMode(mode);
-    } else if (mode !== kotPrinterMode) {
-      setConfirmingMode(mode);
-    }
   }
 
   function upsertPrinter(printer: Printer) {
@@ -173,20 +117,9 @@ export function PrintingForm({
             </p>
           </div>
           {operationType === "KOT" && kotPrinterMode !== null && (
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">
-                Printer mode: <span className="font-medium text-foreground">{MODE_LABEL[kotPrinterMode]}</span>
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={isSwitchingMode}
-                onClick={() => chooseMode(kotPrinterMode === "ONE_WAY" ? "TWO_WAY" : "ONE_WAY")}
-              >
-                Switch to {kotPrinterMode === "ONE_WAY" ? "Two-Way" : "One-Way"}
-              </Button>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Printer mode: <span className="font-medium text-foreground">{MODE_LABEL[kotPrinterMode]}</span>
+            </p>
           )}
         </CardContent>
       </Card>
@@ -194,26 +127,14 @@ export function PrintingForm({
       {operationType === "KOT" && kotPrinterMode === null && (
         <Card className="border-border/80">
           <CardHeader>
-            <CardTitle className="text-base">Choose your printer mode</CardTitle>
+            <CardTitle className="text-base">Waiting on your printer mode</CardTitle>
             <CardDescription>
               One-Way uses a single shared printer for both the bill and the kitchen ticket.
-              Two-Way uses two separate printers — one for billing, one for the kitchen. Pick
-              whichever matches your counter, then set the printer(s) up below.
+              Two-Way uses two separate printers — one for billing, one for the kitchen. Your
+              Priinteve administrator sets this for you; the printer(s) below will appear once
+              they have.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Button type="button" disabled={isSwitchingMode} onClick={() => chooseMode("ONE_WAY")}>
-              One-Way — one shared printer
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSwitchingMode}
-              onClick={() => chooseMode("TWO_WAY")}
-            >
-              Two-Way — separate billing &amp; kitchen
-            </Button>
-          </CardContent>
         </Card>
       )}
 
@@ -268,15 +189,6 @@ export function PrintingForm({
         />
       )}
 
-      <ConfirmDialog
-        open={confirmingMode !== null}
-        onOpenChange={(open) => !open && setConfirmingMode(null)}
-        variant="destructive"
-        title={`Switch to ${confirmingMode ? MODE_LABEL[confirmingMode] : ""} printing?`}
-        description="Any printer that isn't legal under the new mode will be deactivated, and its pending print jobs will fail. You'll need to add printers again for the new mode."
-        confirmLabel="Switch"
-        onConfirm={() => confirmingMode && void applyPrinterMode(confirmingMode)}
-      />
     </div>
   );
 }

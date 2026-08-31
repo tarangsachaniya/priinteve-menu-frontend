@@ -26,6 +26,7 @@ export default async function RestaurantLayout({ children }: { children: React.R
         restaurantName={data.restaurant.name}
         email={data.session.email}
         kitchenEnabled={data.restaurant.kitchenEnabled}
+        pickupEnabled={data.restaurant.pickupEnabled}
       />
       <div className="min-w-0 flex-1">{children}</div>
       {/* Mounted here rather than on /r/orders so an owner editing their menu

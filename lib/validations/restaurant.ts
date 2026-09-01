@@ -106,7 +106,9 @@ export const restaurantCreateSchema = z.object({
   kitchenEnabled: z.boolean().default(true),
   pickupEnabled: z.boolean().default(true),
   tvEnabled: z.boolean().default(true),
-  intelligenceEnabled: z.boolean().default(true),
+  // Opt-in, unlike the three modules above — see priinteve-api's
+  // Restaurant.intelligenceEnabled schema comment.
+  intelligenceEnabled: z.boolean().default(false),
 });
 
 export const restaurantUpdateSchema = z.object({

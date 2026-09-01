@@ -70,7 +70,9 @@ const EMPTY_FORM = {
   kitchenEnabled: true,
   pickupEnabled: true,
   tvEnabled: true,
-  intelligenceEnabled: true,
+  // Opt-in, unlike the three modules above — an admin has to deliberately
+  // turn Restaurant Intelligence on for a restaurant, not just leave it be.
+  intelligenceEnabled: false,
 };
 
 /**

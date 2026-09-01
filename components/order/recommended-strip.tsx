@@ -1,6 +1,6 @@
 "use client";
 
-import { Flame, RotateCcw } from "lucide-react";
+import { Flame, Minus, Plus, RotateCcw } from "lucide-react";
 
 import { formatCurrency } from "@/lib/format";
 import { formatServeTime } from "@/lib/restaurant/menu-display";
@@ -14,10 +14,13 @@ import type { PublicMenuItem } from "@/components/order/types";
  * A horizontal strip of compact tiles rather than the full MenuItemCard grid.
  * The card is built for deciding between dishes — description, rating, veg
  * mark, quantity stepper — and eight of them stacked above the menu would bury
- * the menu. These tiles are built for recognising a dish you already half-want
- * and getting it into the cart, so they carry a photo, a name, a price and
- * nothing else. Tapping one opens the options sheet where the dish needs it,
- * exactly as tapping Add on a card does.
+ * the menu. These tiles are narrower and carry a photo, a name and a price
+ * instead of the card's full detail, but the Add control at the bottom is the
+ * same +/- stepper the card has once a plain (no variant/add-on) line for the
+ * dish is in the cart — a guest reordering from here shouldn't lose the
+ * ability to bump the quantity that the main grid gives them. Tapping the
+ * tile itself still opens the options sheet where the dish needs one, exactly
+ * as tapping Add on a card does.
  *
  * Two actions per tile, and they are different. Tapping the tile adds the dish
  * and leaves the guest where they were, to carry on browsing. "Buy now" adds it
@@ -49,14 +52,23 @@ export function RecommendedStrip({
   variant,
   restaurantLogoUrl,
   orderingDisabled,
+  quantityFor,
   onSelect,
+  onIncrement,
+  onDecrement,
 }: {
   items: PublicMenuItem[];
   variant: StripVariant;
   /** Stands in for a dish the owner never photographed — see DishImage. */
   restaurantLogoUrl: string | null;
   orderingDisabled: boolean;
+  /** The dish's plain (no variant/add-on) line quantity — the same value
+   * MenuItemCard reads from cart.quantityByItem — so a tile shows the
+   * stepper instead of "Add" exactly when the grid's own card would. */
+  quantityFor: (item: PublicMenuItem) => number;
   onSelect: (item: PublicMenuItem) => void;
+  onIncrement: (item: PublicMenuItem) => void;
+  onDecrement: (item: PublicMenuItem) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -75,6 +87,7 @@ export function RecommendedStrip({
       <ul className="resto-no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4 pb-1">
         {items.map((item) => {
           const serveTime = formatServeTime(item.prepMinutes);
+          const quantity = quantityFor(item);
 
           return (
             /* h-full on the tile, not on the <li>: the list is a flex row, so
@@ -138,20 +151,48 @@ export function RecommendedStrip({
 
                 {/* mt-auto so it sits on the tile's bottom edge even if a name
                     somehow renders shorter than the box above allows for. */}
-                <button
-                  type="button"
-                  onClick={() => onSelect(item)}
-                  disabled={orderingDisabled}
-                  aria-label={`Add ${item.name}`}
-                  className="mt-auto w-full py-1.5 text-[12px] font-semibold transition-opacity disabled:opacity-60"
-                  style={{
-                    backgroundColor: "var(--resto-add-bg)",
-                    color: "var(--resto-add-text)",
-                    borderRadius: "var(--resto-radius-full)",
-                  }}
-                >
-                  Add
-                </button>
+                {orderingDisabled ? null : quantity === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => onSelect(item)}
+                    aria-label={`Add ${item.name}`}
+                    className="mt-auto w-full py-1.5 text-[12px] font-semibold transition-opacity"
+                    style={{
+                      backgroundColor: "var(--resto-add-bg)",
+                      color: "var(--resto-add-text)",
+                      borderRadius: "var(--resto-radius-full)",
+                    }}
+                  >
+                    Add
+                  </button>
+                ) : (
+                  <div
+                    className="mt-auto flex w-full items-center justify-between"
+                    style={{
+                      backgroundColor: "var(--resto-add-bg)",
+                      color: "var(--resto-add-text)",
+                      borderRadius: "var(--resto-radius-full)",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onDecrement(item)}
+                      aria-label={`Remove one ${item.name}`}
+                      className="flex size-7 items-center justify-center rounded-full"
+                    >
+                      <Minus className="size-3.5" aria-hidden />
+                    </button>
+                    <span className="resto-numeric text-[12px] font-bold">{quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => onIncrement(item)}
+                      aria-label={`Add another ${item.name}`}
+                      className="flex size-7 items-center justify-center rounded-full"
+                    >
+                      <Plus className="size-3.5" aria-hidden />
+                    </button>
+                  </div>
+                )}
               </div>
             </li>
           );

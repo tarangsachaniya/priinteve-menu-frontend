@@ -381,14 +381,20 @@ export function MenuBrowser({
             variant="recommended"
             restaurantLogoUrl={restaurant.logoUrl}
             orderingDisabled={!isOpen}
+            quantityFor={(item) => cart.quantityByItem.get(item.id) ?? 0}
             onSelect={handleAdd}
+            onIncrement={handleAdd}
+            onDecrement={(item) => cart.decrement(cart.plainLineKey(item))}
           />
           <RecommendedStrip
             items={favouritesStrip}
             variant="favourites"
             restaurantLogoUrl={restaurant.logoUrl}
             orderingDisabled={!isOpen}
+            quantityFor={(item) => cart.quantityByItem.get(item.id) ?? 0}
             onSelect={handleAdd}
+            onIncrement={handleAdd}
+            onDecrement={(item) => cart.decrement(cart.plainLineKey(item))}
           />
         </>
       )}

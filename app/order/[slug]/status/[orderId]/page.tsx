@@ -18,6 +18,7 @@ type OrderPageDTO = {
   paymentMode: RestoPaymentMode | null;
   type: RestoOrderType;
   tableLabel: string | null;
+  tableCode: string | null;
   customerName: string;
   subtotal: number;
   taxAmount: number;

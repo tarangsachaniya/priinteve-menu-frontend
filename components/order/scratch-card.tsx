@@ -233,10 +233,16 @@ export function ScratchCardInteractive({
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className={cn(
-        "relative select-none overflow-hidden rounded-xl bg-muted w-full h-full min-h-[200px]",
+        // Dark rather than the muted near-white this used to be: the reward
+        // content on top of it (Sparkles icon, reward label, "Revealing…")
+        // is styled white everywhere it's used (see scratch-card-fullscreen.tsx),
+        // which read as barely-there text on a light card face. One fixed
+        // dark shade for every scratch card everywhere, same reasoning as the
+        // gold foil gradient above being fixed rather than per-restaurant.
+        "relative select-none overflow-hidden rounded-xl bg-neutral-900 w-full h-full min-h-[200px]",
         className
       )}
     >

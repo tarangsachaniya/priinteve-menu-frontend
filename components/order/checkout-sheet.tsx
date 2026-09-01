@@ -16,7 +16,7 @@ import { computeOrderTotals } from "@/lib/restaurant/pricing";
 import { ORDER_TYPE_LABEL } from "@/lib/restaurant/order-status";
 import { writeResumeOrder } from "@/lib/restaurant/order-recovery";
 import { OverlayShell } from "@/components/order/overlay-shell";
-import { RewardRedemption } from "@/components/order/reward-redemption";
+import { EMPTY_REWARD_SELECTION, RewardSelection, type RewardSelectionValue } from "@/components/order/reward-selection";
 import type { CartLine, PublicRestaurant, PublicTable } from "@/components/order/types";
 
 const ORDER_TYPE_ICON: Record<RestoOrderType, typeof Store> = {
@@ -33,14 +33,15 @@ const PICKUP_OPTIONS = [
 ];
 
 /**
- * Placing an order and paying for it are two separate moments. This sheet
- * does two things in sequence, both before payment: it collects who the guest
- * is and how they want the food delivered, then — once that creates a real
- * PENDING order — offers a "Redeem rewards" step against that order (loyalty
- * points can only ever be redeemed against a real order; see
- * priinteve-api's loyalty-redemption.ts). Only after that does it hand off to
- * the status page, where payment happens once the restaurant closes the
- * invoice — see components/order/payment-panel.tsx.
+ * Collects who the guest is, how they want the food delivered, and — right
+ * alongside the note field — which loyalty points or scratch card to redeem,
+ * then places the order in one submit. The chosen redemption is applied
+ * server-side immediately after the order is created (place.routes.ts calls
+ * the same redeemLoyaltyPoints()/redeemScratchCard() the order-status page's
+ * own post-order step uses), so from here it's a single step, not the old
+ * "place, then redeem in the same drawer" two-step dance — see
+ * reward-selection.tsx's own comment. Payment itself still only happens once
+ * the restaurant closes the invoice, from the status page.
  */
 export function CheckoutSheet({
   restaurant,
@@ -75,11 +76,8 @@ export function CheckoutSheet({
   const [deliveryNotes, setDeliveryNotes] = useState("");
   const [pickupInMinutes, setPickupInMinutes] = useState(0);
   const [note, setNote] = useState("");
+  const [reward, setReward] = useState<RewardSelectionValue>(EMPTY_REWARD_SELECTION);
   const [isPlacing, setIsPlacing] = useState(false);
-  // Set once the order is created — switches the drawer from "Your details"
-  // into a "Redeem rewards" step against the real order, before finally
-  // continuing to the status/payment page. See the header comment below.
-  const [placedOrder, setPlacedOrder] = useState<{ orderId: string; statusUrl: string; total: number } | null>(null);
 
   // The session stores the mobile canonically as +91…; the API wants the bare
   // ten digits.
@@ -99,7 +97,10 @@ export function CheckoutSheet({
   });
 
   const belowMinimum = totals.subtotal < restaurant.minOrderValue;
-  const finalPayable = totals.total;
+  // A preview only — reward.estimatedDiscount is never trusted for the
+  // actual charge, only for what this summary shows before Place Order. See
+  // reward-selection.tsx.
+  const finalPayable = Math.max(0, totals.total - reward.estimatedDiscount);
 
   async function placeOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -133,6 +134,8 @@ export function CheckoutSheet({
           deliveryNotes:
             orderType === "DELIVERY" && deliveryNotes.trim() ? deliveryNotes.trim() : undefined,
           pickupInMinutes: orderType === "TAKE_AWAY" ? pickupInMinutes : undefined,
+          redeemPoints: reward.pointsToRedeem > 0 ? reward.pointsToRedeem : undefined,
+          scratchCardId: reward.scratchCardId ?? undefined,
         }),
       });
 
@@ -144,24 +147,24 @@ export function CheckoutSheet({
       }
 
       toast.success(`Order #${data.orderNumber} placed`);
+      // The order exists and is fully valid either way — a redemption that
+      // didn't apply (a race with another device, an expired reward) is a
+      // heads-up, not a failure; the order-status page's own "Redeem
+      // rewards" step is still there to try again.
+      if (typeof data.redemptionWarning === "string" && data.redemptionWarning) {
+        toast.warning(data.redemptionWarning);
+      }
       writeResumeOrder(restaurant.slug, {
         orderId: data.orderId,
         orderNumber: data.orderNumber,
         statusUrl: data.statusUrl,
         placedAt: new Date().toISOString(),
       });
-      // Don't navigate yet — switch this same drawer into the "Redeem
-      // rewards" step against the order that now exists, in the window
-      // before the restaurant requests payment.
-      setPlacedOrder({ orderId: data.orderId, statusUrl: data.statusUrl, total: data.total });
+      router.push(data.statusUrl);
     } catch {
       toast.error("Something went wrong. Please try again.");
       setIsPlacing(false);
     }
-  }
-
-  function continueToPayment() {
-    if (placedOrder) router.push(placedOrder.statusUrl);
   }
 
   return (
@@ -172,21 +175,15 @@ export function CheckoutSheet({
         >
           <div>
             <h2 className="resto-display text-xl font-semibold" style={{ color: "var(--resto-text)" }}>
-              {placedOrder ? "Redeem rewards" : "Checkout"}
+              Checkout
             </h2>
             <p className="mt-0.5 text-xs" style={{ color: "var(--resto-text-muted)" }}>
-              {placedOrder
-                ? "Your order is placed — use any points or scratch cards before you continue."
-                : "Review your order and place it in a few taps."}
+              Review your order and place it in a few taps.
             </p>
           </div>
           <button
             type="button"
-            // Once the order exists there is no "cart" to go back to — closing
-            // this drawer the same way "Continue to payment" does keeps the
-            // guest from landing somewhere that implies the order can still be
-            // edited.
-            onClick={placedOrder ? continueToPayment : onClose}
+            onClick={onClose}
             aria-label="Close"
             className="rounded-full p-1 transition-opacity hover:opacity-70"
             style={{ color: "var(--resto-text-muted)" }}
@@ -195,26 +192,6 @@ export function CheckoutSheet({
           </button>
         </header>
 
-        {placedOrder ? (
-          <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
-            <RewardRedemption
-              restaurantSlug={restaurant.slug}
-              orderId={placedOrder.orderId}
-              onRedeemed={(newTotal) => setPlacedOrder((prev) => (prev ? { ...prev, total: newTotal } : prev))}
-            />
-
-            <section className="mt-auto flex flex-col gap-1 rounded-2xl bg-muted p-3 text-sm">
-              <div className="flex justify-between font-semibold">
-                <span>Payable</span>
-                <span className="tabular-nums">{formatCurrency(placedOrder.total)}</span>
-              </div>
-            </section>
-
-            <Button type="button" size="lg" onClick={continueToPayment}>
-              Continue to payment
-            </Button>
-          </div>
-        ) : (
         <form onSubmit={placeOrder} className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
         {/* Shown rather than hidden: someone ordering on a friend's phone has
             to be able to notice the wrong name and fix it. */}
@@ -346,6 +323,13 @@ export function CheckoutSheet({
           </section>
         )}
 
+        <RewardSelection
+          restaurantSlug={restaurant.slug}
+          billAmount={totals.subtotal}
+          deliveryFee={totals.deliveryFee}
+          onChange={setReward}
+        />
+
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="checkout-note">Note for the kitchen (optional)</Label>
           <Input
@@ -380,6 +364,12 @@ export function CheckoutSheet({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Delivery</span>
               <span className="tabular-nums">{formatCurrency(totals.deliveryFee)}</span>
+            </div>
+          )}
+          {reward.estimatedDiscount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Reward discount (est.)</span>
+              <span className="tabular-nums">-{formatCurrency(reward.estimatedDiscount)}</span>
             </div>
           )}
           <div className="mt-1 flex justify-between border-t border-border pt-2 font-semibold">
@@ -424,7 +414,6 @@ export function CheckoutSheet({
           </Button>
         </div>
       </form>
-        )}
     </OverlayShell>
   );
 }

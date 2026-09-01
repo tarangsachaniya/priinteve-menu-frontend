@@ -59,6 +59,7 @@ export type StatusOrder = {
   paymentMode: "ONLINE" | "COUNTER" | "UPI_QR" | null;
   type: "DINE_IN" | "TAKE_AWAY" | "DELIVERY";
   tableLabel: string | null;
+  tableCode: string | null;
   customerName: string;
   subtotal: number;
   taxAmount: number;
@@ -608,7 +609,16 @@ export function OrderStatusTracker({ order: initialOrder }: { order: StatusOrder
       </section>
 
       <Link
-        href={`/order/${initialOrder.restaurantSlug}`}
+        // A dine-in guest goes back to their own table's page — the same one
+        // they scanned to get here — rather than the tableless page, which
+        // has no table to serve to and would drop them into whatever order
+        // type it defaults to (take-away). Take-away/delivery orders have no
+        // table to return to, so they always get the tableless page anyway.
+        href={
+          initialOrder.type === "DINE_IN" && initialOrder.tableCode
+            ? `/order/${initialOrder.restaurantSlug}/${initialOrder.tableCode}`
+            : `/order/${initialOrder.restaurantSlug}`
+        }
         className="self-center border px-4 py-2 text-sm font-medium transition-colors hover:bg-[var(--resto-surface-alt)]"
         style={{
           borderColor: "var(--resto-border)",

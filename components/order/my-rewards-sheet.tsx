@@ -160,7 +160,7 @@ export function MyRewardsSheet({
             )}
 
             {rewards.scratchEnabled && (
-              <div className="px-5 pb-5 flex gap-3 border-b" style={{ borderColor: "var(--resto-divider)" }}>
+              <div className="p-5 flex gap-3 border-b" style={{ borderColor: "var(--resto-divider)" }}>
                 <div className="flex-1 rounded-lg border p-3 text-center" style={{ borderColor: "var(--resto-border)", backgroundColor: "var(--resto-surface-alt)" }}>
                   <p className="text-2xl font-bold resto-numeric" style={{ color: "var(--resto-brand-text)" }}>{rewards.totalScratchCards}</p>
                   <p className="text-xs mt-1" style={{ color: "var(--resto-text-muted)" }}>Total Cards</p>

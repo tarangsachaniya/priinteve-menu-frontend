@@ -106,6 +106,7 @@ export const restaurantCreateSchema = z.object({
   kitchenEnabled: z.boolean().default(true),
   pickupEnabled: z.boolean().default(true),
   tvEnabled: z.boolean().default(true),
+  intelligenceEnabled: z.boolean().default(true),
 });
 
 export const restaurantUpdateSchema = z.object({
@@ -120,6 +121,8 @@ export const restaurantUpdateSchema = z.object({
   kitchenEnabled: z.boolean().optional(),
   pickupEnabled: z.boolean().optional(),
   tvEnabled: z.boolean().optional(),
+  // See Restaurant.intelligenceEnabled's schema comment.
+  intelligenceEnabled: z.boolean().optional(),
 });
 
 export const ownerPasswordResetSchema = z.object({

@@ -51,6 +51,7 @@ export type AdminRestaurant = {
   kitchenEnabled?: boolean;
   pickupEnabled?: boolean;
   tvEnabled?: boolean;
+  intelligenceEnabled?: boolean;
 };
 
 const EMPTY_FORM = {
@@ -69,6 +70,7 @@ const EMPTY_FORM = {
   kitchenEnabled: true,
   pickupEnabled: true,
   tvEnabled: true,
+  intelligenceEnabled: true,
 };
 
 /**
@@ -161,6 +163,7 @@ export function RestaurantForm({
         kitchenEnabled: data.restaurant.kitchenEnabled ?? form.kitchenEnabled,
         pickupEnabled: data.restaurant.pickupEnabled ?? form.pickupEnabled,
         tvEnabled: data.restaurant.tvEnabled ?? form.tvEnabled,
+        intelligenceEnabled: data.restaurant.intelligenceEnabled ?? form.intelligenceEnabled,
       });
     } finally {
       setIsSaving(false);
@@ -369,6 +372,14 @@ export function RestaurantForm({
                   checked={form.tvEnabled}
                   onCheckedChange={(checked) => update("tvEnabled", checked)}
                   aria-label="TV pairing enabled"
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/70 p-2.5">
+                <span className="text-sm">Restaurant Intelligence</span>
+                <Switch
+                  checked={form.intelligenceEnabled}
+                  onCheckedChange={(checked) => update("intelligenceEnabled", checked)}
+                  aria-label="Restaurant Intelligence enabled"
                 />
               </div>
             </div>

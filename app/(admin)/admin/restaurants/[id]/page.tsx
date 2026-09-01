@@ -35,6 +35,7 @@ type RestaurantDetailDTO = {
   kitchenEnabled: boolean;
   pickupEnabled: boolean;
   tvEnabled: boolean;
+  intelligenceEnabled: boolean;
   _count: { tables: number; menuItems: number; categories: number; orders: number };
 };
 
@@ -103,6 +104,7 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
           kitchenEnabled: restaurant.kitchenEnabled,
           pickupEnabled: restaurant.pickupEnabled,
           tvEnabled: restaurant.tvEnabled,
+          intelligenceEnabled: restaurant.intelligenceEnabled,
           loyaltyEnabled: loyalty?.loyaltyEnabled ?? false,
           scratchEnabled: scratchProgram?.isEnabled ?? false,
         }}

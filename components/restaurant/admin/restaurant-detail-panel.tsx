@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Gift, KeyRound, Printer } from "lucide-react";
+import { Check, Copy, Gift, KeyRound, Printer, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ export type AdminRestaurantDetail = {
   kitchenEnabled: boolean;
   pickupEnabled: boolean;
   tvEnabled: boolean;
+  intelligenceEnabled: boolean;
   loyaltyEnabled: boolean;
   scratchEnabled: boolean;
 };
@@ -70,6 +71,7 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
     kitchenEnabled: restaurant.kitchenEnabled,
     pickupEnabled: restaurant.pickupEnabled,
     tvEnabled: restaurant.tvEnabled,
+    intelligenceEnabled: restaurant.intelligenceEnabled,
   });
   const [savingModule, setSavingModule] = useState<keyof typeof modules | null>(null);
 
@@ -510,6 +512,35 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
                 aria-label="TV pairing enabled"
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6 border-border/80">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="size-4" />
+            Restaurant Intelligence
+          </CardTitle>
+          <CardDescription>
+            Statistical sales/demand forecasts and insights on the restaurant&apos;s own dashboard and
+            mobile app. The restaurant can view this setting but never change it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between rounded-2xl border border-border/70 p-3">
+            <div>
+              <p className="text-sm font-medium">Forecasts &amp; insights</p>
+              <p className="text-xs text-muted-foreground">
+                Turns off /r/intelligence and the daily/weekly forecast jobs for this restaurant.
+              </p>
+            </div>
+            <Switch
+              checked={modules.intelligenceEnabled}
+              disabled={savingModule === "intelligenceEnabled"}
+              onCheckedChange={() => void toggleModule("intelligenceEnabled")}
+              aria-label="Restaurant Intelligence enabled"
+            />
           </div>
         </CardContent>
       </Card>

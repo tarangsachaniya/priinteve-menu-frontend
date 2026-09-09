@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
           <div className="mt-12 flex flex-col gap-10 text-[0.9375rem] leading-relaxed text-foreground/85">
             <Section title="Who we are">
               <p>
-                Priinteve ("we", "us") provides table-side QR ordering, a kitchen display board, and
+                Priinteve (&quot;we&quot;, &quot;us&quot;) provides table-side QR ordering, a kitchen display board, and
                 billing tools that restaurants use to run their own ordering operations. This policy
                 covers priinteve.com and its subdomains (menu.priinteve.com, cards.priinteve.com), and
                 applies both to the guests who place orders and the restaurant staff who use our
@@ -101,7 +101,7 @@ export default function PrivacyPolicyPage() {
               <p>
                 We keep order and account records for as long as a restaurant's account is active, and
                 for a reasonable period afterward for accounting and legal purposes (e.g. tax records).
-                A restaurant can ask us to delete a closed account's data — see "Contact us" below.
+                A restaurant can ask us to delete a closed account&apos;s data — see &quot;Contact us&quot; below.
               </p>
             </Section>
 
@@ -115,9 +115,9 @@ export default function PrivacyPolicyPage() {
 
             <Section title="Your choices">
               <p>
-                If you'd like your order history or account data corrected or deleted, or you'd like a
-                restaurant to stop sending you WhatsApp order receipts, contact us using the details
-                below and we'll act on it.
+                If you&apos;d like your order history or account data corrected or deleted, or you&apos;d
+                like a restaurant to stop sending you WhatsApp order receipts, contact us using the
+                details below and we&apos;ll act on it.
               </p>
             </Section>
 
@@ -130,8 +130,8 @@ export default function PrivacyPolicyPage() {
 
             <Section title="Changes to this policy">
               <p>
-                We'll update this page if how we handle data changes, and update the "Last updated" date
-                above when we do.
+                We&apos;ll update this page if how we handle data changes, and update the &quot;Last
+                updated&quot; date above when we do.
               </p>
             </Section>
 

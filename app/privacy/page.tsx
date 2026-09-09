@@ -99,7 +99,7 @@ export default function PrivacyPolicyPage() {
 
             <Section title="Data retention">
               <p>
-                We keep order and account records for as long as a restaurant's account is active, and
+                We keep order and account records for as long as a restaurant&apos;s account is active, and
                 for a reasonable period afterward for accounting and legal purposes (e.g. tax records).
                 A restaurant can ask us to delete a closed account&apos;s data — see &quot;Contact us&quot; below.
               </p>

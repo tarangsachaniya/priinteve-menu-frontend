@@ -70,7 +70,10 @@ export function Footer() {
             />
             <FooterColumn
               heading="Company"
-              links={[{ href: CARDS_APP_URL, label: "Digital business cards" }]}
+              links={[
+                { href: CARDS_APP_URL, label: "Digital business cards" },
+                { href: "/privacy", label: "Privacy Policy" },
+              ]}
             />
           </div>
         </div>

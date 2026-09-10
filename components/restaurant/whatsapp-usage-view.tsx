@@ -33,17 +33,21 @@ const MONTH_OPTIONS = recentMonthKeys(6);
 
 /**
  * Reused as-is on both the admin restaurant-detail page and the restaurant
- * owner's own Settings > WhatsApp page — `messagesEndpoint` and
- * `retryEndpoint` are the only things that differ between the two callers.
+ * owner's own Settings > WhatsApp page — `messagesEndpoint` is the only
+ * thing that differs between the two callers. The retry URL is derived from
+ * it (`${messagesEndpoint}/${id}/retry`) rather than taken as a separate
+ * function prop: this component is rendered from a Server Component, and a
+ * function can't cross that Server->Client boundary — passing one crashed
+ * every restaurant's admin detail page in production (functions serialize
+ * to nothing over RSC, so Next throws at render time, surfaced only as a
+ * generic "server-side exception" with no detail).
  */
 export function WhatsappUsageView({
   initial,
   messagesEndpoint,
-  retryEndpoint,
 }: {
   initial: WhatsappUsageData;
   messagesEndpoint: string;
-  retryEndpoint: (messageId: string) => string;
 }) {
   const [month, setMonth] = useState(currentMonthKey());
   const [page, setPage] = useState(0);
@@ -71,7 +75,7 @@ export function WhatsappUsageView({
   async function retry(messageId: string) {
     setRetrying(messageId);
     try {
-      const res = await fetch(retryEndpoint(messageId), { method: "POST" });
+      const res = await fetch(`${messagesEndpoint}/${messageId}/retry`, { method: "POST" });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         toast.error(body?.error ?? "Retry failed");

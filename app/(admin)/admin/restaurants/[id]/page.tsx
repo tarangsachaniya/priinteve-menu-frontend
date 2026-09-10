@@ -174,7 +174,6 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
           <WhatsappUsageView
             initial={whatsappUsage}
             messagesEndpoint={`/api/admin/restaurants/${restaurant.id}/whatsapp/messages`}
-            retryEndpoint={(messageId) => `/api/admin/restaurants/${restaurant.id}/whatsapp/messages/${messageId}/retry`}
           />
         </div>
       )}

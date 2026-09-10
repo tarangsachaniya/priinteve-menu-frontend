@@ -32,11 +32,7 @@ export default async function WhatsappSettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <WhatsAppSettingsForm endpoint="/api/restaurant/whatsapp" initial={status} editable={false} />
-      <WhatsappUsageView
-        initial={usage}
-        messagesEndpoint="/api/restaurant/whatsapp/messages"
-        retryEndpoint={(messageId) => `/api/restaurant/whatsapp/messages/${messageId}/retry`}
-      />
+      <WhatsappUsageView initial={usage} messagesEndpoint="/api/restaurant/whatsapp/messages" />
     </div>
   );
 }

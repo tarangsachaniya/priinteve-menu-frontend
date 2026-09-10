@@ -54,21 +54,16 @@ export function RestaurantsTable({ initialRestaurants }: { initialRestaurants: A
       />
 
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[0_1px_2px_rgba(24,24,20,0.04),0_8px_20px_-12px_rgba(24,24,20,0.10)]">
-        {/* No scroll wrapper here: shadcn's <Table> already provides one, and
-            nesting a second produced two scroll parents for one table. The two
-            free-text columns below truncate instead, which is what actually
-            keeps all nine columns — Manage included — inside the card. */}
+        {/* No scroll wrapper here: shadcn's <Table> already provides one.
+            Restaurant/Branch truncate instead of wrapping, which is what
+            keeps all six columns — Manage included — inside the card. */}
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Restaurant</TableHead>
               <TableHead>Branch</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Owner login</TableHead>
-              <TableHead className="text-right">Menu</TableHead>
-              <TableHead className="text-right">Tables</TableHead>
               <TableHead className="text-right">Orders</TableHead>
-              <TableHead>Right now</TableHead>
               <TableHead>Active</TableHead>
               <TableHead className="text-right">Manage</TableHead>
             </TableRow>
@@ -76,7 +71,7 @@ export function RestaurantsTable({ initialRestaurants }: { initialRestaurants: A
           <TableBody>
             {restaurants.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                   No restaurants yet — add your first one to get started.
                 </TableCell>
               </TableRow>
@@ -120,37 +115,7 @@ export function RestaurantsTable({ initialRestaurants }: { initialRestaurants: A
                     {restaurant.operationType ?? "DBS"}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  <span className="block max-w-[13rem] truncate" title={restaurant.ownerEmail ?? undefined}>
-                    {restaurant.ownerEmail ?? "—"}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {restaurant.menuItemCount}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{restaurant.tableCount}</TableCell>
                 <TableCell className="text-right tabular-nums">{restaurant.orderCount}</TableCell>
-                {/* Open/closed in the restaurant's own timezone, resolved by
-                    the API. Separate from the Active switch beside it: a live
-                    restaurant is closed most of the night, and reading only
-                    "Live" here used to hide that entirely. */}
-                <TableCell className="text-sm">
-                  {restaurant.openState ? (
-                    <div className="flex flex-col">
-                      <Badge
-                        variant={restaurant.openState.isOpen ? "default" : "secondary"}
-                        className="w-fit"
-                      >
-                        {restaurant.openState.isOpen ? "Open" : "Closed"}
-                      </Badge>
-                      <span className="mt-0.5 text-xs text-muted-foreground">
-                        {restaurant.openState.label}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Switch

@@ -7,6 +7,7 @@ import { Hero } from "@/components/marketing/hero";
 import { HowItWorks } from "@/components/marketing/how-it-works";
 import { FeatureGrid } from "@/components/marketing/feature-grid";
 import { Pricing } from "@/components/marketing/pricing";
+import { Testimonials } from "@/components/marketing/testimonials";
 import { Faq } from "@/components/marketing/faq";
 import { ClosingCta, Footer } from "@/components/marketing/footer";
 
@@ -15,8 +16,8 @@ import { ClosingCta, Footer } from "@/components/marketing/footer";
 export const revalidate = false;
 
 export const metadata: Metadata = {
-  title: "Priinteve Menu — QR ordering for restaurants",
-  description: "Table-side QR ordering, a live kitchen board, and GST-ready invoices — set up in a day.",
+  title: "VentaDot — Smart ordering for modern restaurants",
+  description: "Scan. Order. Pay. Grow. Table-side QR ordering, a live kitchen board, and GST-ready invoices — set up in a day.",
 };
 
 export default function MarketingHomePage() {
@@ -34,6 +35,7 @@ export default function MarketingHomePage() {
         <HowItWorks />
         <FeatureGrid />
         <Pricing />
+        <Testimonials />
         <Faq />
         <ClosingCta />
       </main>

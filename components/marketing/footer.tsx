@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, UtensilsCrossed } from "lucide-react";
+import Image from "next/image";
+import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -41,13 +42,11 @@ export function Footer() {
         <div className="flex flex-col items-start justify-between gap-10 sm:flex-row sm:items-start">
           <div className="flex max-w-xs flex-col gap-3">
             <Link href="/" className="flex items-center gap-2.5 text-base font-semibold tracking-tight">
-              <span className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <UtensilsCrossed className="size-3.5" strokeWidth={2.5} />
-              </span>
-              Priinteve Menu
+              <Image src="/images/company/ventadot-tile.png" alt="" width={28} height={28} className="size-7 shrink-0 rounded-[22%]" />
+              VentaDot
             </Link>
             <p className="text-sm leading-relaxed text-white/55">
-              Table-side QR ordering, a live kitchen board, and GST-ready invoices.
+              Smart ordering for modern restaurants. Scan. Order. Pay. Grow.
             </p>
           </div>
 
@@ -80,7 +79,7 @@ export function Footer() {
 
         <Separator className="my-10 bg-white/10" />
 
-        <p className="text-xs text-white/45">© {new Date().getFullYear()} Priinteve. All rights reserved.</p>
+        <p className="text-xs text-white/45">© {new Date().getFullYear()} Priinteve Innovations. All rights reserved.</p>
       </div>
     </footer>
   );

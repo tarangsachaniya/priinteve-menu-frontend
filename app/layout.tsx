@@ -19,9 +19,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
  * The favicon comes from the app-router file convention rather than from an
  * `icons` block here: app/icon.svg, app/favicon.ico and app/apple-icon.png are
  * picked up automatically and get content-hashed URLs, which is what makes a
- * changed icon actually replace a cached one. All three are the Priinteve
- * Innovations mark — the .ico shipped before this was the unmodified
- * create-next-app default.
+ * changed icon actually replace a cached one. All three are the VentaDot
+ * mark — the .ico shipped before this was the unmodified create-next-app
+ * default.
  *
  * metadataBase matters more than it looks: without it, the relative image and
  * canonical URLs the per-restaurant pages emit stay relative, and Open Graph
@@ -34,11 +34,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   // No `template` on purpose. A guest page's title has to be the restaurant's
   // name and nothing else competing with it — "Spice Garden · Menu & Online
-  // Ordering · Priinteve Menu" spends the 60 characters a search result shows
-  // on the platform rather than on the restaurant.
-  title: "Priinteve Menu — QR ordering for restaurants",
-  description: "Table-side QR ordering, a live kitchen board, and GST-ready invoices — set up in a day.",
-  applicationName: "Priinteve Menu",
+  // Ordering · VentaDot" spends the 60 characters a search result shows on
+  // the platform rather than on the restaurant.
+  title: "VentaDot — Smart ordering for modern restaurants",
+  description: "Scan. Order. Pay. Grow. Table-side QR ordering, a live kitchen board, and GST-ready invoices — set up in a day.",
+  applicationName: "VentaDot",
   /**
    * Not decoration: iOS and iPadOS deliver Web Push only to a site the user has
    * added to their Home Screen, and a site with no manifest cannot be added.
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
    */
   manifest: "/manifest.webmanifest",
   openGraph: {
-    siteName: "Priinteve Menu",
+    siteName: "VentaDot",
     type: "website",
   },
 };

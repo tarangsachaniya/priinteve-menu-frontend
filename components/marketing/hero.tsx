@@ -22,10 +22,10 @@ export function Hero() {
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-7 text-center">
           <span className="flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
             <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-            QR ordering for restaurants
+            Smart dining for modern restaurants
           </span>
 
-          {/* Three explicit lines rather than text-balance: the italic phrase
+          {/* Two explicit lines rather than text-balance: the italic phrase
               has to land on a line of its own for the type contrast to read,
               and balancing would move it. */}
           <h1 className="text-[clamp(2.5rem,7vw,4.25rem)] leading-[1.05] font-semibold tracking-[-0.03em] text-ink">
@@ -33,12 +33,11 @@ export function Hero() {
             <span className="block font-serif text-[1.08em] font-normal tracking-[-0.01em] italic">
               without the wait
             </span>
-            <span className="block">staff bottleneck</span>
           </h1>
 
           <p className="max-w-xl text-lg leading-relaxed text-muted-foreground text-pretty">
-            Guests tap a QR at their table, order straight from their phone, and pay however they like.
-            Every order lands on your kitchen board the moment it&apos;s placed.
+            Guests scan a QR code, browse your menu, order from their phone, and pay — so your kitchen
+            can focus on what they do best.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
@@ -47,7 +46,7 @@ export function Hero() {
               className="h-14 bg-primary px-8 text-white hover:bg-primary/90 shadow-lg"
               render={<Link href="/r/login" />}
             >
-              Restaurant Solutions
+              Get Started for Free
               <ArrowRight className="ml-2" />
             </Button>
             <Button

@@ -20,7 +20,7 @@ import {
 export const HOW_IT_WORKS: { step: string; title: string; description: string }[] = [
   {
     step: "01",
-    title: "Guest taps or scans the table",
+    title: "Guest scans the table",
     description: "No app to install. Tap the NFC tag or scan the QR — either opens your live menu straight in their browser.",
   },
   {
@@ -31,7 +31,7 @@ export const HOW_IT_WORKS: { step: string; title: string; description: string }[
   {
     step: "03",
     title: "You get paid, however they choose",
-    description: "Pay online, at the counter, or by UPI QR — the order lands on your kitchen board the moment it's placed.",
+    description: "Pay online, at the counter, or by UPI QR — payments go straight to your account, fast and hassle-free.",
   },
 ];
 
@@ -81,14 +81,14 @@ export const PRICING_TIERS: {
     price: "Free",
     period: "for your first month",
     description: "Everything you need to take table-side QR ordering live.",
-    features: ["Unlimited tables", "Live orders board", "GST-ready invoices", "Guest reviews"],
+    features: ["Unlimited tables", "Live menu control", "QR code generation", "Basic analytics"],
   },
   {
     name: "Growth",
     price: "Talk to us",
     period: "per month, per branch",
     description: "For restaurants running multiple branches or high order volume.",
-    features: ["Everything in Starter", "Multiple branches", "Priority support", "Onboarding assistance"],
+    features: ["Multi-location support", "Advanced analytics", "Priority support", "WhatsApp notifications"],
     highlighted: true,
   },
 ];
@@ -116,7 +116,26 @@ export const FAQS: { question: string; answer: string }[] = [
   },
 ];
 
+export const TESTIMONIALS: { quote: string; name: string; place: string }[] = [
+  {
+    quote: "Super easy to set up and our guests love it. Orders are faster and staff can focus on service.",
+    name: "Rohan Mehta",
+    place: "Café Basil, Mumbai",
+  },
+  {
+    quote: "The kitchen display is a game changer. No more handwritten bills or confusion.",
+    name: "Priya Shah",
+    place: "Spice & Co, Ahmedabad",
+  },
+  {
+    quote: "Clean, simple and reliable. Exactly what we needed.",
+    name: "Karan Patel",
+    place: "Urban Bites, Surat",
+  },
+];
+
 export const HERO_STATS: { label: string; icon: LucideIcon }[] = [
-  { label: "No app for guests", icon: Smartphone },
-  { label: "Set up in a day", icon: UtensilsCrossed },
+  { label: "No app downloads", icon: Smartphone },
+  { label: "Setup in minutes", icon: UtensilsCrossed },
+  { label: "Loved by restaurants", icon: Star },
 ];

@@ -10,8 +10,8 @@ import { Footer } from "@/components/marketing/footer";
 export const revalidate = false;
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Priinteve Menu",
-  description: "How Priinteve collects, uses, and protects data for restaurants and their guests.",
+  title: "Privacy Policy — VentaDot",
+  description: "How VentaDot collects, uses, and protects data for restaurants and their guests.",
 };
 
 const LAST_UPDATED = "September 9, 2026";
@@ -31,11 +31,10 @@ export default function PrivacyPolicyPage() {
           <div className="mt-12 flex flex-col gap-10 text-[0.9375rem] leading-relaxed text-foreground/85">
             <Section title="Who we are">
               <p>
-                Priinteve (&quot;we&quot;, &quot;us&quot;) provides table-side QR ordering, a kitchen display board, and
+                VentaDot (&quot;we&quot;, &quot;us&quot;) provides table-side QR ordering, a kitchen display board, and
                 billing tools that restaurants use to run their own ordering operations. This policy
-                covers priinteve.com and its subdomains (menu.priinteve.com, cards.priinteve.com), and
-                applies both to the guests who place orders and the restaurant staff who use our
-                dashboard.
+                covers menu.priinteve.com and applies both to the guests who place orders and the
+                restaurant staff who use our dashboard.
               </p>
             </Section>
 
@@ -123,7 +122,7 @@ export default function PrivacyPolicyPage() {
 
             <Section title="Children's privacy">
               <p>
-                Priinteve is intended for restaurants and their adult customers, and is not directed at
+                VentaDot is intended for restaurants and their adult customers, and is not directed at
                 children. We do not knowingly collect personal information from children.
               </p>
             </Section>

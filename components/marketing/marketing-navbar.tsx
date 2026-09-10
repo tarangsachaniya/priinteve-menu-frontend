@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, UtensilsCrossed } from "lucide-react";
+import Image from "next/image";
+import { Menu } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -56,15 +57,14 @@ export function MarketingNavbar() {
           href="/"
           className="flex shrink-0 items-center gap-2.5 text-[1.0625rem] font-semibold tracking-tight text-ink"
         >
-          <span
-            className={cn(
-              "flex shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-[width,height] duration-300",
-              scrolled ? "size-7" : "size-8"
-            )}
-          >
-            <UtensilsCrossed className={scrolled ? "size-3.5" : "size-4"} strokeWidth={2.5} />
-          </span>
-          Priinteve Menu
+          <Image
+            src="/images/company/ventadot-tile.png"
+            alt=""
+            width={32}
+            height={32}
+            className={cn("shrink-0 rounded-[22%] transition-[width,height] duration-300", scrolled ? "size-7" : "size-8")}
+          />
+          VentaDot
         </Link>
 
         <nav className="hidden items-center gap-8 text-[0.9375rem] text-muted-foreground md:flex">
@@ -109,7 +109,7 @@ export function MarketingNavbar() {
             <Menu className="size-5" />
           </SheetTrigger>
           <SheetContent className="flex-col gap-6 bg-background">
-            <SheetTitle className="text-left text-base">Priinteve Menu</SheetTitle>
+            <SheetTitle className="text-left text-base">VentaDot</SheetTitle>
             <nav className="flex flex-col gap-1">
               {ANCHOR_LINKS.map((link) => (
                 <a

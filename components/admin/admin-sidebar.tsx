@@ -73,7 +73,7 @@ function Logo() {
       <span className="flex size-8 items-center justify-center rounded-full bg-primary text-ink">
         <UtensilsCrossed className="size-4" strokeWidth={2.5} />
       </span>
-      Priinteve Admin
+      VentaDot Admin
     </Link>
   );
 }
@@ -97,7 +97,7 @@ export function AdminSidebar({ userEmail }: { userEmail: string }) {
           <span className="flex size-7 items-center justify-center rounded-full bg-primary text-ink">
             <UtensilsCrossed className="size-3.5" strokeWidth={2.5} />
           </span>
-          Priinteve Admin
+          VentaDot Admin
         </Link>
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger

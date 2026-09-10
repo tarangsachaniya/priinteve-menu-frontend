@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Gift, KeyRound, Printer, Sparkles } from "lucide-react";
+import { Check, Copy, Gift, KeyRound, MessageCircle, Printer, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ export type AdminRestaurantDetail = {
   intelligenceEnabled: boolean;
   loyaltyEnabled: boolean;
   scratchEnabled: boolean;
+  whatsappEnabled: boolean;
 };
 
 type OperationTypeChangeResult = {
@@ -84,10 +85,12 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
   const REWARD_TOGGLE_ENDPOINT = {
     loyaltyEnabled: `/api/admin/restaurants/${restaurant.id}/loyalty/toggle`,
     scratchEnabled: `/api/admin/restaurants/${restaurant.id}/scratch/toggle`,
+    whatsappEnabled: `/api/admin/restaurants/${restaurant.id}/whatsapp/toggle`,
   } as const;
   const [rewardModules, setRewardModules] = useState({
     loyaltyEnabled: restaurant.loyaltyEnabled,
     scratchEnabled: restaurant.scratchEnabled,
+    whatsappEnabled: restaurant.whatsappEnabled,
   });
   const [savingRewardModule, setSavingRewardModule] = useState<keyof typeof rewardModules | null>(null);
 
@@ -583,6 +586,33 @@ export function RestaurantDetailPanel({ restaurant }: { restaurant: AdminRestaur
               disabled={savingRewardModule === "scratchEnabled"}
               onCheckedChange={() => void toggleRewardModule("scratchEnabled")}
               aria-label="Scratch Cards enabled"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6 border-border/80">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MessageCircle className="size-4" />
+            WhatsApp Messaging
+          </CardTitle>
+          <CardDescription>
+            Sends an order-completion receipt over WhatsApp, with the invoice PDF attached. Unlike
+            Loyalty and Scratch Cards, the per-message rate below is set here, not by the restaurant.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <div className="flex items-center justify-between rounded-2xl border border-border/70 p-3">
+            <div>
+              <p className="text-sm font-medium">WhatsApp Receipts</p>
+              <p className="text-xs text-muted-foreground">Charged per message sent, at the rate set below.</p>
+            </div>
+            <Switch
+              checked={rewardModules.whatsappEnabled}
+              disabled={savingRewardModule === "whatsappEnabled"}
+              onCheckedChange={() => void toggleRewardModule("whatsappEnabled")}
+              aria-label="WhatsApp Messaging enabled"
             />
           </div>
         </CardContent>

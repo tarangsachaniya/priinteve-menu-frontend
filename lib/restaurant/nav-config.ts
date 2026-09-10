@@ -16,6 +16,7 @@ import {
   Tv,
   Volume2,
   Gift,
+  MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -64,4 +65,5 @@ export const SETTINGS_NAV_ITEMS: RestaurantNavItem[] = [
   { href: "/r/settings/hours", label: "Hours", icon: Clock },
   { href: "/r/settings/invoice", label: "Invoice", icon: ReceiptText },
   { href: "/r/settings/rewards", label: "Rewards", icon: Gift },
+  { href: "/r/settings/whatsapp", label: "WhatsApp", icon: MessageCircle },
 ];

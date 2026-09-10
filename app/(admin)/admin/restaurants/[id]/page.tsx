@@ -11,6 +11,8 @@ import { RestaurantDetailPanel } from "@/components/restaurant/admin/restaurant-
 import { AudioSettingsForm, type AudioSettings } from "@/components/restaurant/audio-settings-form";
 import { PaymentSettingsForm, type PaymentSettings } from "@/components/restaurant/payment-settings-form";
 import { LoyaltySettingsForm, type LoyaltySettings } from "@/components/restaurant/loyalty-settings-form";
+import { WhatsAppSettingsForm, type WhatsappSettings } from "@/components/restaurant/whatsapp-settings-form";
+import { WhatsappUsageView, type WhatsappUsageData } from "@/components/restaurant/whatsapp-usage-view";
 import {
   QrMenuCardsPanel,
   type AdminTableRow,
@@ -50,7 +52,7 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
   // Independent reads, so the page costs one round trip rather than four.
   // Payment and audio tolerate failure — a still-deploying API missing either
   // route should not take the whole provisioning screen down with it.
-  const [data, tableData, payment, audio, loyalty, scratchProgram] = await Promise.all([
+  const [data, tableData, payment, audio, loyalty, scratchProgram, whatsapp, whatsappUsage] = await Promise.all([
     serverFetch<{ restaurant: RestaurantDetailDTO }>(`/api/admin/restaurants/${params.id}`, {
       cache: "no-store",
       allow404: true,
@@ -69,6 +71,12 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
       cache: "no-store",
     }).catch(() => null),
     serverFetch<ScratchProgramDTO>(`/api/admin/restaurants/${params.id}/scratch`, {
+      cache: "no-store",
+    }).catch(() => null),
+    serverFetch<WhatsappSettings>(`/api/admin/restaurants/${params.id}/whatsapp`, {
+      cache: "no-store",
+    }).catch(() => null),
+    serverFetch<WhatsappUsageData>(`/api/admin/restaurants/${params.id}/whatsapp/usage`, {
       cache: "no-store",
     }).catch(() => null),
   ]);
@@ -107,6 +115,7 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
           intelligenceEnabled: restaurant.intelligenceEnabled,
           loyaltyEnabled: loyalty?.loyaltyEnabled ?? false,
           scratchEnabled: scratchProgram?.isEnabled ?? false,
+          whatsappEnabled: whatsapp?.isEnabled ?? false,
         }}
       />
 
@@ -142,6 +151,30 @@ export default async function AdminRestaurantDetailPage({ params }: { params: { 
           <LoyaltySettingsForm
             endpoint={`/api/admin/restaurants/${restaurant.id}/loyalty`}
             initial={loyalty}
+          />
+        </div>
+      )}
+
+      {/* Unlike Loyalty/Scratch above, the rate here is Admin-set, not a
+          support-override of the restaurant's own config — see
+          WhatsAppSettingsForm's own comment. Shown even while disabled: an
+          admin can pre-set the rate before flipping the switch above. */}
+      {whatsapp && (
+        <div className="mt-6">
+          <WhatsAppSettingsForm
+            endpoint={`/api/admin/restaurants/${restaurant.id}/whatsapp`}
+            initial={whatsapp}
+            editable
+          />
+        </div>
+      )}
+
+      {whatsappUsage && (
+        <div className="mt-6">
+          <WhatsappUsageView
+            initial={whatsappUsage}
+            messagesEndpoint={`/api/admin/restaurants/${restaurant.id}/whatsapp/messages`}
+            retryEndpoint={(messageId) => `/api/admin/restaurants/${restaurant.id}/whatsapp/messages/${messageId}/retry`}
           />
         </div>
       )}

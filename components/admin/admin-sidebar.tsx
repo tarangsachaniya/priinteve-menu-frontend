@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, LogOut, UtensilsCrossed } from "lucide-react";
+import { Menu, LogOut, MessageCircle, UtensilsCrossed } from "lucide-react";
 
 import { NavItemLink } from "@/components/dashboard/nav-item";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,7 +15,10 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
  * doesn't carry plans/users/content, those stay in Cards' own admin. Signs
  * out via /api/auth/logout (pv_session, aud "user"), same realm as Cards.
  */
-const ADMIN_NAV_ITEMS = [{ href: "/admin/restaurants", label: "Restaurants", icon: UtensilsCrossed }];
+const ADMIN_NAV_ITEMS = [
+  { href: "/admin/restaurants", label: "Restaurants", icon: UtensilsCrossed },
+  { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageCircle },
+];
 
 function NavLinks({ pathname, onNavigate }: { pathname: string | null; onNavigate?: () => void }) {
   return (

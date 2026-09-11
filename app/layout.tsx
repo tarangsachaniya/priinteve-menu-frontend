@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   // Ordering · VentaDot" spends the 60 characters a search result shows on
   // the platform rather than on the restaurant.
   title: "VentaDot — Smart ordering for modern restaurants",
-  description: "Scan. Order. Pay. Grow. Table-side QR ordering, a live kitchen board, and GST-ready invoices — set up in a day.",
+  description: "Scan. Order. Pay. Grow. Table-side QR ordering, a live kitchen board, and GST-ready invoices. Set up in a day.",
   applicationName: "VentaDot",
   /**
    * Not decoration: iOS and iPadOS deliver Web Push only to a site the user has

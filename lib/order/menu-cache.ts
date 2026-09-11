@@ -139,11 +139,13 @@ export function restaurantTitle(restaurant: PublicRestaurant): string {
  * for every restaurant on the platform is a wasted 160 characters.
  */
 export function restaurantDescription(restaurant: PublicRestaurant): string {
-  const title = restaurantTitle(restaurant);
+  // Comma-joined rather than restaurantTitle()'s own em-dash — that dash is
+  // fine in a page <title>, but reads oddly stitched into a sentence here.
+  const label = restaurant.branch ? `${restaurant.name}, ${restaurant.branch}` : restaurant.name;
   const own = restaurant.description?.trim() || restaurant.tagline?.trim();
   if (own) return own.length > 300 ? `${own.slice(0, 297)}…` : own;
 
   const cuisines = restaurant.cuisineTags.length > 0 ? `${restaurant.cuisineTags.join(", ")} · ` : "";
   const where = restaurant.address?.trim() ? ` in ${restaurant.address.trim()}` : "";
-  return `${cuisines}View the full menu and order online from ${title}${where}. Scan, browse and order from your table.`;
+  return `${cuisines}View the full menu and order online from ${label}${where}. Scan, browse and order from your table.`;
 }

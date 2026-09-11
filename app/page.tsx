@@ -17,7 +17,7 @@ export const revalidate = false;
 
 export const metadata: Metadata = {
   title: "VentaDot — Smart ordering for modern restaurants",
-  description: "Scan. Order. Pay. Grow. Table-side QR ordering, a live kitchen board, and GST-ready invoices — set up in a day.",
+  description: "Scan. Order. Pay. Grow. Table-side QR ordering, a live kitchen board, and GST-ready invoices. Set up in a day.",
 };
 
 export default function MarketingHomePage() {

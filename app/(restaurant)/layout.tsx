@@ -24,6 +24,7 @@ export default async function RestaurantLayout({ children }: { children: React.R
     <div className="flex min-h-screen flex-col bg-muted md:flex-row">
       <RestaurantSidebar
         restaurantName={data.restaurant.name}
+        logoUrl={data.restaurant.logoUrl}
         email={data.session.email}
         kitchenEnabled={data.restaurant.kitchenEnabled}
         pickupEnabled={data.restaurant.pickupEnabled}

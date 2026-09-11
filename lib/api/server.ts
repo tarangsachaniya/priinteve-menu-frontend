@@ -31,6 +31,7 @@ export type RestaurantSession = {
 export type RestaurantInfo = {
   name: string;
   branch: string | null;
+  logoUrl: string | null;
   slug: string;
   isActive: boolean;
   takeAwayEnabled: boolean;

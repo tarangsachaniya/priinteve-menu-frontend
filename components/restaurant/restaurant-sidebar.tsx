@@ -146,11 +146,16 @@ function ProfileFooter({ email }: { email: string }) {
   );
 }
 
-function Logo({ name }: { name: string }) {
+function Logo({ name, logoUrl }: { name: string; logoUrl: string | null }) {
   return (
     <div className="mb-2 flex items-center gap-2 px-2">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-ink">
-        <UtensilsCrossed className="size-4" strokeWidth={2.5} />
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- a restaurant's own uploaded logo, not a static/optimizable asset
+          <img src={logoUrl} alt="" className="size-8 rounded-full object-cover" />
+        ) : (
+          <UtensilsCrossed className="size-4" strokeWidth={2.5} />
+        )}
       </span>
       <span className="truncate text-lg font-bold tracking-tight">{name}</span>
     </div>
@@ -159,11 +164,13 @@ function Logo({ name }: { name: string }) {
 
 export function RestaurantSidebar({
   restaurantName,
+  logoUrl,
   email,
   kitchenEnabled,
   pickupEnabled,
 }: {
   restaurantName: string;
+  logoUrl: string | null;
   email: string;
   kitchenEnabled: boolean;
   pickupEnabled: boolean;
@@ -174,7 +181,7 @@ export function RestaurantSidebar({
   return (
     <>
       <nav className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-1 border-r border-border bg-card p-4 md:flex">
-        <Logo name={restaurantName} />
+        <Logo name={restaurantName} logoUrl={logoUrl} />
         <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
           <NavLinks pathname={pathname} kitchenEnabled={kitchenEnabled} pickupEnabled={pickupEnabled} />
         </div>
@@ -184,7 +191,12 @@ export function RestaurantSidebar({
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background/90 p-3 backdrop-blur-md md:hidden">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-ink">
-            <UtensilsCrossed className="size-3.5" strokeWidth={2.5} />
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- a restaurant's own uploaded logo, not a static/optimizable asset
+              <img src={logoUrl} alt="" className="size-7 rounded-full object-cover" />
+            ) : (
+              <UtensilsCrossed className="size-3.5" strokeWidth={2.5} />
+            )}
           </span>
           <span className="truncate text-base font-bold tracking-tight">{restaurantName}</span>
         </div>

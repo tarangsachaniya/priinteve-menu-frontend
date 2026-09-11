@@ -176,45 +176,56 @@ export function WhatsappUsageView({
             <p className="py-6 text-center text-sm text-muted-foreground">No messages for {monthLabel(month)}.</p>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order</TableHead>
-                    <TableHead>Recipient</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Charge</TableHead>
-                    <TableHead>Sent</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{row.order ? `#${row.order.orderNumber}` : "—"}</TableCell>
-                      <TableCell>{row.recipientName ?? row.recipientMobile}</TableCell>
-                      <TableCell>
-                        <Badge variant={row.status === "SENT" ? "default" : "destructive"}>{row.status}</Badge>
-                      </TableCell>
-                      <TableCell>{row.unitPrice !== null ? formatCurrency(Number(row.unitPrice)) : "—"}</TableCell>
-                      <TableCell>{formatDateTime(row.createdAt)}</TableCell>
-                      <TableCell>
-                        {row.status === "FAILED" && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={retrying === row.id}
-                            onClick={() => void retry(row.id)}
-                          >
-                            <RotateCw className="size-3.5" />
-                            {retrying === row.id ? "Retrying…" : "Retry"}
-                          </Button>
-                        )}
-                      </TableCell>
+              {/* Overrides just this table's overflow-x-auto (from the
+                  shared Table primitive's data-slot="table-container" wrapper)
+                  rather than editing that shared component, which every other
+                  table in the app also uses — this table's columns are narrow
+                  enough that the scrollbar was an unnecessary affordance, not
+                  a sign the content actually needs to scroll. */}
+              <div className="[&>[data-slot=table-container]]:overflow-x-visible">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Recipient</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Charge</TableHead>
+                      <TableHead>Sent</TableHead>
+                      <TableHead />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>{row.order ? `#${row.order.orderNumber}` : "—"}</TableCell>
+                        <TableCell>{row.recipientName ?? row.recipientMobile}</TableCell>
+                        <TableCell>
+                          <Badge variant={row.status === "SENT" ? "default" : "destructive"}>{row.status}</Badge>
+                          {row.status === "FAILED" && row.failureReason && (
+                            <p className="mt-1 text-xs text-muted-foreground">{row.failureReason}</p>
+                          )}
+                        </TableCell>
+                        <TableCell>{row.unitPrice !== null ? formatCurrency(Number(row.unitPrice)) : "—"}</TableCell>
+                        <TableCell>{formatDateTime(row.createdAt)}</TableCell>
+                        <TableCell>
+                          {row.status === "FAILED" && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={retrying === row.id}
+                              onClick={() => void retry(row.id)}
+                            >
+                              <RotateCw className="size-3.5" />
+                              {retrying === row.id ? "Retrying…" : "Retry"}
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
                   {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}

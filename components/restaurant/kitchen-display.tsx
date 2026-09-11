@@ -173,6 +173,16 @@ export function KitchenDisplay({
   const claimed = useRef<Set<string>>(new Set());
 
   /**
+   * The ticket(s) the current ring is actually about. Every poll checks
+   * whether any of them are still in `inKitchen` — once none are (READY,
+   * cancelled, or advanced on a DIFFERENT board/device — advance() below
+   * already stops it for this one), the thing the ring exists to announce
+   * has already been noticed, so it's cut short instead of running the
+   * full ringSeconds window regardless.
+   */
+  const ringingFor = useRef<Set<string>>(new Set());
+
+  /**
    * The refetch currently in flight, if any. See `refresh` below.
    */
   const inFlight = useRef<Promise<void> | null>(null);
@@ -204,9 +214,9 @@ export function KitchenDisplay({
       ringSeconds.current = data.kitchenOrderRingSeconds ?? DEFAULT_RING_SECONDS;
 
       const cooking = data.orders.filter((o) => KITCHEN_STATUSES.includes(o.status));
-      const arrived = cooking.some(
-        (o) => !inKitchen.current.has(o.id) && !claimed.current.has(o.id),
-      );
+      const arrivedIds = cooking
+        .filter((o) => !inKitchen.current.has(o.id) && !claimed.current.has(o.id))
+        .map((o) => o.id);
       // Reassigned wholesale rather than merged: an id the response no longer
       // carries has left the pass for good, and keeping it would grow this set
       // for the whole of a shift on a screen that never reloads.
@@ -227,7 +237,13 @@ export function KitchenDisplay({
       // second, which a cook facing a stove with their hands full simply does
       // not hear — and unlike the till, nothing else on this screen will tell
       // them again. Ends early the moment anyone touches a ticket; see advance().
-      if (arrived) arrivalSound.current?.playFor(ringSeconds.current * 1000);
+      if (arrivedIds.length > 0) {
+        ringingFor.current = new Set(arrivedIds);
+        arrivalSound.current?.playFor(ringSeconds.current * 1000);
+      } else if (ringingFor.current.size > 0 && !Array.from(ringingFor.current).some((id) => inKitchen.current.has(id))) {
+        ringingFor.current = new Set();
+        arrivalSound.current?.stopAll();
+      }
 
       knownIds.current = new Set(data.orders.map((order) => order.id));
       setOrders(data.orders);
@@ -375,6 +391,7 @@ export function KitchenDisplay({
      * Deliberately not wired to subscribeOrderAck — that fires for another tab
      * in the same browser, which is no evidence anyone in the kitchen looked up.
      */
+    ringingFor.current = new Set();
     arrivalSound.current?.stopAll();
 
     setBusyId(order.id);
@@ -406,6 +423,7 @@ export function KitchenDisplay({
 
     // Same rule as advance(): a cook who has opened a dialog and confirmed a
     // cancellation is unambiguously at the board.
+    ringingFor.current = new Set();
     arrivalSound.current?.stopAll();
 
     setBusyId(order.id);
